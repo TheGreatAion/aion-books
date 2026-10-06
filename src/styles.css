@@ -2833,3 +2833,9 @@ kbd {
   margin-top: 10px;
 }
 
+
+.ghost-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
