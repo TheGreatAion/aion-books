@@ -1,0 +1,50 @@
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+
+contextBridge.exposeInMainWorld('aion', {
+  getLibrary: () => ipcRenderer.invoke('library:get'),
+  importDialog: () => ipcRenderer.invoke('library:import-dialog'),
+  importFolderDialog: () => ipcRenderer.invoke('library:import-folder-dialog'),
+  importFiles: (files) =>
+    ipcRenderer.invoke('library:import-paths', Array.from(files).map((f) => webUtils.getPathForFile(f)).filter(Boolean)),
+
+  updateBook: (id, patch) => ipcRenderer.invoke('book:update', id, patch),
+  removeBook: (id) => ipcRenderer.invoke('book:remove', id),
+  bookData: (id) => ipcRenderer.invoke('book:data', id),
+  showSource: (id) => ipcRenderer.invoke('book:show-source', id),
+  getLocations: (id) => ipcRenderer.invoke('book:locations-get', id),
+  saveLocations: (id, json) => ipcRenderer.invoke('book:locations-save', id, json),
+
+  createShelf: (name) => ipcRenderer.invoke('shelf:create', name),
+  renameShelf: (id, name) => ipcRenderer.invoke('shelf:rename', id, name),
+  deleteShelf: (id) => ipcRenderer.invoke('shelf:delete', id),
+
+  setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+  resetSettings: (scope) => ipcRenderer.invoke('settings:reset', scope),
+  appInfo: () => ipcRenderer.invoke('app:info'),
+  openDataFolder: () => ipcRenderer.invoke('app:open-data'),
+  exportNotes: () => ipcRenderer.invoke('notes:export'),
+  fontCss: () => ipcRenderer.invoke('fonts:css'),
+  customFontCss: () => ipcRenderer.invoke('fonts:custom-css'),
+  addFonts: () => ipcRenderer.invoke('fonts:add-dialog'),
+  removeFont: (family) => ipcRenderer.invoke('fonts:remove', family),
+  setOrder: (key, ids) => ipcRenderer.invoke('library:set-order', key, ids),
+  logReading: (id, ms, pages, locs) => ipcRenderer.invoke('stats:log', id, ms, pages, locs),
+  setCover: (id) => ipcRenderer.invoke('book:set-cover', id),
+  chooseWatchFolder: () => ipcRenderer.invoke('watch:choose'),
+  clearWatchFolder: () => ipcRenderer.invoke('watch:clear'),
+  backup: () => ipcRenderer.invoke('backup:create'),
+  restore: () => ipcRenderer.invoke('backup:restore'),
+  pickLocation: () => ipcRenderer.invoke('location:pick'),
+  setLocation: (folder, mode) => ipcRenderer.invoke('location:set', folder, mode),
+  resetLocation: () => ipcRenderer.invoke('location:reset'),
+  define: (word) => ipcRenderer.invoke('lookup:define', word),
+  lookupWeb: (word) => ipcRenderer.invoke('lookup:web', word),
+  onLibraryChanged: (fn) => ipcRenderer.on('library:changed', (_e, snap) => fn(snap)),
+  onAutoImport: (fn) => ipcRenderer.on('import:auto', (_e, info) => fn(info)),
+  getStats: () => ipcRenderer.invoke('stats:get'),
+  toggleFullscreen: () => ipcRenderer.invoke('window:fullscreen'),
+
+  onImportProgress: (fn) => ipcRenderer.on('import:progress', (_e, p) => fn(p)),
+  onOpenBook: (fn) => ipcRenderer.on('library:open-book', (_e, id) => fn(id)),
+  ready: () => ipcRenderer.send('app:ready'),
+});

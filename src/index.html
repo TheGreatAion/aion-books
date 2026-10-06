@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en" data-theme="linen">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self' file: blob: data:; script-src 'self' file:; style-src 'self' file: blob: data: 'unsafe-inline'; img-src 'self' file: data: blob:; font-src 'self' file: data: blob:; frame-src 'self' file: blob: about:; media-src blob: data:;"
+  />
+  <title>Aion Books</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="paper-grain" aria-hidden="true"></div>
+
+  <!-- ============ LIBRARY ============ -->
+  <section id="library" class="view is-active">
+    <aside class="sidebar">
+      <div class="brand drag">
+        <span class="brand-name">Aion</span><span class="brand-sub">books</span>
+      </div>
+
+      <nav class="nav" id="nav"></nav>
+
+      <div class="shelves-head">
+        <span>Shelves</span>
+        <button class="icon-btn small" id="addShelf" title="New shelf"></button>
+      </div>
+      <nav class="nav shelves" id="shelfNav"></nav>
+
+      <div class="goal-row" id="goalRow" hidden></div>
+      <div class="sidebar-foot">
+        <button class="ghost-btn" id="openSettings"></button>
+        <button class="ghost-btn" id="addBooks"></button>
+        <button class="ghost-btn" id="addFolder"></button>
+      </div>
+    </aside>
+    <div class="wall-climber-wrap" id="wallClimber"></div>
+
+    <main class="lib-main" id="libMain">
+      <div class="lib-top drag">
+        <label class="search no-drag">
+          <span id="searchIcon"></span>
+          <input id="search" type="search" placeholder="Search titles &amp; authors" spellcheck="false" />
+        </label>
+        <label class="sort no-drag">
+          <span class="sort-label">Sort</span>
+          <select id="sort">
+            <option value="recent">Recently read</option>
+            <option value="added">Recently added</option>
+            <option value="title">Title</option>
+            <option value="author">Author</option>
+            <option value="progress">Progress</option><option value="rating">Rating</option>
+            <option value="custom">My order</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="lib-scroll" id="libScroll">
+        <section class="hero" id="hero" hidden>
+          <div class="hero-content" id="heroContent"></div>
+          <div class="hero-art" id="heroArt"></div>
+        </section>
+
+        <header class="lib-heading">
+          <h1 id="viewTitle">All books</h1>
+          <span class="count" id="viewCount"></span>
+        </header>
+        <div class="heading-ornament" id="headingOrnament"></div>
+
+        <div class="grid" id="grid"></div>
+
+        <div class="settings" id="settingsPanel" hidden></div>
+
+        <div class="empty" id="empty" hidden>
+          <div class="empty-art" id="emptyArt"></div>
+          <h2 id="emptyTitle">Your library awaits</h2>
+          <p id="emptyText">Drop EPUB files anywhere on this page, or add them from a folder.</p>
+          <div class="empty-actions" id="emptyActions">
+            <button class="solid-btn" data-action="add-books">Add books</button>
+            <button class="ghost-btn" data-action="add-folder">Add a folder</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ============ READER ============ -->
+  <section id="reader" class="view">
+    <header class="reader-bar drag">
+      <div class="bar-left no-drag">
+        <button class="icon-btn" id="rBack" title="Back to library (Esc)"></button>
+        <button class="icon-btn" id="rToc" title="Contents &amp; notes (T)"></button>
+      </div>
+      <div class="bar-title">
+        <div class="r-title" id="rTitle"></div>
+        <div class="r-author" id="rAuthor"></div>
+      </div>
+      <div class="bar-right no-drag">
+        <button class="icon-btn" id="rSearch" title="Search this book (Ctrl F)"></button>
+        <button class="icon-btn" id="rListen" title="Read aloud (R)"></button>
+        <button class="icon-btn" id="rBookmark" title="Bookmark this page (B)"></button>
+        <button class="icon-btn" id="rType" title="Reading settings"></button>
+        <button class="icon-btn" id="rFull" title="Full screen (F11)"></button>
+      </div>
+    </header>
+
+    <div class="stage" id="stage">
+      <div class="reader-vine-wrap br" id="vineBR"></div>
+      <button class="turn prev" id="rPrev" aria-label="Previous page"></button>
+      <div class="viewer-wrap">
+        <div id="viewer"></div>
+        <div class="gutter" aria-hidden="true"></div>
+      </div>
+      <button class="turn next" id="rNext" aria-label="Next page"></button>
+      <div class="r-loading" id="rLoading"><div class="loading-bloom" id="loadingBloom"></div><span>Opening…</span></div>
+    </div>
+
+    <footer class="reader-foot">
+      <span class="r-chapter" id="rChapter"></span>
+      <input type="range" id="rProgress" min="0" max="1000" value="0" aria-label="Position in book" />
+      <span class="r-percent" id="rPercent"></span>
+    </footer>
+
+    <aside class="drawer" id="drawer">
+      <div class="drawer-tabs">
+        <button class="tab is-active" data-tab="toc">Contents</button>
+        <button class="tab" data-tab="marks">Notes &amp; marks</button>
+        <button class="tab" data-tab="search">Search</button>
+      </div>
+      <div class="drawer-body">
+        <ol class="toc-list" id="tocList"></ol>
+        <div class="marks-list" id="marksList" hidden></div>
+        <div class="search-panel" id="searchPanel" hidden>
+          <label class="search book-search"><span id="bookSearchIcon"></span><input id="bookSearch" type="search" placeholder="Find in this book" spellcheck="false" /></label>
+          <div class="search-status" id="searchStatus"></div>
+          <ol class="search-results" id="searchResults"></ol>
+        </div>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="popover" id="typePop" hidden>
+      <div class="pop-row">
+        <span class="pop-label">Size</span>
+        <div class="stepper">
+          <button id="fontDown" aria-label="Smaller text">A</button>
+          <span id="fontSizeVal">100%</span>
+          <button id="fontUp" aria-label="Larger text">A</button>
+        </div>
+      </div>
+      <div class="pop-row col">
+        <span class="pop-label">Typeface</span>
+        <div class="chips" id="fontChips"></div>
+      </div>
+      <div class="pop-row col">
+        <span class="pop-label">Line spacing</span>
+        <div class="chips" id="lhChips"></div>
+      </div>
+      <div class="pop-row col">
+        <span class="pop-label">Margins</span>
+        <div class="chips" id="marginChips"></div>
+      </div>
+      <div class="pop-row col">
+        <span class="pop-label">Layout</span>
+        <div class="chips" id="layoutChips"></div>
+      </div>
+      <div class="pop-row col">
+        <span class="pop-label">Paper</span>
+        <div class="swatches" id="themeSwatches"></div>
+      </div>
+      <button class="pop-more" id="moreSettings">All settings…</button>
+    </div>
+
+    <div class="tts-bar" id="ttsBar" hidden>
+      <button class="icon-btn" id="ttsPlay" title="Pause (R)"></button>
+      <div class="tts-rate"><button id="ttsSlower" aria-label="Slower">−</button><span id="ttsRateVal">1×</span><button id="ttsFaster" aria-label="Faster">+</button></div>
+      <button class="icon-btn" id="ttsStop" title="Stop reading aloud"></button>
+    </div>
+    <div class="note-pop" id="notePop" hidden></div>
+
+    <div class="sel-bar" id="selBar" hidden>
+      <button class="hl-dot" data-color="rose" title="Rose highlight"></button>
+      <button class="hl-dot" data-color="sage" title="Sage highlight"></button>
+      <button class="hl-dot" data-color="ochre" title="Ochre highlight"></button>
+      <span class="sel-sep"></span>
+      <button class="sel-btn" data-act="define">Define</button>
+      <button class="sel-btn" data-act="note">Note</button>
+      <button class="sel-btn" data-act="copy">Copy</button>
+    </div>
+  </section>
+
+  <!-- ============ SHARED ============ -->
+  <div class="drop-zone" id="dropZone" hidden>
+    <div class="drop-card">
+      <div id="dropArt"></div>
+      <p>Let go to add these books to your library</p>
+    </div>
+  </div>
+
+  <div class="menu" id="menu" hidden></div>
+
+  <div class="modal-back" id="modalBack" hidden>
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="../node_modules/jszip/dist/jszip.min.js"></script>
+  <script src="../node_modules/epubjs/dist/epub.min.js"></script>
+  <script src="ornaments.js"></script>
+  <script src="painted.js"></script>
+  <script src="ui.js"></script>
+  <script src="reader.js"></script>
+  <script src="reader-extras.js"></script>
+  <script src="settings.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>
