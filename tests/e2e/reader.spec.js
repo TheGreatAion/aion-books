@@ -60,7 +60,6 @@ test('names the right chapter when chapters share one file', async () => {
   await page.click('#rToc');
   await page.click('.toc-item:has-text("Chapter 3")');
   await page.waitForTimeout(800);
-  await turn(1);
   const p = await probe(page);
   expect(p.chapter).toBe('Chapter 3: Windfall');
   expect(p.heads).toContain('One Long Afternoon'); // the short title, without the subtitle and brackets
@@ -93,6 +92,47 @@ test('shows footnotes in a pop-up', async () => {
   await expect(page.locator('#notePop')).toBeVisible();
   await expect(page.locator('#notePop')).toContainText('Possibly the gardener');
   await page.keyboard.press('Escape');
+});
+
+test('highlights a selection and keeps it', async () => {
+  await openBook(page, 'Along the Hedge Path');
+  const frame = await bookFrame(page, 'p');
+  await frame.evaluate(() => {
+    const p = [...document.querySelectorAll('p')].find((x) => x.textContent.includes('garden'));
+    const t = p.firstChild;
+    const r = document.createRange();
+    r.setStart(t, 4);
+    r.setEnd(t, 30);
+    getSelection().removeAllRanges();
+    getSelection().addRange(r);
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  await expect(page.locator('#selBar')).toBeVisible();
+  await page.click('.hl-dot[data-color="sage"]');
+  const saved = () => page.evaluate(() => window.Reader.record.highlights || []);
+  await expect.poll(async () => (await saved()).length).toBe(1);
+  expect((await saved())[0]).toMatchObject({ color: 'sage' });
+  await page.click('#rToc');
+  await page.click('.tab[data-tab="marks"]');
+  await expect(page.locator('.mark[data-kind="hl"]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+});
+
+test('bookmarks a page and finds it again', async () => {
+  await openBook(page, 'Along the Hedge Path');
+  await turn(2);
+  await page.keyboard.press('b');
+  await expect(page.locator('#rBookmark')).toHaveClass(/is-on/);
+  const here = (await probe(page)).position;
+  await turn(3);
+  await expect(page.locator('#rBookmark')).not.toHaveClass(/is-on/);
+  await page.click('#rToc');
+  await page.click('.tab[data-tab="marks"]');
+  await page.click('.mark[data-kind="bm"]');
+  await page.waitForTimeout(600);
+  await expect(page.locator('#rBookmark')).toHaveClass(/is-on/);
+  expect(Math.abs((await probe(page)).fraction - (await page.evaluate(() => window.Reader.record.bookmarks[0].progress)))).toBeLessThan(0.02);
+  expect(here).toBeTruthy();
 });
 
 test('switching layouts keeps your place', async () => {

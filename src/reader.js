@@ -1,4 +1,6 @@
-// The reading room: epub.js rendition, contents, bookmarks, highlights, settings.
+// The reading room. Books are rendered by foliate-js (src/vendor/foliate-js):
+// a <foliate-view> lays the book out in columns and reports where we are;
+// this file supplies the styling, controls, bookmarks, highlights and settings.
 (function () {
   const { $, $$, esc, State, updateBook, setSettings, toast, openMenu, promptText, pct } = window.UI;
   const { icon } = window.Ornaments;
@@ -30,10 +32,9 @@
     sage: { light: 'rgb(140,168,108)', dark: 'rgb(140,165,110)', opacity: { light: 0.4, dark: 0.33 } },
     ochre: { light: 'rgb(226,178,84)', dark: 'rgb(214,170,80)', opacity: { light: 0.42, dark: 0.33 } },
   };
-  const MEASURE = {
-    single: { narrow: 920, comfortable: 740, wide: 600 },
-    spread: { narrow: 1560, comfortable: 1280, wide: 1080 },
-  };
+  // Widest a column of text may be, per margin setting. Two-page mode appears
+  // automatically when the window fits two such columns.
+  const COLUMN = { narrow: 760, comfortable: 640, wide: 540 };
 
   let fontCss = '';
   window.aion.fontCss().then((css) => {
@@ -43,16 +44,50 @@
     document.head.appendChild(s);
   });
 
+  // Books converted from Kindle format sometimes still wrap their fonts in
+  // Amazon's "FONT" container (a header, an XOR-scrambled first kilobyte and
+  // zlib compression), which no EPUB reader can use. Unwrap them as they load.
+  async function unwrapKindleFont(data) {
+    const buf = data instanceof Blob ? await data.arrayBuffer() : data instanceof ArrayBuffer ? data : null;
+    if (!buf || buf.byteLength < 24 || new TextDecoder().decode(buf.slice(0, 4)) !== 'FONT') return data;
+    const v = new DataView(buf);
+    const flags = v.getUint32(8);
+    const dataStart = v.getUint32(12);
+    const keyLength = v.getUint32(16);
+    const keyStart = v.getUint32(20);
+    let bytes = new Uint8Array(buf.slice(dataStart));
+    if (flags & 0b10 && keyLength) {
+      const key = new Uint8Array(buf.slice(keyStart, keyStart + keyLength));
+      const n = Math.min(keyLength === 16 ? 1024 : 1040, bytes.length);
+      for (let i = 0; i < n; i++) bytes[i] ^= key[i % keyLength];
+    }
+    if (flags & 0b1) {
+      // The compressed data is followed by padding, which the browser's own
+      // decompressor rejects; fflate (as foliate uses for Kindle books) doesn't mind.
+      const { unzlibSync } = await import('./vendor/foliate-js/vendor/fflate.js');
+      bytes = unzlibSync(bytes);
+    }
+    return bytes;
+  }
+
+  // foliate-js is a set of ES modules; load them once, on first use.
+  const engine = {};
+  const loadEngine = () =>
+    (engine.ready ||= Promise.all([
+      import('./vendor/foliate-js/view.js'),
+      import('./vendor/foliate-js/epubcfi.js'),
+      import('./vendor/foliate-js/overlayer.js'),
+    ]).then(([, CFI, { Overlayer }]) => Object.assign(engine, { CFI, Overlayer })));
+
   const Reader = {
     id: null,
-    book: null,
-    rendition: null,
-    loc: null,
+    view: null, // <foliate-view>
+    book: null, // the parsed book (view.book)
+    loc: null, // last 'relocate' detail
     toc: [],
     flatToc: [],
     chapter: '',
     progress: 0,
-    locationsReady: false,
     pendingSel: null,
     saveTimer: null,
     idleTimer: null,
@@ -63,30 +98,36 @@
     get record() {
       return State.book(this.id);
     },
+    get renderer() {
+      return this.view?.renderer;
+    },
+    // The documents currently laid out: [{ doc, index, overlayer }]
+    contents() {
+      return this.renderer?.getContents?.() || [];
+    },
 
     // What's on screen, independent of the rendering engine. Used by the app tests.
     probe() {
-      const loc = this.loc;
       let textPx = null;
-      for (const c of this.rendition?.getContents?.() || []) {
-        const p = [...c.document.querySelectorAll('p')].find((x) => x.textContent.trim().length > 40);
+      for (const { doc } of this.contents()) {
+        const p = [...doc.querySelectorAll('p')].find((x) => x.textContent.trim().length > 40);
         if (p) {
-          textPx = parseFloat(c.window.getComputedStyle(p).fontSize);
+          textPx = parseFloat(doc.defaultView.getComputedStyle(p).fontSize);
           break;
         }
       }
-      const text = (id) => document.getElementById(id)?.textContent || '';
+      const texts = (els) => (els || []).map((e) => e.textContent);
       return {
-        open: !!this.book && $('#rLoading').classList.contains('gone'),
+        open: !!this.view && !!this.loc && $('#rLoading').classList.contains('gone'),
         bookId: this.id,
-        position: this.anchorCfi || loc?.start?.cfi || null,
+        position: this.startCfi(),
         fraction: this.progress,
-        measured: this.locationsReady,
+        measured: !!this.loc,
         chapter: this.chapter,
         textPx,
-        heads: [text('rhLeft'), text('rhRight')],
-        folios: [text('folioLeft'), text('folioRight')],
-        footer: text('rPercent'),
+        heads: texts(this.renderer?.heads),
+        folios: texts(this.renderer?.feet),
+        footer: $('#rPercent').textContent,
       };
     },
 
@@ -94,10 +135,10 @@
     async open(id) {
       const rec = State.book(id);
       if (!rec) return;
-      if (this.book) await this.close({ silent: true });
+      if (this.view) await this.close({ silent: true });
       const token = ++this.openToken;
       this.id = id;
-      this.locationsReady = false;
+      this.loc = null;
       this.progress = rec.progress || 0;
 
       $('#library').classList.remove('is-active');
@@ -108,32 +149,47 @@
       $('#rChapter').textContent = '';
       $('#rPercent').textContent = '';
       this.setSlider(this.progress);
-      $('#rProgress').disabled = true;
       this.closePanels();
       document.title = `${rec.title} — Aion Books`;
       $('#vineBR').innerHTML = '';
 
       try {
+        await loadEngine();
         const data = await window.aion.bookData(id);
         if (token !== this.openToken) return;
-        const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-        this.book = window.ePub(buf);
-        await this.book.ready;
-        const nav = await this.book.loaded.navigation;
-        this.toc = nav.toc || [];
+        const file = new File([data], `${id}.epub`, { type: 'application/epub+zip' });
+
+        const view = document.createElement('foliate-view');
+        view.id = 'book-view';
+        $('#viewer').replaceChildren(view);
+        this.view = view;
+        this.wireView(view);
+        await view.open(file);
+        if (token !== this.openToken) return;
+        this.book = view.book;
+        this.book.transformTarget?.addEventListener('data', ({ detail }) => {
+          if (/font|\.(ttf|otf|woff2?)$/i.test(`${detail.type} ${detail.name}`)) {
+            const original = Promise.resolve(detail.data);
+            detail.data = original.then(unwrapKindleFont).catch((e) => {
+              console.warn(`Couldn't unwrap font ${detail.name}:`, e);
+              return original;
+            });
+          }
+        });
+        this.toc = this.book.toc || [];
         this.flatToc = [];
         this.flatten(this.toc, 0);
         this.renderToc();
 
-        await this.buildRendition(rec.location);
+        this.applyLayout();
+        this.applyStyles();
+        await view.init({ lastLocation: rec.location || undefined, showTextStart: !rec.location });
         if (token !== this.openToken) return;
         $('#rLoading').classList.add('gone');
-        // Fresh vines each time, so they grow in around the page.
         $('#vineBR').innerHTML = readerSprig();
         updateBook(id, { lastOpenedAt: Date.now() }, { quiet: true });
         this.trackStart();
         this.afterOpen();
-        this.prepareLocations(token);
         this.renderMarks();
         this.poke();
       } catch (err) {
@@ -150,12 +206,11 @@
       this.flushSave();
       this.closePanels();
       this.hideSel();
-      this.destroyRendition();
       try {
-        this.book?.destroy();
+        this.view?.close();
       } catch (_) {}
-      this.anchorCfi = null;
-      this.rendition = null;
+      this.view?.remove();
+      this.view = null;
       this.book = null;
       this.loc = null;
       $('#viewer').innerHTML = '';
@@ -169,127 +224,62 @@
 
     flatten(items, depth) {
       for (const item of items) {
-        const sec = this.sectionFor(item.href);
-        const frag = (item.href || '').split('#')[1] || '';
-        // cfi is filled in when the chapter's file is laid out (see markTocAnchors).
-        this.flatToc.push({ id: item.id, label: (item.label || '').trim(), href: item.href, depth, index: sec ? sec.index : -1, frag, cfi: null });
+        this.flatToc.push({ id: String(this.flatToc.length), label: (item.label || '').trim(), href: item.href, depth });
+        item.aionId = this.flatToc[this.flatToc.length - 1].id;
         if (item.subitems?.length) this.flatten(item.subitems, depth + 1);
       }
     },
 
-    // Many books keep several chapters in one file, marked by anchors. Record where
-    // each chapter heading sits so we can tell which chapter a page belongs to.
-    markTocAnchors(contents) {
-      for (const item of this.flatToc) {
-        if (item.index !== contents.sectionIndex || !item.frag || item.cfi) continue;
-        let el = null;
-        try {
-          el = contents.document.getElementById(decodeURIComponent(item.frag));
-        } catch (_) {}
-        if (!el) continue;
-        try {
-          item.cfi = contents.cfiFromNode(el);
-        } catch (_) {}
-      }
-    },
-
-    // The chapter (table-of-contents entry) a position belongs to.
-    chapterAt(index, cfi) {
-      let current = null;
-      for (const item of this.flatToc) {
-        if (item.index === -1 || item.index > index) continue;
-        if (item.index === index && item.frag) {
-          // An anchored chapter counts once we've reached its heading.
-          if (!item.cfi || !cfi || this.cfiCmp(item.cfi, cfi) > 0) continue;
-        }
-        if (!current || item.index >= current.index) current = item;
-      }
-      return current;
-    },
-
-    // Where the chapter after the given position begins, as a location number.
-    nextChapterLoc(index, cfi) {
-      if (!this.locationsReady) return null;
-      const L = this.book.locations;
-      let best = null;
-      for (const item of this.flatToc) {
-        let at = null;
-        if (item.index > index) at = this.locIndex?.get(item.index)?.start ?? null;
-        else if (item.index === index && item.cfi && cfi && this.cfiCmp(item.cfi, cfi) > 0) at = L.locationFromCfi(item.cfi);
-        if (typeof at === 'number' && at >= 0 && (best == null || at < best)) best = at;
-      }
-      return best;
-    },
-
-    sectionFor(href) {
-      if (!href || !this.book) return null;
-      const bare = href.split('#')[0];
-      let sec = this.book.spine.get(bare);
-      if (!sec) {
-        const name = decodeURIComponent(bare.split('/').pop());
-        sec = this.book.spine.spineItems.find((s) => decodeURIComponent(s.href).endsWith(name));
-      }
-      return sec || null;
-    },
-
-    // ---------- rendition ----------
-    async buildRendition(target) {
-      const s = State.settings;
-      const scroll = s.layout === 'scroll';
-      this.applyMeasure();
-      $('#viewer').innerHTML = '';
-
-      const r = this.book.renderTo('viewer', {
-        width: '100%',
-        height: '100%',
-        flow: scroll ? 'scrolled' : 'paginated',
-        manager: scroll ? 'continuous' : 'default',
-        spread: this.spread ? 'auto' : 'none',
-        minSpreadWidth: 700,
-        allowScriptedContent: false,
+    // Event wiring for one <foliate-view>.
+    wireView(view) {
+      view.addEventListener('relocate', (e) => this.onRelocated(e.detail));
+      view.addEventListener('load', (e) => this.onDocLoad(e.detail));
+      // Highlights: draw them when their chapter is laid out, and handle clicks on them.
+      view.addEventListener('create-overlay', (e) => this.drawHighlightsFor(e.detail.index));
+      view.addEventListener('draw-annotation', (e) => {
+        const { draw, annotation } = e.detail;
+        const h = (this.record?.highlights || []).find((x) => x.cfi === annotation.value);
+        const s = this.hlStyle(h?.color);
+        draw(engine.Overlayer.highlight, { color: s.fill, opacity: s.opacity });
       });
-      this.rendition = r;
-
-      r.hooks.content.register((contents) => this.onContents(contents));
-      r.on('relocated', (loc) => this.onRelocated(loc));
-      r.on('selected', (cfiRange, contents) => this.onSelected(cfiRange, contents));
-      r.on('rendered', () => this.hideSel());
-
-      try {
-        await r.display(target || undefined);
-      } catch (_) {
-        await r.display();
-      }
-      this.applyHighlights();
+      view.addEventListener('show-annotation', (e) => {
+        const r = this.rectOf(e.detail.range);
+        this.onHighlightClick(e.detail.value, r ? { clientX: r.left + r.width / 2, clientY: r.bottom } : null);
+      });
+      // Footnotes open in a pop-up instead of jumping away.
+      view.addEventListener('link', (e) => {
+        if (this.isNoteRef(e.detail.a)) {
+          e.preventDefault();
+          this.showNote(e.detail.a, e.detail.href);
+        }
+      });
     },
 
-    onContents(contents) {
-      const doc = contents.document;
+    // Every chapter document, as it's laid out.
+    onDocLoad({ doc, index }) {
       // Text size is applied at the root, so it reaches rem-, em- and %-based
       // sizes alike. Remember the book's own root size to scale from it.
-      const base = parseFloat(contents.window.getComputedStyle(doc.documentElement).fontSize) || 16;
+      const base = parseFloat(doc.defaultView.getComputedStyle(doc.documentElement).fontSize) || 16;
       doc.documentElement.dataset.aionBase = base;
       this.relativizeFontSizes(doc, base);
       const style = doc.createElement('style');
       style.id = 'aion-style';
       style.textContent = this.contentCss(base);
-      doc.head.appendChild(style);
-      this.markTocAnchors(contents);
+      doc.head?.appendChild(style);
 
       doc.addEventListener('keydown', (e) => this.onKey(e));
       doc.addEventListener('mousemove', () => this.poke());
       doc.addEventListener('wheel', (e) => this.onWheel(e), { passive: true });
-      doc.addEventListener('mousedown', () => this.hideSel());
-      doc.addEventListener('click', () => this.closePanels());
-      // External links open in the browser.
-      doc.addEventListener('click', (e) => {
-        const a = e.target.closest?.('a[href]');
-        if (a && /^https?:/i.test(a.getAttribute('href'))) {
-          e.preventDefault();
-          window.open(a.href);
-        }
+      doc.addEventListener('mousedown', () => {
+        this.hideSel();
+        this.hideNote();
       });
-      this.extendContents(contents);
+      doc.addEventListener('click', (e) => {
+        if (!e.target.closest?.('a[href]')) this.closePanels();
+      });
+      // Selections: show the highlight / define / copy bar once the mouse is released.
+      doc.addEventListener('mouseup', () => setTimeout(() => this.onSelected(doc, index), 10));
+      this.extendDoc(doc, index);
     },
 
     // Some books fix text sizes in px, pt or keywords like "small", which a root
@@ -348,118 +338,55 @@
       `;
     },
 
-    refreshStyles() {
-      if (!this.rendition) return;
-      for (const c of this.rendition.getContents()) {
-        const el = c.document.getElementById('aion-style');
-        const base = Number(c.document.documentElement.dataset.aionBase) || 16;
+    // Re-style the laid-out chapter after a text, font or paper change.
+    applyStyles() {
+      for (const { doc } of this.contents()) {
+        const el = doc.getElementById('aion-style');
+        const base = Number(doc.documentElement.dataset.aionBase) || 16;
         if (el) el.textContent = this.contentCss(base);
       }
-      const cfi = this.anchorCfi || this.loc?.start?.cfi;
-      requestAnimationFrame(() => {
-        if (!this.rendition) return;
-        this.relayouting = true;
-        try {
-          this.rendition.resize();
-        } catch (_) {}
-        if (cfi) this.displayAnchored(cfi);
-        else this.relayouting = false;
-      });
     },
 
-    // Re-show the reading anchor after a relayout, and make sure it's actually on
-    // screen (epub.js can land a page early when columns shift).
-    async displayAnchored(cfi) {
-      if (!this.rendition || !cfi) return;
-      this.relayouting = true;
-      try {
-        await this.rendition.display(cfi);
-        for (let i = 0; i < 3; i++) {
-          await new Promise((r) => setTimeout(r, 80));
-          const end = this.loc?.end?.cfi;
-          if (!end || this.cfiCmp(end, cfi) >= 0 || this.loc.atEnd) break;
-          await this.rendition.next();
-        }
-      } finally {
-        setTimeout(() => (this.relayouting = false), 120);
-      }
-    },
-
-    // Tear a rendition down without its in-flight hooks firing afterwards.
-    destroyRendition() {
-      const r = this.rendition;
-      if (!r) return;
-      try {
-        for (const h of Object.values(r.hooks || {})) if (Array.isArray(h?.hooks)) h.hooks.length = 0;
-      } catch (_) {}
-      try {
-        r.destroy();
-      } catch (_) {}
-    },
-
-    applyMeasure() {
+    // Columns, margins and flow live on the paginator as attributes. Changing
+    // them re-lays out the book around the current spot — no reload, no drift.
+    applyLayout() {
       const s = State.settings;
-      const stage = $('#stage');
-      const wide = stage.clientWidth || innerWidth;
-      this.spread = s.layout === 'auto' && wide >= 1100;
-      const m = (this.spread ? MEASURE.spread : MEASURE.single)[s.margin] || 740;
-      // epub.js paginates by whole pixels; an even integer width keeps columns from drifting.
-      const w = Math.floor(Math.min(wide - 150, m) / 2) * 2;
-      $('.viewer-wrap').style.setProperty('--measure', `${w}px`);
+      const r = this.renderer;
+      if (!r || this.view.isFixedLayout) return;
+      const scroll = s.layout === 'scroll';
+      r.setAttribute('flow', scroll ? 'scrolled' : 'paginated');
+      r.setAttribute('max-column-count', s.layout === 'auto' ? '2' : '1');
+      r.setAttribute('max-inline-size', `${COLUMN[s.margin] || COLUMN.comfortable}px`);
+      r.setAttribute('gap', '6%');
+      // Room above and below the text for the running heads and page numbers.
+      r.setAttribute('margin', s.runningHeads === false || scroll ? '28px' : '52px');
+      $('#reader').classList.toggle('scroll', scroll);
+      this.updateSpread();
+    },
+
+    updateSpread() {
+      this.spread = (this.renderer?.heads?.length || 1) > 1;
       $('#reader').classList.toggle('spread', this.spread);
-      $('#reader').classList.toggle('scroll', s.layout === 'scroll');
-      // Must be set before epub.js measures the page: it reserves the head and foot space.
-      $('#reader').classList.toggle('has-folios', s.runningHeads !== false && s.layout !== 'scroll');
     },
 
     onResize() {
-      if (!this.rendition) return;
-      this.relayouting = true;
-      clearTimeout(this.relayoutTimer);
-      this.relayoutTimer = setTimeout(() => (this.relayouting = false), 600);
-      const was = this.spread;
-      this.applyMeasure();
-      if (was !== this.spread && State.settings.layout !== 'scroll') {
-        this.rendition.spread(this.spread ? 'auto' : 'none', 700);
-      }
-      try {
-        this.rendition.resize();
-      } catch (_) {}
+      this.updateSpread();
+      if (this.loc) this.renderRunning(this.loc);
     },
 
-    // ---------- locations / progress ----------
-    async prepareLocations(token) {
-      const cached = await window.aion.getLocations(this.id);
-      if (token !== this.openToken || !this.book) return;
-      if (cached) {
-        try {
-          this.book.locations.load(cached);
-          this.markLocationsReady();
-          return;
-        } catch (_) {}
-      }
-      $('#rProgress').title = 'Measuring the book…';
-      const id = this.id;
-      const book = this.book;
-      await book.locations.generate(1200);
-      if (token !== this.openToken) return;
-      window.aion.saveLocations(id, book.locations.save());
-      this.markLocationsReady();
+    // ---------- where we are ----------
+    // Collapsed CFIs for the start and end of what's on screen.
+    startCfi() {
+      if (!this.loc?.cfi || !engine.CFI) return null;
+      return engine.CFI.collapse(this.loc.cfi);
+    },
+    endCfi() {
+      if (!this.loc?.cfi || !engine.CFI) return null;
+      return engine.CFI.collapse(this.loc.cfi, true);
     },
 
-    markLocationsReady() {
-      this.locationsReady = true;
-      this.onLocationsReady();
-      $('#rProgress').disabled = false;
-      $('#rProgress').title = '';
-      if (this.loc) this.onRelocated(this.loc);
-    },
-
-    onRelocated(loc) {
-      this.loc = loc;
-      // The reading anchor only moves when the reader moves — not when a relayout
-      // re-paginates around it — so layout and font changes never creep backwards.
-      if (!this.relayouting) this.anchorCfi = loc.start.cfi;
+    onRelocated(detail) {
+      this.loc = detail;
       this.hideSel();
       if (this.turnDir) {
         this.shuffle(this.turnDir);
@@ -469,32 +396,23 @@
         }
         this.turnDir = 0;
       }
-      const cfi = loc.start.cfi;
-      if (this.locationsReady) {
-        const p = this.book.locations.percentageFromCfi(cfi);
-        if (typeof p === 'number' && !Number.isNaN(p)) this.progress = loc.atEnd ? 1 : p;
-      }
+      if (typeof detail.fraction === 'number') this.progress = detail.fraction;
       this.setSlider(this.progress);
 
-      // chapter
-      const current = this.chapterAt(loc.start.index, loc.start.cfi);
-      this.chapter = current?.label || '';
+      this.chapter = detail.tocItem?.label?.trim() || '';
       $('#rChapter').textContent = this.chapter;
-      $$('.toc-item').forEach((el) => el.classList.toggle('is-current', !!current && el.dataset.id === String(current.id)));
+      const currentId = detail.tocItem?.aionId;
+      $$('.toc-item').forEach((el) => el.classList.toggle('is-current', !!currentId && el.dataset.id === currentId));
 
-      const d = loc.start.displayed;
-      const left = d && d.total ? d.total - d.page : null;
-      const leftTxt =
-        State.settings.layout !== 'scroll' && State.settings.pagesLeft !== false && left != null
-          ? left === 0
-            ? 'last page in chapter · '
-            : `${left} page${left === 1 ? '' : 's'} left in chapter · `
-          : '';
-      $('#rPercent').textContent = this.footerText(loc, leftTxt);
-
+      $('#rPercent').textContent = this.footerText(detail);
+      this.updateSpread();
       this.updateBookmarkBtn();
-      this.queueSave(loc.atEnd);
-      this.afterRelocate(loc);
+      this.queueSave(this.atEnd());
+      this.afterRelocate(detail);
+    },
+
+    atEnd() {
+      return this.progress > 0.995 || !!this.renderer?.atEnd;
     },
 
     setSlider(p) {
@@ -513,12 +431,12 @@
       if (!this.id || !this.loc) return;
       const rec = this.record;
       const patch = {
-        location: this.anchorCfi || this.loc.start.cfi,
+        location: this.startCfi(),
         progress: this.progress,
         chapter: this.chapter,
         lastOpenedAt: Date.now(),
       };
-      if (atEnd && this.locationsReady && rec && !rec.finished) {
+      if (atEnd && rec && !rec.finished) {
         patch.finished = true;
         const next = window.Library?.nextInSeries(rec);
         toast(
@@ -534,11 +452,11 @@
     // ---------- navigation ----------
     next() {
       this.turnDir = 1;
-      this.rendition?.next();
+      this.view?.goRight();
     },
     prev() {
       this.turnDir = -1;
-      this.rendition?.prev();
+      this.view?.goLeft();
     },
     // A tiny stop-motion nudge of the page, as if the sheet were slid by hand.
     shuffle(dir) {
@@ -554,11 +472,11 @@
     },
     goTo(target) {
       this.closePanels();
-      this.rendition?.display(target);
+      return this.view?.goTo(target);
     },
 
     onWheel(e) {
-      if (!this.rendition || State.settings.layout === 'scroll' || State.settings.wheelTurns === false) return;
+      if (!this.view || State.settings.layout === 'scroll' || State.settings.wheelTurns === false) return;
       if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
       const now = Date.now();
       if (now < this.wheelLock) return;
@@ -643,7 +561,7 @@
       clearTimeout(this.idleTimer);
       if (State.settings.autoHideBars === false) return;
       this.idleTimer = setTimeout(() => {
-        if (!this.panelsOpen() && this.book) r.classList.add('idle');
+        if (!this.panelsOpen() && this.view) r.classList.add('idle');
       }, 2800);
     },
 
@@ -691,7 +609,7 @@
         items
           .map((it) => {
             const kids = it.subitems?.length ? `<ol>${build(it.subitems)}</ol>` : '';
-            return `<li><button class="toc-item" data-id="${esc(it.id)}" data-href="${esc(it.href)}">${esc((it.label || '').trim() || 'Untitled')}</button>${kids}</li>`;
+            return `<li><button class="toc-item" data-id="${esc(it.aionId)}" data-href="${esc(it.href)}">${esc((it.label || '').trim() || 'Untitled')}</button>${kids}</li>`;
           })
           .join('');
       $('#tocList').innerHTML = this.toc.length
@@ -702,18 +620,17 @@
     // ---------- bookmarks ----------
     cfiCmp(a, b) {
       try {
-        return new window.ePub.CFI().compare(a, b);
+        return engine.CFI.compare(a, b);
       } catch (_) {
         return 0;
       }
     },
     bookmarksHere() {
       const rec = this.record;
-      if (!rec || !this.loc) return [];
-      const { start, end } = this.loc;
-      return (rec.bookmarks || []).filter(
-        (bm) => this.cfiCmp(bm.cfi, start.cfi) >= 0 && this.cfiCmp(bm.cfi, end.cfi) <= 0
-      );
+      const start = this.startCfi();
+      const end = this.endCfi();
+      if (!rec || !start || !end) return [];
+      return (rec.bookmarks || []).filter((bm) => this.cfiCmp(bm.cfi, start) >= 0 && this.cfiCmp(bm.cfi, end) <= 0);
     },
     updateBookmarkBtn() {
       const on = this.bookmarksHere().length > 0;
@@ -730,7 +647,7 @@
         bookmarks = bookmarks.filter((bm) => !here.includes(bm));
         toast('Bookmark removed', 1600);
       } else {
-        bookmarks = [...bookmarks, { cfi: this.loc.start.cfi, chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
+        bookmarks = [...bookmarks, { cfi: this.startCfi(), chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
         toast('Page bookmarked', 1600);
       }
       await updateBook(this.id, { bookmarks }, { quiet: true });
@@ -739,23 +656,34 @@
     },
 
     // ---------- highlights ----------
-    onSelected(cfiRange, contents) {
-      const sel = contents.window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
-      const frame = contents.document.defaultView.frameElement.getBoundingClientRect();
+    // Where a range in a book document sits on screen.
+    rectOf(range) {
+      try {
+        const r = range.getBoundingClientRect();
+        const f = range.startContainer.ownerDocument.defaultView.frameElement.getBoundingClientRect();
+        return { left: f.left + r.left, top: f.top + r.top, right: f.left + r.right, bottom: f.top + r.bottom, width: r.width, height: r.height };
+      } catch (_) {
+        return null;
+      }
+    },
+    onSelected(doc, index) {
+      const sel = doc.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount || !sel.toString().trim()) return;
+      const range = sel.getRangeAt(0);
+      const rect = this.rectOf(range);
+      if (!rect) return;
       const bar = $('#selBar');
-      const x = Math.max(140, Math.min(innerWidth - 140, frame.left + rect.left + rect.width / 2));
-      let y = frame.top + rect.top - 12;
+      const x = Math.max(140, Math.min(innerWidth - 140, rect.left + rect.width / 2));
+      let y = rect.top - 12;
       bar.style.transform = 'translate(-50%, -100%)';
       if (y < 110) {
-        y = frame.top + rect.bottom + 12;
+        y = rect.bottom + 12;
         bar.style.transform = 'translate(-50%, 0)';
       }
       bar.style.left = `${x}px`;
       bar.style.top = `${y}px`;
       bar.hidden = false;
-      this.pendingSel = { cfiRange, contents, text: sel.toString() };
+      this.pendingSel = { cfiRange: this.view.getCFI(index, range), doc, text: sel.toString() };
     },
     hideSel() {
       $('#selBar').hidden = true;
@@ -764,21 +692,25 @@
     hlStyle(color) {
       const dark = State.settings.theme === 'dusk';
       const c = HL[color] || HL.rose;
-      return {
-        fill: dark ? c.dark : c.light,
-        'fill-opacity': String(dark ? c.opacity.dark : c.opacity.light),
-        'mix-blend-mode': dark ? 'screen' : 'multiply',
-      };
+      return { fill: dark ? c.dark : c.light, opacity: dark ? c.opacity.dark : c.opacity.light };
     },
-    applyHighlights() {
-      if (!this.rendition) return;
+    // Draw saved highlights belonging to the chapter that was just laid out.
+    drawHighlightsFor(index) {
       for (const h of this.record?.highlights || []) {
         try {
-          this.rendition.annotations.remove(h.cfi, 'highlight');
+          if (this.view.resolveNavigation(h.cfi)?.index === index) this.view.addAnnotation({ value: h.cfi });
         } catch (_) {}
-        try {
-          this.rendition.annotations.highlight(h.cfi, { cfi: h.cfi }, (e) => this.onHighlightClick(h.cfi, e), 'aion-hl', this.hlStyle(h.color));
-        } catch (_) {}
+      }
+    },
+    applyHighlights() {
+      for (const { index } of this.contents()) {
+        for (const h of this.record?.highlights || []) {
+          try {
+            if (this.view.resolveNavigation(h.cfi)?.index !== index) continue;
+            this.view.deleteAnnotation({ value: h.cfi });
+            this.view.addAnnotation({ value: h.cfi });
+          } catch (_) {}
+        }
       }
     },
     async addHighlight(color, note = '') {
@@ -788,12 +720,12 @@
       const text = (sel.text || '').replace(/\s+/g, ' ').trim();
       const h = { cfi: sel.cfiRange, text, color, note, chapter: this.chapter, createdAt: Date.now() };
       try {
-        sel.contents.window.getSelection().removeAllRanges();
+        sel.doc.getSelection().removeAllRanges();
       } catch (_) {}
       this.hideSel();
       const highlights = [...(rec.highlights || []).filter((x) => x.cfi !== h.cfi), h];
       await updateBook(this.id, { highlights }, { quiet: true });
-      this.applyHighlights();
+      this.view.addAnnotation({ value: h.cfi });
       this.renderMarks();
     },
     onHighlightClick(cfi, e) {
@@ -829,12 +761,13 @@
     async recolor(cfi, color) {
       const highlights = this.record.highlights.map((x) => (x.cfi === cfi ? { ...x, color } : x));
       await updateBook(this.id, { highlights }, { quiet: true });
-      this.applyHighlights();
+      this.view.deleteAnnotation({ value: cfi });
+      this.view.addAnnotation({ value: cfi });
       this.renderMarks();
     },
     async removeHighlight(cfi) {
       try {
-        this.rendition?.annotations.remove(cfi, 'highlight');
+        this.view?.deleteAnnotation({ value: cfi });
       } catch (_) {}
       const highlights = (this.record.highlights || []).filter((x) => x.cfi !== cfi);
       await updateBook(this.id, { highlights }, { quiet: true });
@@ -904,25 +837,12 @@
         .join('');
     },
     async change(patch) {
-      const prev = { ...State.settings };
       await setSettings(patch);
       this.renderTypePop();
-      if (!this.rendition) return;
-      if (patch.layout && patch.layout !== prev.layout) {
-        const cfi = this.anchorCfi || this.loc?.start?.cfi;
-        this.relayouting = true;
-        this.destroyRendition();
-        await this.buildRendition(cfi);
-        await this.displayAnchored(cfi);
-        return;
-      }
-      if (patch.margin) {
-        const was = this.spread;
-        this.applyMeasure();
-        if (was !== this.spread) this.rendition.spread(this.spread ? 'auto' : 'none', 700);
-      }
+      if (!this.view) return;
+      if ('layout' in patch || 'margin' in patch || 'runningHeads' in patch) this.applyLayout();
+      this.applyStyles();
       if (patch.theme) this.applyHighlights();
-      this.refreshStyles();
     },
     stepFont(dir) {
       const size = Math.max(70, Math.min(200, (State.settings.fontSize || 100) + dir * 6));
@@ -930,6 +850,7 @@
     },
 
     bind() {
+      loadEngine(); // start fetching the engine before the first book is opened
       $('#rBack').innerHTML = icon('back');
       $('#rToc').innerHTML = icon('toc');
       $('#rType').innerHTML = icon('type');
@@ -971,11 +892,7 @@
         range.style.setProperty('--p', `${range.value / 10}%`);
         $('#rPercent').textContent = `${Math.round(range.value / 10)}%`;
       });
-      range.addEventListener('change', () => {
-        if (!this.locationsReady) return;
-        const cfi = this.book.locations.cfiFromPercentage(range.value / 1000);
-        if (cfi) this.rendition.display(cfi);
-      });
+      range.addEventListener('change', () => this.view?.goToFraction(range.value / 1000));
 
       $('#fontDown').onclick = () => this.stepFont(-1);
       $('#fontUp').onclick = () => this.stepFont(1);
@@ -1032,7 +949,7 @@
       let rt;
       window.addEventListener('resize', () => {
         clearTimeout(rt);
-        rt = setTimeout(() => this.onResize(), 120);
+        rt = setTimeout(() => this.onResize(), 150);
         this.hideSel();
       });
       window.addEventListener('beforeunload', () => {
@@ -1040,11 +957,12 @@
         this.flushSave();
       });
       Fonts.listeners.add(() => {
-        if (this.rendition) this.refreshStyles();
+        if (this.view) this.applyStyles();
         if (!$('#typePop').hidden) this.renderTypePop();
       });
     },
   };
 
+  Reader.engine = engine;
   window.Reader = Reader;
 })();

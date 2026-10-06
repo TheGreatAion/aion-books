@@ -1,14 +1,17 @@
-// Reader extras: search inside the book, time-left estimates, daily goal,
-// footnote pop-ups, dictionary look-up, tap-to-turn and read-aloud.
+// Reader extras: search inside the book, time-left estimates, running heads and
+// page numbers, daily goal, footnote pop-ups, dictionary look-up, tap-to-turn
+// and read-aloud. Built on the foliate-js view set up in reader.js.
 (function () {
   const { $, esc, State, toast, pct, setSettings } = window.UI;
   const { icon } = window.Ornaments;
   const R = window.Reader;
 
-  const DEFAULT_MS_PER_LOC = 55000; // ~250 words a minute for 1,200 characters
+  const DEFAULT_MS_PER_LOC = 60000; // ~250 words a minute for a 1,500-byte location
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dayKey = (d = new Date()) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // "Harry Potter and the Philosopher's Stone: Illustrated [Kindle in Motion] (…)" → "Harry Potter and the Philosopher's Stone"
+  const shortTitle = (t) => t.replace(/\s*[[(][^\])]*[\])]/g, '').split(/\s*[:|]\s+/)[0].trim() || t;
 
   function fmtLeft(ms) {
     const m = Math.round(ms / 60000);
@@ -19,9 +22,6 @@
     return mm ? `${h} h ${mm} min` : `${h} h`;
   }
 
-  // "Harry Potter and the Philosopher's Stone: Illustrated [Kindle in Motion] (…)" → "Harry Potter and the Philosopher's Stone"
-  const shortTitle = (t) => t.replace(/\s*[[(][^\])]*[\])]/g, '').split(/\s*[:|]\s+/)[0].trim() || t;
-
   const _next = R.next;
   const _prev = R.prev;
 
@@ -29,8 +29,7 @@
     // ---------- lifecycle ----------
     async afterOpen() {
       this.prevLoc = null;
-      this.locIndex = null;
-      this.searchMark = null;
+      this.chapterEnds = new Map();
       $('#bookSearch').value = '';
       $('#searchResults').innerHTML = '';
       $('#searchStatus').textContent = '';
@@ -39,7 +38,7 @@
       this.speed = sp && sp.locs >= 15 ? clamp(sp.ms / sp.locs, 12000, 240000) : DEFAULT_MS_PER_LOC;
       this.todayKey = st.today;
       this.todayMs = st.days[st.today]?.ms || 0;
-      if (this.loc) $('#rPercent').textContent = this.footerText(this.loc, '');
+      if (this.loc) $('#rPercent').textContent = this.footerText(this.loc);
     },
 
     beforeClose() {
@@ -58,100 +57,110 @@
     },
     userTurn() {
       this.hideNote();
-      this.clearSearchMark();
       if (this.tts?.playing && !this.tts.paused) this.ttsRestartAfterMove = true;
     },
 
     // ---------- time left ----------
-    onLocationsReady() {
-      const L = this.book.locations;
-      const n = L.length();
-      const map = new Map();
-      for (let i = 0; i < n; i++) {
-        let sp;
-        try {
-          sp = new window.ePub.CFI(L.cfiFromLocation(i)).spinePos;
-        } catch (_) {
-          continue;
-        }
-        const e = map.get(sp);
-        if (e) e.end = i;
-        else map.set(sp, { start: i, end: i });
-      }
-      this.locIndex = map;
-      this.locTotal = n;
-    },
-
-    currentLoc(loc) {
-      if (!this.locationsReady) return null;
-      const cur = this.book.locations.locationFromCfi(loc.start.cfi);
-      return typeof cur === 'number' && cur >= 0 ? cur : null;
-    },
-
-    footerText(loc, leftTxt) {
+    // foliate measures the book in "locations" of ~1,500 bytes, straight from
+    // the file sizes — no need to lay the whole book out first.
+    footerText(detail) {
       const p = pct(this.progress);
-      if (loc.atEnd) return `The end · ${p}`;
-      const cur = this.currentLoc(loc);
-      if (State.settings.timeLeft === false || cur == null || !this.locTotal) return `${leftTxt}${p}`;
+      if (this.atEnd()) return `The end · ${p}`;
+      const loc = detail.location;
+      if (State.settings.timeLeft === false || !loc?.total) return p;
       const speed = this.speed || DEFAULT_MS_PER_LOC;
-      const sec = this.locIndex?.get(loc.start.index);
       const parts = [];
-      // The chapter ends at the next contents entry — which may be an anchor in the same file.
-      const chapterEnd = this.nextChapterLoc(loc.start.index, loc.start.cfi) ?? (sec ? sec.end + 1 : null);
-      if (chapterEnd != null) parts.push(`${fmtLeft(Math.max(0, chapterEnd - cur) * speed)} left in chapter`);
-      parts.push(`${fmtLeft(Math.max(0, this.locTotal - cur) * speed)} in book`);
+      const end = this.chapterEndFraction(detail);
+      if (end != null) parts.push(`${fmtLeft(Math.max(0, end * loc.total - loc.current) * speed)} left in chapter`);
+      parts.push(`${fmtLeft(Math.max(0, loc.total - loc.current) * speed)} in book`);
       return `${parts.join(' · ')} · ${p}`;
     },
 
-    // ---------- running heads & page numbers ----------
-    // epub.js counts each column as a page: in a spread, start.page is the left
-    // column and end.page the right. Whole-book numbers are estimated from the
-    // book's length in locations at the current text size and layout.
-    renderRunning(loc) {
-      const L = $('#rhLeft');
-      const Rt = $('#rhRight');
-      const fL = $('#folioLeft');
-      const fR = $('#folioRight');
-      if (!$('#reader').classList.contains('has-folios') || !loc) return;
-      const gap = this.rendition?.manager?.layout?.gap;
-      if (gap) $('.viewer-wrap').style.setProperty('--col-gap', `${gap}px`);
-
-      const title = shortTitle(this.record?.title || '');
-      const chapter = this.chapter || '';
-      // The right page shows the chapter that page belongs to (a new one may begin on it).
-      const rightChapter = this.chapterAt(loc.end.index, loc.end.cfi)?.label || chapter;
-      const leftCol = loc.start.displayed?.page || 1;
-      const rightCol = loc.end.displayed?.page || leftCol;
-      const cols = loc.start.displayed?.total || 1;
-      const spread = this.spread;
-
-      let leftNum = '';
-      let rightNum = '';
-      const sec = this.locIndex?.get(loc.start.index);
-      if (sec && this.locTotal) {
-        const perLoc = cols / (sec.end - sec.start + 1); // pages per location in this chapter
-        const first = Math.round(sec.start * perLoc); // pages before this chapter
-        leftNum = String(first + leftCol);
-        if (spread && rightCol > leftCol && rightCol <= cols) rightNum = String(first + rightCol);
+    // Where the next contents entry begins, as a fraction of the whole book —
+    // the first one after where we are (so a cover or title page still counts
+    // down to chapter one).
+    chapterEndFraction(detail) {
+      const id = detail.tocItem?.aionId;
+      const from = id != null ? this.flatToc.findIndex((t) => t.id === id) + 1 : 0;
+      for (let i = Math.max(0, from); i < this.flatToc.length; i++) {
+        const f = this.tocFraction(this.flatToc[i], detail);
+        if (f != null && f > (detail.fraction ?? 0) + 1e-6) return f;
       }
-
-      if (spread) {
-        // Classic book: title on the left, chapter on the right; no head on a chapter's opening page.
-        L.textContent = leftCol === 1 ? '' : title;
-        Rt.textContent = rightNum ? rightChapter || title : '';
-      } else {
-        // One page at a time: alternate like a printed book's verso and recto.
-        const n = Number(leftNum) || leftCol;
-        L.textContent = leftCol === 1 ? '' : n % 2 === 0 ? title : chapter || title;
-      }
-      fL.textContent = leftNum;
-      fR.textContent = rightNum;
+      return 1;
     },
 
-    afterRelocate(loc) {
-      this.renderRunning(loc);
-      const cur = this.currentLoc(loc);
-      if (cur != null) {
+    // A contents entry's position in the book: its file's start, or for an
+    // anchor inside the file on screen, how far into that file it sits.
+    tocFraction(item, detail) {
+      this.chapterEnds ||= new Map();
+      if (this.chapterEnds.has(item.id)) return this.chapterEnds.get(item.id);
+      let frac = null;
+      let exact = false;
+      try {
+        const { index, anchor } = this.view.resolveNavigation(item.href) || {};
+        const sf = this.view.getSectionFractions();
+        if (index == null) return null;
+        const doc = index === detail.section?.current ? this.contents().find((c) => c.index === index)?.doc : null;
+        const target = doc && anchor?.(doc);
+        if (target) {
+          const range = doc.createRange();
+          range.setStart(doc.body, 0);
+          if (target instanceof Range) range.setEnd(target.startContainer, target.startOffset);
+          else range.setEndBefore(target);
+          const within = range.toString().length / Math.max(1, doc.body.textContent.length);
+          frac = sf[index] + within * (sf[index + 1] - sf[index]);
+          exact = true;
+        } else if (!doc) {
+          frac = sf[index]; // another file: its start (good enough for an estimate)
+          exact = !item.href.includes('#'); // exact when the entry is the start of that file
+        }
+      } catch (_) {
+        frac = null;
+      }
+      // Remember exact positions; approximate ones are worked out again once that file is on screen.
+      if (frac != null && exact) this.chapterEnds.set(item.id, frac);
+      return frac;
+    },
+
+    // ---------- running heads & page numbers ----------
+    // The paginator gives each column a head and a foot. Page numbers count
+    // columns; whole-book numbers are estimated from this chapter's page count
+    // and its share of the book's size (they shift if you resize the text).
+    renderRunning(detail) {
+      const r = this.renderer;
+      const heads = r?.heads;
+      const feet = r?.feet;
+      if (!heads || !feet) return;
+      if (State.settings.runningHeads === false) {
+        [...heads, ...feet].forEach((el) => (el.textContent = ''));
+        return;
+      }
+      const cols = heads.length;
+      const title = shortTitle(this.record?.title || '');
+      const chapter = this.chapter;
+
+      let first = null;
+      try {
+        const idx = detail.section?.current ?? 0;
+        const sf = this.view.getSectionFractions();
+        const share = sf[idx + 1] - sf[idx];
+        const colsHere = Math.max(1, r.pages - 2) * cols;
+        if (share > 0) first = Math.round(sf[idx] * (colsHere / share)) + (r.page - 1) * cols + 1;
+      } catch (_) {
+        first = null;
+      }
+
+      for (let c = 0; c < cols; c++) {
+        const n = first != null ? first + c : null;
+        if (cols > 1) heads[c].textContent = c === 0 ? title : chapter || title;
+        else heads[c].textContent = n != null && n % 2 === 0 ? title : chapter || title;
+        feet[c].textContent = n != null ? String(n) : '';
+      }
+    },
+
+    afterRelocate(detail) {
+      const cur = detail.location?.current;
+      if (typeof cur === 'number') {
         // Small forward steps are real reading; jumps (contents, search) aren't.
         if (this.prevLoc != null && this.track) {
           const d = cur - this.prevLoc;
@@ -159,6 +168,7 @@
         }
         this.prevLoc = cur;
       }
+      this.renderRunning(detail);
       if (this.ttsRestartAfterMove) {
         this.ttsRestartAfterMove = false;
         this.ttsStop(true);
@@ -199,103 +209,58 @@
       const status = $('#searchStatus');
       list.innerHTML = '';
       const q = raw.trim();
+      this.view?.clearSearch();
       if (q.length < 2) {
         status.textContent = q ? 'Type at least two letters' : '';
         return;
       }
-      const book = this.book;
-      if (!book) return;
+      if (!this.view) return;
       status.textContent = 'Searching…';
-      const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       let count = 0;
-      this.lastSearchChapter = null;
-      for (const section of book.spine.spineItems) {
-        if (token !== this.searchToken || book !== this.book) return;
-        let hits = [];
-        try {
-          await section.load(book.load.bind(book));
-          hits = section.find(q) || [];
-        } catch (_) {
-          hits = [];
-        } finally {
-          try {
-            section.unload();
-          } catch (_) {}
-        }
+      const { Overlayer } = this.engine;
+      // Outline every match in ochre as the results arrive.
+      const opts = { query: q, draw: Overlayer.outline, drawOptions: { color: 'rgb(214,165,70)', width: 2, radius: 3 } };
+      for await (const result of this.view.search(opts)) {
         if (token !== this.searchToken) return;
-        if (!hits.length) continue;
-        let html = '';
-        for (const h of hits.slice(0, 60)) {
-          // Head each run of results with its chapter (books often keep several chapters per file).
-          const chapter = this.chapterAt(section.index, h.cfi)?.label || '';
-          if (chapter && chapter !== this.lastSearchChapter) html += `<li class="sr-chapter">${esc(chapter)}</li>`;
-          this.lastSearchChapter = chapter;
-          const ex = esc(h.excerpt.replace(/\s+/g, ' ').trim()).replace(rx, (m) => `<mark>${m}</mark>`);
-          html += `<li><button class="sr-hit" data-cfi="${esc(h.cfi)}">${ex}</button></li>`;
+        if (result === 'done') break;
+        if (!result.subitems) continue;
+        let html = result.label ? `<li class="sr-chapter">${esc(result.label)}</li>` : '';
+        for (const { cfi, excerpt } of result.subitems.slice(0, 60)) {
+          const pre = (excerpt?.pre || '').replace(/\s+/g, ' ');
+          const post = (excerpt?.post || '').replace(/\s+/g, ' ');
+          html += `<li><button class="sr-hit" data-cfi="${esc(cfi)}">${esc(pre)}<mark>${esc(excerpt?.match || q)}</mark>${esc(post)}</button></li>`;
         }
         list.insertAdjacentHTML('beforeend', html);
-        count += hits.length;
+        count += result.subitems.length;
         status.textContent = `${count} ${count === 1 ? 'match' : 'matches'}…`;
         if (count >= 500) break;
-        await new Promise((r) => setTimeout(r)); // keep the UI responsive
       }
       if (token === this.searchToken) {
         status.textContent = count ? `${count}${count >= 500 ? '+' : ''} ${count === 1 ? 'match' : 'matches'}` : `Nothing found for “${q}”`;
       }
     },
 
-    async goToHit(cfi) {
+    goToHit(cfi) {
       this.closePanels();
-      this.clearSearchMark();
-      await this.rendition.display(cfi);
-      try {
-        this.rendition.annotations.highlight(cfi, {}, null, 'aion-search', {
-          fill: 'rgb(226,178,84)',
-          'fill-opacity': '0.5',
-          'mix-blend-mode': State.settings.theme === 'dusk' ? 'screen' : 'multiply',
-        });
-        this.searchMark = cfi;
-      } catch (_) {}
+      return this.view?.goTo(cfi);
     },
 
-    clearSearchMark() {
-      if (this.searchMark && this.rendition) {
-        try {
-          this.rendition.annotations.remove(this.searchMark, 'highlight');
-        } catch (_) {}
-        // A user highlight at the same spot shares the key, so put those back.
-        if ((this.record?.highlights || []).some((h) => h.cfi === this.searchMark)) this.applyHighlights();
-      }
-      this.searchMark = null;
+    // ---------- clicks inside the page: tap zones ----------
+    extendDoc(doc) {
+      doc.addEventListener('click', (e) => {
+        if (e.target.closest?.('a[href]')) return;
+        if (!State.settings.tapZones || State.settings.layout === 'scroll') return;
+        const sel = doc.getSelection();
+        if (sel && !sel.isCollapsed) return;
+        const frame = doc.defaultView.frameElement.getBoundingClientRect();
+        const wrap = $('.viewer-wrap').getBoundingClientRect();
+        const rel = (frame.left + e.clientX - wrap.left) / wrap.width;
+        if (rel < 0.3) this.prev();
+        else if (rel > 0.7) this.next();
+      });
     },
 
-    // ---------- clicks inside the page: footnotes & tap zones ----------
-    extendContents(contents) {
-      const doc = contents.document;
-      doc.addEventListener('click', (e) => this.onPageClick(e, contents), true);
-      doc.addEventListener('mousedown', () => this.hideNote());
-    },
-
-    onPageClick(e, contents) {
-      const a = e.target.closest?.('a[href]');
-      if (a) {
-        if (this.isNoteRef(a)) {
-          e.preventDefault();
-          e.stopPropagation();
-          this.showNote(a, contents);
-        }
-        return;
-      }
-      if (!State.settings.tapZones || State.settings.layout === 'scroll') return;
-      const sel = contents.window.getSelection();
-      if (sel && !sel.isCollapsed) return;
-      const frame = contents.document.defaultView.frameElement.getBoundingClientRect();
-      const wrap = $('.viewer-wrap').getBoundingClientRect();
-      const rel = (frame.left + e.clientX - wrap.left) / wrap.width;
-      if (rel < 0.3) this.prev();
-      else if (rel > 0.7) this.next();
-    },
-
+    // ---------- footnotes ----------
     isNoteRef(a) {
       const href = a.getAttribute('href') || '';
       if (!href.includes('#') || /^[a-z][a-z0-9+.-]*:/i.test(href)) return false;
@@ -306,31 +271,20 @@
       return /^[\[(]?(\d{1,3}|[*†‡§¶])[\])]?$/.test(t) || (!!a.closest('sup') && t.length <= 4);
     },
 
-    async showNote(a, contents) {
-      const href = a.getAttribute('href');
-      const [file, id] = href.split('#');
+    async showNote(a, href) {
       let target = null;
-      let goHref = href;
       try {
-        if (!file) {
-          target = contents.document.getElementById(id);
-          const sec = this.book.spine.get(contents.sectionIndex);
-          goHref = `${sec?.href || ''}#${id}`;
-        } else {
-          const base = this.book.spine.get(contents.sectionIndex)?.href || '';
-          const resolved = decodeURIComponent(new URL(file, `https://book/${base}`).pathname.slice(1));
-          const sec = this.book.spine.get(resolved) || this.sectionFor(resolved);
-          if (sec) {
-            goHref = `${sec.href}#${id}`;
-            await sec.load(this.book.load.bind(this.book));
-            target = sec.document?.getElementById(id) || null;
-          }
+        const { index, anchor } = this.view.book.resolveHref(href) || {};
+        if (index != null) {
+          const doc = this.contents().find((c) => c.index === index)?.doc || (await this.view.book.sections[index].createDocument());
+          const found = anchor?.(doc);
+          target = found instanceof Range ? found.startContainer.parentElement : found;
         }
       } catch (_) {
         target = null;
       }
       if (!target) {
-        this.rendition.display(goHref);
+        this.view.goTo(href);
         return;
       }
       let block = target;
@@ -345,13 +299,14 @@
       });
       const paras = [...clone.querySelectorAll('p')].map((p) => p.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
       const text = paras.length ? paras : [clone.textContent.replace(/\s+/g, ' ').trim()];
-      const r = a.getBoundingClientRect();
-      const f = contents.document.defaultView.frameElement.getBoundingClientRect();
-      this.notePendingHref = goHref;
+      const range = a.ownerDocument.createRange();
+      range.selectNodeContents(a);
+      const r = this.rectOf(range) || { left: innerWidth / 2, width: 0, top: innerHeight / 2, bottom: innerHeight / 2 };
+      this.notePendingHref = href;
       this.showPop(
-        f.left + r.left + r.width / 2,
-        f.top + r.top,
-        f.top + r.bottom,
+        r.left + r.width / 2,
+        r.top,
+        r.bottom,
         `<div class="np-label">Note</div><div class="np-body">${text.map((t) => `<p>${esc(t)}</p>`).join('')}</div>` +
           `<div class="np-actions"><button data-np="go">Go to the note</button></div>`
       );
@@ -428,24 +383,18 @@
         toast('Read aloud isn’t available on this computer', 2600);
         return;
       }
-      if (!this.loc || !this.rendition) return;
-      const all = this.rendition.getContents();
-      const contents = all.find((c) => c.sectionIndex === this.loc.start.index) || all[0];
-      if (!contents) return;
-      let startNode = null;
-      try {
-        startNode = contents.range(this.loc.start.cfi).startContainer;
-      } catch (_) {}
+      const c = this.contents()[0];
+      if (!c || !this.loc) return;
       speechSynthesis.cancel();
       this.tts = { playing: true, paused: false };
-      this.ttsLoad(contents, startNode);
+      this.ttsLoad(c, this.loc.range?.startContainer || null);
       this.ttsUi();
       this.ttsNext();
     },
 
-    ttsLoad(contents, startNode) {
+    ttsLoad({ doc, index }, startNode) {
       const t = this.tts;
-      const blocks = [...contents.document.body.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote,dd,dt,figcaption,pre')].filter(
+      const blocks = [...doc.body.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote,dd,dt,figcaption,pre')].filter(
         (b) => b.textContent.trim() && !b.querySelector('p,li,blockquote,h1,h2,h3,h4,h5,h6,dd,dt')
       );
       let start = 0;
@@ -453,15 +402,19 @@
         const i = blocks.findIndex((b) => b.contains(startNode) || startNode.compareDocumentPosition(b) & 4);
         start = i < 0 ? blocks.length : i;
       }
-      Object.assign(t, { contents, section: contents.sectionIndex, blocks: blocks.slice(start), bi: 0, sentences: [], si: 0, block: null });
+      Object.assign(t, { doc, index, blocks: blocks.slice(start), bi: 0, sentences: [], si: 0, block: null });
+    },
+
+    ttsLang() {
+      const l = this.view?.book?.metadata?.language;
+      return (Array.isArray(l) ? l[0] : l) || 'en';
     },
 
     ttsSentences(block) {
       const text = block.textContent;
-      const lang = this.book?.packaging?.metadata?.language || 'en';
       let segs;
       try {
-        segs = [...new Intl.Segmenter(lang, { granularity: 'sentence' }).segment(text)];
+        segs = [...new Intl.Segmenter(this.ttsLang(), { granularity: 'sentence' }).segment(text)];
       } catch (_) {
         segs = [{ segment: text, index: 0 }];
       }
@@ -507,7 +460,7 @@
       const u = new SpeechSynthesisUtterance(s.text);
       const v = this.ttsVoice();
       if (v) u.voice = v;
-      u.lang = v?.lang || this.book?.packaging?.metadata?.language || 'en';
+      u.lang = v?.lang || this.ttsLang();
       u.rate = State.settings.ttsRate || 1;
       u.onend = () => {
         if (t === this.tts && t.playing && !t.paused) this.ttsNext();
@@ -521,32 +474,23 @@
 
     async ttsNextSection() {
       const t = this.tts;
-      const nextIdx = t.section + 1;
-      const sec = this.book?.spine.get(nextIdx);
-      if (!sec) {
+      this.ttsMark(null);
+      const before = t.index;
+      await this.renderer.nextSection();
+      if (t !== this.tts || !t.playing) return;
+      const c = this.contents()[0];
+      if (!c || c.index === before) {
         this.ttsStop();
         toast('Reached the end of the book', 2000);
         return;
       }
-      this.ttsMark(null);
-      await this.rendition.display(sec.href);
-      if (t !== this.tts || !t.playing) return;
-      const contents = this.rendition.getContents().find((c) => c.sectionIndex === nextIdx);
-      if (!contents) {
-        t.section = nextIdx;
-        t.blocks = [];
-        t.bi = 0;
-        t.sentences = [];
-        t.si = 0;
-        return this.ttsNextSection();
-      }
-      this.ttsLoad(contents, null);
+      this.ttsLoad(c, null);
       this.ttsNext();
     },
 
     ttsMark(range) {
       const t = this.tts;
-      const win = t?.contents?.window;
+      const win = t?.doc?.defaultView;
       try {
         if (win?.CSS?.highlights) {
           if (range) win.CSS.highlights.set('aion-tts', new win.Highlight(range));
@@ -554,15 +498,15 @@
         }
       } catch (_) {}
       if (!range) return;
-      // Keep the sentence being read on screen.
-      if (State.settings.layout === 'scroll') {
-        range.startContainer.parentElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        return;
-      }
+      // Keep the sentence being read on screen: turn the page once it runs past the end.
+      const visible = this.loc?.range;
+      let past = true;
       try {
-        const cfi = t.contents.cfiFromRange(range);
-        if (this.loc && this.cfiCmp(cfi, this.loc.end.cfi) > 0) this.rendition.display(cfi);
-      } catch (_) {}
+        past = !visible || visible.comparePoint(range.startContainer, range.startOffset) === 1;
+      } catch (_) {
+        past = true;
+      }
+      if (past) this.renderer?.scrollToAnchor?.(range);
     },
 
     ttsPause() {
@@ -588,7 +532,7 @@
         speechSynthesis.cancel();
       } catch (_) {}
       try {
-        t.contents?.window?.CSS?.highlights?.delete('aion-tts');
+        t.doc?.defaultView?.CSS?.highlights?.delete('aion-tts');
       } catch (_) {}
       this.tts = null;
       if (!silent) this.ttsUi();
@@ -629,7 +573,7 @@
       let st;
       $('#bookSearch').addEventListener('input', (e) => {
         clearTimeout(st);
-        st = setTimeout(() => this.runSearch(e.target.value), 300);
+        st = setTimeout(() => this.runSearch(e.target.value), 350);
       });
       $('#bookSearch').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -647,7 +591,7 @@
         const act = e.target.closest('[data-np]')?.dataset.np;
         if (act === 'go') {
           this.hideNote();
-          this.rendition?.display(this.notePendingHref);
+          this.view?.goTo(this.notePendingHref);
         } else if (act === 'web') {
           window.aion.lookupWeb(this.defineWord);
         }
