@@ -34,7 +34,8 @@ test('reopens a book where you left off', async () => {
   const here = (await probe(page)).position;
   await toLibrary(page);
   await openBook(page, 'Along the Hedge Path');
-  expect((await probe(page)).position).toBe(here);
+  // The engine settles on the exact spot a moment after the chapter appears.
+  await expect.poll(async () => (await probe(page)).position, { timeout: 15000 }).toBe(here);
 });
 
 // Books size their text in different ways; every one must respond to the size buttons.
@@ -129,9 +130,9 @@ test('bookmarks a page and finds it again', async () => {
   await page.click('#rToc');
   await page.click('.tab[data-tab="marks"]');
   await page.click('.mark[data-kind="bm"]');
-  await page.waitForTimeout(600);
+  const target = await page.evaluate(() => window.Reader.record.bookmarks[0].progress);
+  await expect.poll(async () => Math.abs((await probe(page)).fraction - target), { timeout: 15000 }).toBeLessThan(0.02);
   await expect(page.locator('#rBookmark')).toHaveClass(/is-on/);
-  expect(Math.abs((await probe(page)).fraction - (await page.evaluate(() => window.Reader.record.bookmarks[0].progress)))).toBeLessThan(0.02);
   expect(here).toBeTruthy();
 });
 
