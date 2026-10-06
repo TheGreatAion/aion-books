@@ -103,6 +103,7 @@ npm start
 | Command           | What it does                                                        |
 | ----------------- | ------------------------------------------------------------------- |
 | `npm start`       | Run the app from source                                             |
+| `npm test`        | Run the unit tests and the app tests                                |
 | `npm run pack`    | Build an unpacked copy → `release/win-unpacked/Aion Books.exe`      |
 | `npm run dist`    | Build the installer → `release/Aion-Books-Setup-x.y.z.exe`          |
 | `npm run release` | Build the installer and publish it as a GitHub release (needs `gh auth login`) |
@@ -120,13 +121,20 @@ Installed copies pick it up automatically.
 | `preload.js`             | The bridge between the app window and the main process                    |
 | `lib/`                   | EPUB metadata (including series), the JSON store, bundled and custom fonts |
 | `src/library.js`         | Shelves, the book grid, details, ratings, drag-to-reorder                 |
-| `src/reader.js`, `src/reader-extras.js` | The reader ([epub.js](https://github.com/futurepress/epub.js)), search, read aloud, footnotes, time left |
+| `src/reader.js`, `src/reader-extras.js` | The reader: styling, controls, highlights, search, read aloud, footnotes, time left |
+| `src/vendor/foliate-js/` | The book engine, [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT), included unmodified |
+| `tests/`                 | Unit tests, and app tests that drive the real app against generated sample books |
 | `src/settings.js`        | Settings and reading stats                                                |
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |
 | `src/styles.css`         | Everything visual                                                         |
 
 By default your library is stored in `%APPDATA%\Aion Books`. **Settings → Your data → Library location**
 can move it.
+
+## Thanks
+
+Books are laid out by [foliate-js](https://github.com/johnfactotum/foliate-js) by John Factotum,
+the engine behind the [Foliate](https://johnfactotum.github.io/foliate/) reader.
 
 ## License
 

@@ -1116,54 +1116,36 @@ button {
   position: relative;
   z-index: 1;
   height: 100%;
-  width: min(calc(100% - 150px), var(--measure, 720px));
-  padding: 14px 0 6px;
+  /* The paginator sizes the columns itself; give it the room between the page-turn zones. */
+  width: calc(100% - 120px);
+  padding: 6px 0 0;
 }
-/* Running heads and page numbers, like a printed book */
-#reader.has-folios .viewer-wrap {
-  padding: 40px 0 34px;
+/* The book itself: a <foliate-view> filling the page area. */
+#viewer foliate-view {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.running-heads,
-.folios {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: none;
-  pointer-events: none;
-}
-#reader.has-folios .running-heads,
-#reader.has-folios .folios {
-  display: flex;
-}
-.running-heads {
-  top: 12px;
-}
-.folios {
-  bottom: 8px;
-}
-.rh,
-.folio {
-  flex: 1 1 50%;
-  min-width: 0;
-  padding: 0 calc(var(--col-gap, 94px) / 2);
-  text-align: center;
+/* Running heads and page numbers, drawn by the paginator in each column. */
+foliate-view::part(head),
+foliate-view::part(foot) {
   color: var(--ink-3);
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
-.rh {
+foliate-view::part(head) {
+  font-family: var(--serif);
   font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-.folio {
+foliate-view::part(foot) {
+  font-family: var(--serif);
   font-size: 14px;
   font-variant-numeric: oldstyle-nums;
-}
-#reader:not(.spread) .rh.right,
-#reader:not(.spread) .folio.right {
-  display: none;
 }
 #viewer {
   width: 100%;
@@ -2885,3 +2867,16 @@ kbd {
   cursor: default;
 }
 
+
+/* Highlights and search matches are drawn by foliate's overlayer, which reads these. */
+foliate-view {
+  --overlayer-highlight-opacity: 0.4;
+  --overlayer-highlight-blend-mode: multiply;
+  /* Scroll mode: a slim scrollbar in the paper's colours (inherited into the reader). */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+[data-theme='dusk'] foliate-view {
+  --overlayer-highlight-opacity: 0.34;
+  --overlayer-highlight-blend-mode: screen;
+}

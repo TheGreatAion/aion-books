@@ -37,6 +37,8 @@ test('rates a book from the right-click menu and sorts by rating', async () => {
 });
 
 test('drag-and-drop gives the shelf your own order', async () => {
+  // Let the cards finish their drop-in animation so the drag lands where we aim.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
   const last = await page.locator('#grid .card .t').last().textContent();
   await page.dragAndDrop('#grid .card >> nth=-1', '#grid .card >> nth=0', { targetPosition: { x: 5, y: 60 } });
   await expect(page.locator('#sort')).toHaveValue('custom');
