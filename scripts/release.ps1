@@ -29,6 +29,14 @@ if (-not (& $gitPath tag --list $tag)) {
   if ($LASTEXITCODE -ne 0) { throw "Couldn't push tag $tag" }
 }
 
+# Create the release up front. electron-builder uploads files in parallel, and
+# if the release doesn't exist yet each upload can create its own copy.
+& $ghPath release view $tag --repo TheGreatAion/aion-books *> $null
+if ($LASTEXITCODE -ne 0) {
+  & $ghPath release create $tag --repo TheGreatAion/aion-books --title "Aion Books $version" --notes "Aion Books $version"
+  if ($LASTEXITCODE -ne 0) { throw "Couldn't create release $tag" }
+}
+
 Write-Host "Publishing Aion Books $tag ..."
 npx electron-builder --win nsis --publish always
 if ($LASTEXITCODE -ne 0) { throw "Build or upload failed (exit $LASTEXITCODE)" }
