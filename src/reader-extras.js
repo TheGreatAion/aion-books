@@ -19,6 +19,9 @@
     return mm ? `${h} h ${mm} min` : `${h} h`;
   }
 
+  // "Harry Potter and the Philosopher's Stone: Illustrated [Kindle in Motion] (…)" → "Harry Potter and the Philosopher's Stone"
+  const shortTitle = (t) => t.replace(/\s*[[(][^\])]*[\])]/g, '').split(/\s*[:|]\s+/)[0].trim() || t;
+
   const _next = R.next;
   const _prev = R.prev;
 
@@ -93,12 +96,60 @@
       const speed = this.speed || DEFAULT_MS_PER_LOC;
       const sec = this.locIndex?.get(loc.start.index);
       const parts = [];
-      if (sec) parts.push(`${fmtLeft(Math.max(0, sec.end + 1 - cur) * speed)} left in chapter`);
+      // The chapter ends at the next contents entry — which may be an anchor in the same file.
+      const chapterEnd = this.nextChapterLoc(loc.start.index, loc.start.cfi) ?? (sec ? sec.end + 1 : null);
+      if (chapterEnd != null) parts.push(`${fmtLeft(Math.max(0, chapterEnd - cur) * speed)} left in chapter`);
       parts.push(`${fmtLeft(Math.max(0, this.locTotal - cur) * speed)} in book`);
       return `${parts.join(' · ')} · ${p}`;
     },
 
+    // ---------- running heads & page numbers ----------
+    // epub.js counts each column as a page: in a spread, start.page is the left
+    // column and end.page the right. Whole-book numbers are estimated from the
+    // book's length in locations at the current text size and layout.
+    renderRunning(loc) {
+      const L = $('#rhLeft');
+      const Rt = $('#rhRight');
+      const fL = $('#folioLeft');
+      const fR = $('#folioRight');
+      if (!$('#reader').classList.contains('has-folios') || !loc) return;
+      const gap = this.rendition?.manager?.layout?.gap;
+      if (gap) $('.viewer-wrap').style.setProperty('--col-gap', `${gap}px`);
+
+      const title = shortTitle(this.record?.title || '');
+      const chapter = this.chapter || '';
+      // The right page shows the chapter that page belongs to (a new one may begin on it).
+      const rightChapter = this.chapterAt(loc.end.index, loc.end.cfi)?.label || chapter;
+      const leftCol = loc.start.displayed?.page || 1;
+      const rightCol = loc.end.displayed?.page || leftCol;
+      const cols = loc.start.displayed?.total || 1;
+      const spread = this.spread;
+
+      let leftNum = '';
+      let rightNum = '';
+      const sec = this.locIndex?.get(loc.start.index);
+      if (sec && this.locTotal) {
+        const perLoc = cols / (sec.end - sec.start + 1); // pages per location in this chapter
+        const first = Math.round(sec.start * perLoc); // pages before this chapter
+        leftNum = String(first + leftCol);
+        if (spread && rightCol > leftCol && rightCol <= cols) rightNum = String(first + rightCol);
+      }
+
+      if (spread) {
+        // Classic book: title on the left, chapter on the right; no head on a chapter's opening page.
+        L.textContent = leftCol === 1 ? '' : title;
+        Rt.textContent = rightNum ? rightChapter || title : '';
+      } else {
+        // One page at a time: alternate like a printed book's verso and recto.
+        const n = Number(leftNum) || leftCol;
+        L.textContent = leftCol === 1 ? '' : n % 2 === 0 ? title : chapter || title;
+      }
+      fL.textContent = leftNum;
+      fR.textContent = rightNum;
+    },
+
     afterRelocate(loc) {
+      this.renderRunning(loc);
       const cur = this.currentLoc(loc);
       if (cur != null) {
         // Small forward steps are real reading; jumps (contents, search) aren't.
@@ -157,6 +208,7 @@
       status.textContent = 'Searching…';
       const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       let count = 0;
+      this.lastSearchChapter = null;
       for (const section of book.spine.spineItems) {
         if (token !== this.searchToken || book !== this.book) return;
         let hits = [];
@@ -172,9 +224,12 @@
         }
         if (token !== this.searchToken) return;
         if (!hits.length) continue;
-        const chapter = this.chapterFor(section.index);
-        let html = chapter ? `<li class="sr-chapter">${esc(chapter)}</li>` : '';
+        let html = '';
         for (const h of hits.slice(0, 60)) {
+          // Head each run of results with its chapter (books often keep several chapters per file).
+          const chapter = this.chapterAt(section.index, h.cfi)?.label || '';
+          if (chapter && chapter !== this.lastSearchChapter) html += `<li class="sr-chapter">${esc(chapter)}</li>`;
+          this.lastSearchChapter = chapter;
           const ex = esc(h.excerpt.replace(/\s+/g, ' ').trim()).replace(rx, (m) => `<mark>${m}</mark>`);
           html += `<li><button class="sr-hit" data-cfi="${esc(h.cfi)}">${ex}</button></li>`;
         }
@@ -187,14 +242,6 @@
       if (token === this.searchToken) {
         status.textContent = count ? `${count}${count >= 500 ? '+' : ''} ${count === 1 ? 'match' : 'matches'}` : `Nothing found for “${q}”`;
       }
-    },
-
-    chapterFor(index) {
-      let current = null;
-      for (const item of this.flatToc) {
-        if (item.index !== -1 && item.index <= index && (!current || item.index >= current.index)) current = item;
-      }
-      return current?.label || '';
     },
 
     async goToHit(cfi) {
