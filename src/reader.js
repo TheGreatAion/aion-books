@@ -144,9 +144,55 @@
     flatten(items, depth) {
       for (const item of items) {
         const sec = this.sectionFor(item.href);
-        this.flatToc.push({ id: item.id, label: (item.label || '').trim(), href: item.href, depth, index: sec ? sec.index : -1 });
+        const frag = (item.href || '').split('#')[1] || '';
+        // cfi is filled in when the chapter's file is laid out (see markTocAnchors).
+        this.flatToc.push({ id: item.id, label: (item.label || '').trim(), href: item.href, depth, index: sec ? sec.index : -1, frag, cfi: null });
         if (item.subitems?.length) this.flatten(item.subitems, depth + 1);
       }
+    },
+
+    // Many books keep several chapters in one file, marked by anchors. Record where
+    // each chapter heading sits so we can tell which chapter a page belongs to.
+    markTocAnchors(contents) {
+      for (const item of this.flatToc) {
+        if (item.index !== contents.sectionIndex || !item.frag || item.cfi) continue;
+        let el = null;
+        try {
+          el = contents.document.getElementById(decodeURIComponent(item.frag));
+        } catch (_) {}
+        if (!el) continue;
+        try {
+          item.cfi = contents.cfiFromNode(el);
+        } catch (_) {}
+      }
+    },
+
+    // The chapter (table-of-contents entry) a position belongs to.
+    chapterAt(index, cfi) {
+      let current = null;
+      for (const item of this.flatToc) {
+        if (item.index === -1 || item.index > index) continue;
+        if (item.index === index && item.frag) {
+          // An anchored chapter counts once we've reached its heading.
+          if (!item.cfi || !cfi || this.cfiCmp(item.cfi, cfi) > 0) continue;
+        }
+        if (!current || item.index >= current.index) current = item;
+      }
+      return current;
+    },
+
+    // Where the chapter after the given position begins, as a location number.
+    nextChapterLoc(index, cfi) {
+      if (!this.locationsReady) return null;
+      const L = this.book.locations;
+      let best = null;
+      for (const item of this.flatToc) {
+        let at = null;
+        if (item.index > index) at = this.locIndex?.get(item.index)?.start ?? null;
+        else if (item.index === index && item.cfi && cfi && this.cfiCmp(item.cfi, cfi) > 0) at = L.locationFromCfi(item.cfi);
+        if (typeof at === 'number' && at >= 0 && (best == null || at < best)) best = at;
+      }
+      return best;
     },
 
     sectionFor(href) {
@@ -193,10 +239,16 @@
 
     onContents(contents) {
       const doc = contents.document;
+      // Text size is applied at the root, so it reaches rem-, em- and %-based
+      // sizes alike. Remember the book's own root size to scale from it.
+      const base = parseFloat(contents.window.getComputedStyle(doc.documentElement).fontSize) || 16;
+      doc.documentElement.dataset.aionBase = base;
+      this.relativizeFontSizes(doc, base);
       const style = doc.createElement('style');
       style.id = 'aion-style';
-      style.textContent = this.contentCss();
+      style.textContent = this.contentCss(base);
       doc.head.appendChild(style);
+      this.markTocAnchors(contents);
 
       doc.addEventListener('keydown', (e) => this.onKey(e));
       doc.addEventListener('mousemove', () => this.poke());
@@ -214,7 +266,38 @@
       this.extendContents(contents);
     },
 
-    contentCss() {
+    // Some books fix text sizes in px, pt or keywords like "small", which a root
+    // size can't reach. Rewrite those as rem, relative to the book's own root
+    // size, so they look the same at 100% and scale with everything else.
+    relativizeFontSizes(doc, base) {
+      const KEYWORDS = { 'xx-small': 9, 'x-small': 10, small: 13, medium: 16, large: 18, 'x-large': 24, 'xx-large': 32, 'xxx-large': 48 };
+      const toRem = (value) => {
+        const v = String(value || '').trim().toLowerCase();
+        const m = /^([\d.]+)(px|pt)$/.exec(v);
+        const px = m ? (m[2] === 'pt' ? parseFloat(m[1]) * (4 / 3) : parseFloat(m[1])) : KEYWORDS[v];
+        return px ? `${(px / base).toFixed(4)}rem` : null;
+      };
+      const fix = (style) => {
+        const rem = toRem(style.fontSize);
+        if (rem) style.setProperty('font-size', rem, style.getPropertyPriority('font-size'));
+      };
+      const walk = (rules) => {
+        for (const rule of rules) {
+          if (rule.style && rule.style.fontSize && !/^\s*(html|:root)\s*$/i.test(rule.selectorText || '')) fix(rule.style);
+          if (rule.cssRules) walk(rule.cssRules);
+        }
+      };
+      for (const sheet of doc.styleSheets) {
+        try {
+          walk(sheet.cssRules);
+        } catch (_) {
+          /* unreadable sheet */
+        }
+      }
+      doc.querySelectorAll('body [style*="font-size"]').forEach((el) => fix(el.style));
+    },
+
+    contentCss(base = 16) {
       const s = State.settings;
       const t = THEMES[s.theme] || THEMES.linen;
       const family =
@@ -226,7 +309,7 @@
       return `${fontCss}
         ${Fonts.faceCss(s.fontFamily)}
         html, body { background: transparent !important; color: ${t.ink} !important; }
-        body { font-size: ${s.fontSize}% !important; }
+        html { font-size: ${((base * (s.fontSize || 100)) / 100).toFixed(2)}px !important; }
         body * { color: inherit !important; background-color: transparent !important; }
         body a, body a * { color: ${t.link} !important; text-decoration-color: ${t.link}66 !important; }
         ${family}
@@ -241,10 +324,10 @@
 
     refreshStyles() {
       if (!this.rendition) return;
-      const css = this.contentCss();
       for (const c of this.rendition.getContents()) {
         const el = c.document.getElementById('aion-style');
-        if (el) el.textContent = css;
+        const base = Number(c.document.documentElement.dataset.aionBase) || 16;
+        if (el) el.textContent = this.contentCss(base);
       }
       const cfi = this.anchorCfi || this.loc?.start?.cfi;
       requestAnimationFrame(() => {
@@ -299,6 +382,8 @@
       $('.viewer-wrap').style.setProperty('--measure', `${w}px`);
       $('#reader').classList.toggle('spread', this.spread);
       $('#reader').classList.toggle('scroll', s.layout === 'scroll');
+      // Must be set before epub.js measures the page: it reserves the head and foot space.
+      $('#reader').classList.toggle('has-folios', s.runningHeads !== false && s.layout !== 'scroll');
     },
 
     onResize() {
@@ -366,11 +451,7 @@
       this.setSlider(this.progress);
 
       // chapter
-      const idx = loc.start.index;
-      let current = null;
-      for (const item of this.flatToc) {
-        if (item.index !== -1 && item.index <= idx && (!current || item.index >= current.index)) current = item;
-      }
+      const current = this.chapterAt(loc.start.index, loc.start.cfi);
       this.chapter = current?.label || '';
       $('#rChapter').textContent = this.chapter;
       $$('.toc-item').forEach((el) => el.classList.toggle('is-current', !!current && el.dataset.id === String(current.id)));

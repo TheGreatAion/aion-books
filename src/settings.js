@@ -299,6 +299,11 @@
         ${row('Turn pages with the scroll wheel', 'Scroll down for the next page, up for the previous one.', toggle('wheelTurns', s.wheelTurns !== false))}
         ${row('Hide controls while reading', 'The top and bottom bars fade away until you move the mouse.', toggle('autoHideBars', s.autoHideBars !== false))}
         ${row(
+          'Page numbers & running heads',
+          'The book’s title, the chapter and a page number around each page, like a printed book.',
+          toggle('runningHeads', s.runningHeads !== false)
+        )}
+        ${row(
           'Show time left',
           'Estimates minutes left in the chapter and the book, learned from how fast you read.',
           toggle('timeLeft', s.timeLeft !== false)
