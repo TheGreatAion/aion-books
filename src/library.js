@@ -708,7 +708,13 @@
     // Library changed outside this window: watched folder, a synced copy, series backfill.
     window.aion.onLibraryChanged((snap) => State.set(snap));
     window.aion.onAutoImport(({ added }) => toast(`${added} new ${added === 1 ? 'book' : 'books'} from your watched folder`, 3000));
+    window.aion.onUpdateStatus((s) => {
+      if (s.state === 'ready') {
+        toast(`Aion Books ${esc(s.version)} is ready <button class="toast-btn" data-update-install>Restart to update</button>`, 0);
+      }
+    });
     $('#toast').addEventListener('click', (e) => {
+      if (e.target.closest('[data-update-install]')) return window.aion.installUpdate();
       const b = e.target.closest('[data-open]');
       if (!b) return;
       $('#toast').hidden = true;

@@ -12,6 +12,14 @@ npm run dist     # installer → release/Aion-Books-Setup-x.y.z.exe
 
 Close the app before building — a running copy locks `release/win-unpacked`.
 
+## Releases & updates
+
+Installed copies (from the setup program) check [GitHub releases](https://github.com/TheGreatAion/aion-books/releases)
+on start-up, download new versions in the background and install them on the next restart.
+The unpacked build and `npm start` don't self-update.
+
+To publish a new version: bump `version` in `package.json`, commit and push, then run `npm run release` (needs `gh auth login`). That builds the installer and uploads it as a release.
+
 ## Features
 
 - **Library** — shelves, favourites, search, sort (including your own drag-and-drop order), series
@@ -48,3 +56,7 @@ By default the library is in `%APPDATA%/Aion Books` (books, covers, fonts, cache
 | Reader   | Ctrl + / Ctrl −                  | Text size                    |
 | Reader   | F11                              | Full screen                  |
 | Reader   | Esc                              | Close panel / back           |
+
+## License
+
+MIT — see [LICENSE](LICENSE).

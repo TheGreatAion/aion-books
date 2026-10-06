@@ -98,6 +98,27 @@
     return `<div class="chips">${items}<button class="chip add" data-action="add-font">${icon('plus')}Add a font…</button></div>`;
   }
 
+  // ---------- updates ----------
+  let update = { state: 'idle' };
+  function updateText() {
+    switch (update.state) {
+      case 'checking':
+        return 'Checking for a new version…';
+      case 'current':
+        return 'You have the latest version.';
+      case 'downloading':
+        return `Downloading version ${esc(update.version || '')}${update.percent ? ` — ${update.percent}%` : '…'}`;
+      case 'ready':
+        return `Version ${esc(update.version)} is downloaded and ready to install.`;
+      case 'error':
+        return `Couldn’t check for updates — ${esc(update.message || 'unknown error')}`;
+      case 'unsupported':
+        return 'This copy can’t update itself. Install Aion Books with the setup program from GitHub and it will keep itself up to date.';
+      default:
+        return 'Updates come from github.com/TheGreatAion/aion-books.';
+    }
+  }
+
   // ---------- read-aloud voices ----------
   function voiceSelect(current) {
     const voices = window.speechSynthesis?.getVoices() || [];
@@ -348,6 +369,24 @@
       </section>
 
       <section class="set-group">
+        <h2>Updates</h2>
+        ${row(
+          `Aion Books ${info ? esc(info.version) : ''}`,
+          updateText(),
+          update.state === 'ready'
+            ? `<button class="solid-btn" data-action="install-update">Restart to update</button>`
+            : `<button class="ghost-btn bordered" data-action="check-update" ${
+                update.state === 'unsupported' || update.state === 'checking' || update.state === 'downloading' ? 'disabled' : ''
+              }>${icon('reset')}<span>Check now</span></button>`
+        )}
+        ${row(
+          'Check for updates automatically',
+          'New versions download quietly in the background and install the next time you restart.',
+          toggle('autoUpdate', s.autoUpdate !== false)
+        )}
+      </section>
+
+      <section class="set-group">
         <h2>Keyboard</h2>
         <table class="keys">${SHORTCUTS.map(
           ([where, keys, what]) => `<tr><td class="where">${where}</td><td><kbd>${esc(keys)}</kbd></td><td>${esc(what)}</td></tr>`
@@ -395,6 +434,11 @@
       const top = (bar.height ? bar.top : r.top + 100) - card.top - tip.offsetHeight - 8;
       tip.style.left = `${r.left - card.left + r.width / 2}px`;
       tip.style.top = `${Math.max(4, top)}px`;
+    });
+    window.aion.updateStatus().then((s) => (update = s));
+    window.aion.onUpdateStatus((s) => {
+      update = s;
+      if (!$('#settingsPanel').hidden) render();
     });
     window.aion.appInfo().then((i) => {
       info = i;
@@ -452,6 +496,13 @@
         return;
       }
       if (act === 'tts-sample') return sample();
+      if (act === 'check-update') {
+        update = { state: 'checking' };
+        render();
+        update = await window.aion.checkForUpdates();
+        return render();
+      }
+      if (act === 'install-update') return window.aion.installUpdate();
       if (act === 'watch') {
         const s = await window.aion.chooseWatchFolder();
         if (s) {

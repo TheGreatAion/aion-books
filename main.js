@@ -456,8 +456,67 @@ async function define(word) {
   }
 }
 
+// ---------- automatic updates (GitHub releases) ----------
+// Only the installed version can update itself; the unpacked build and `npm start` can't.
+let updater = null;
+let updateStatus = { state: 'idle' };
+
+function canSelfUpdate() {
+  if (!app.isPackaged) return false;
+  const dir = path.dirname(process.execPath);
+  return fs.readdirSync(dir).some((f) => /^Uninstall .*\.exe$/i.test(f));
+}
+
+function setUpdateStatus(s) {
+  updateStatus = { ...s, at: Date.now() };
+  win?.webContents.send('update:status', updateStatus);
+}
+
+function setupUpdates() {
+  if (!canSelfUpdate()) {
+    setUpdateStatus({ state: 'unsupported' });
+    return;
+  }
+  try {
+    ({ autoUpdater: updater } = require('electron-updater'));
+  } catch {
+    setUpdateStatus({ state: 'unsupported' });
+    return;
+  }
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('checking-for-update', () => setUpdateStatus({ state: 'checking' }));
+  updater.on('update-available', (i) => setUpdateStatus({ state: 'downloading', version: i.version, percent: 0 }));
+  updater.on('update-not-available', () => setUpdateStatus({ state: 'current' }));
+  updater.on('download-progress', (p) =>
+    setUpdateStatus({ state: 'downloading', version: updateStatus.version, percent: Math.round(p.percent) })
+  );
+  updater.on('update-downloaded', (i) => setUpdateStatus({ state: 'ready', version: i.version }));
+  updater.on('error', (e) => setUpdateStatus({ state: 'error', message: String(e?.message || e).split('\n')[0].slice(0, 160) }));
+  if (store.data.settings.autoUpdate !== false) {
+    setTimeout(() => updater.checkForUpdates().catch(() => {}), 5000);
+  }
+}
+
 // ---------- IPC ----------
 function registerIpc() {
+  ipcMain.handle('update:get', () => updateStatus);
+  ipcMain.handle('update:check', async () => {
+    if (!updater) return updateStatus;
+    try {
+      await updater.checkForUpdates();
+    } catch (e) {
+      setUpdateStatus({ state: 'error', message: String(e?.message || e).split('\n')[0].slice(0, 160) });
+    }
+    return updateStatus;
+  });
+  ipcMain.handle('update:install', () => {
+    if (updater && updateStatus.state === 'ready') {
+      store.flush();
+      setImmediate(() => updater.quitAndInstall(false, true));
+    }
+  });
+
   ipcMain.handle('library:get', () => snapshot());
 
   ipcMain.handle('library:import-dialog', async () => {
@@ -869,6 +928,7 @@ app.whenReady().then(() => {
       backfillSeries();
       if (store.data.settings.watchFolder) startWatching(store.data.settings.watchFolder);
       watchLibraryFile();
+      setupUpdates();
     }, 1500);
   });
 
