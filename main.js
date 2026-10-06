@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -51,10 +51,41 @@ async function flushPendingOpen() {
 
 // ---------- library helpers ----------
 function bookView(b) {
-  return {
-    ...b,
-    coverUrl: b.cover ? `${pathToFileURL(path.join(dirs.covers, b.cover)).href}` : null,
-  };
+  // The grid shows small thumbnails; fall back to the original if there isn't one yet.
+  let coverUrl = null;
+  if (b.cover) {
+    const thumb = path.join(dirs.thumbs, thumbName(b.cover));
+    coverUrl = pathToFileURL(fs.existsSync(thumb) ? thumb : path.join(dirs.covers, b.cover)).href;
+  }
+  return { ...b, coverUrl };
+}
+
+// ---------- cover thumbnails ----------
+// Book covers are often several megabytes; decoding 100+ of them for a grid of
+// small cards wastes hundreds of MB. Keep a ~360px JPEG copy for display.
+const thumbName = (cover) => `${path.parse(cover).name}.jpg`;
+
+function makeThumb(cover) {
+  try {
+    const img = nativeImage.createFromPath(path.join(dirs.covers, cover));
+    if (img.isEmpty()) return false;
+    const { width } = img.getSize();
+    const small = width > 360 ? img.resize({ width: 360, quality: 'good' }) : img;
+    fs.writeFileSync(path.join(dirs.thumbs, thumbName(cover)), small.toJPEG(84));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function backfillThumbs() {
+  let made = 0;
+  for (const b of store.data.books) {
+    if (!b.cover || fs.existsSync(path.join(dirs.thumbs, thumbName(b.cover)))) continue;
+    if (makeThumb(b.cover)) made++;
+    await new Promise((r) => setImmediate(r)); // keep the app responsive
+  }
+  if (made) notify();
 }
 
 function snapshot() {
@@ -187,6 +218,7 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
       if (meta.cover) {
         cover = `${id}${meta.cover.ext}`;
         fs.writeFileSync(path.join(dirs.covers, cover), meta.cover.data);
+        makeThumb(cover);
       }
 
       const book = {
@@ -604,7 +636,9 @@ function registerIpc() {
     const name = `${id}-${Date.now().toString(36)}${path.extname(src).toLowerCase()}`;
     fs.copyFileSync(src, path.join(dirs.covers, name));
     if (book.cover && book.cover !== name) fs.rmSync(path.join(dirs.covers, book.cover), { force: true });
+    if (book.cover) fs.rmSync(path.join(dirs.thumbs, thumbName(book.cover)), { force: true });
     book.cover = name;
+    makeThumb(name);
     store.save();
     return snapshot();
   });
@@ -733,6 +767,7 @@ function registerIpc() {
     for (const f of [
       path.join(dirs.books, `${id}.epub`),
       book.cover && path.join(dirs.covers, book.cover),
+      book.cover && path.join(dirs.thumbs, thumbName(book.cover)),
       path.join(dirs.locations, `${id}.json`),
     ]) {
       if (f) fs.rmSync(f, { force: true });
@@ -916,6 +951,7 @@ app.whenReady().then(() => {
     covers: path.join(root, 'covers'),
     locations: path.join(root, 'locations'),
     fonts: path.join(root, 'fonts'),
+    thumbs: path.join(root, 'thumbs'),
   };
   for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
   store = new Store(root);
@@ -926,6 +962,7 @@ app.whenReady().then(() => {
   win.webContents.once('did-finish-load', () => {
     setTimeout(() => {
       backfillSeries();
+      backfillThumbs();
       if (store.data.settings.watchFolder) startWatching(store.data.settings.watchFolder);
       watchLibraryFile();
       setupUpdates();

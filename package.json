@@ -6,8 +6,12 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis",
+    "test": "npm run test:unit && npm run test:app",
+    "test:unit": "node --test \"tests/unit/*.test.js\"",
+    "test:app": "playwright test",
+    "fixtures": "node tests/fixtures/make-fixtures.js",
     "pack": "electron-builder --win dir",
+    "dist": "electron-builder --win nsis",
     "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1"
   },
   "keywords": [
@@ -34,6 +38,7 @@
     "jszip": "^3.10.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3"
   },

@@ -64,6 +64,32 @@
       return State.book(this.id);
     },
 
+    // What's on screen, independent of the rendering engine. Used by the app tests.
+    probe() {
+      const loc = this.loc;
+      let textPx = null;
+      for (const c of this.rendition?.getContents?.() || []) {
+        const p = [...c.document.querySelectorAll('p')].find((x) => x.textContent.trim().length > 40);
+        if (p) {
+          textPx = parseFloat(c.window.getComputedStyle(p).fontSize);
+          break;
+        }
+      }
+      const text = (id) => document.getElementById(id)?.textContent || '';
+      return {
+        open: !!this.book && $('#rLoading').classList.contains('gone'),
+        bookId: this.id,
+        position: this.anchorCfi || loc?.start?.cfi || null,
+        fraction: this.progress,
+        measured: this.locationsReady,
+        chapter: this.chapter,
+        textPx,
+        heads: [text('rhLeft'), text('rhRight')],
+        folios: [text('folioLeft'), text('folioRight')],
+        footer: text('rPercent'),
+      };
+    },
+
     // ---------- open / close ----------
     async open(id) {
       const rec = State.book(id);

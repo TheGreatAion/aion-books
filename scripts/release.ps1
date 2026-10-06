@@ -18,6 +18,11 @@ $env:GH_TOKEN = $token
 $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
 
+# Never publish a build that fails its tests: installed copies update themselves.
+Write-Host "Running tests before releasing $tag ..."
+npm test
+if ($LASTEXITCODE -ne 0) { throw "Tests failed - not releasing $tag" }
+
 # GitHub only accepts a published release for a tag that already exists, so tag
 # the current commit and push the tag first (skipped if it's already there).
 $git = Get-Command git -ErrorAction SilentlyContinue
