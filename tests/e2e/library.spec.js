@@ -56,3 +56,53 @@ test('settings survive a restart of the window', async () => {
   await page.waitForFunction(() => window.UI?.State?.books?.length);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dusk');
 });
+
+test('settings are grouped into six sections', async () => {
+  await page.click('#openSettings');
+  await expect(page.locator('#settingsPanel h2')).toHaveText([
+    'Reading',
+    'Turning pages & the page',
+    'Read aloud',
+    'Library',
+    'Your data',
+    'App',
+  ]);
+  // Gone: the stats (own page), the shortcuts (overlay), sorting (library header) and the remove switch.
+  await expect(page.locator('#settingsPanel .stat-tiles')).toHaveCount(0);
+  await expect(page.locator('#settingsPanel .keys')).toHaveCount(0);
+  await expect(page.locator('#settingsPanel [data-set="sort"]')).toHaveCount(0);
+  await expect(page.locator('#settingsPanel [data-toggle="confirmRemove"]')).toHaveCount(0);
+  await expect(page.locator('#settingsPanel [data-set="footerInfo"]')).toHaveCount(3);
+});
+
+test('your reading has its own page, reached from the sidebar and the goal ring', async () => {
+  await page.click('#openStats');
+  await expect(page.locator('#viewTitle')).toHaveText('Your reading');
+  await expect(page.locator('#statsPanel')).toBeVisible();
+  await expect(page.locator('#settingsPanel')).toBeHidden();
+  await expect(page.locator('#statsPanel .stat-tiles .stat')).toHaveCount(4);
+  await page.click('#statsPanel [data-set="dailyGoal"][data-v="45"]');
+  await expect(page.locator('#goalRow')).toContainText('of 45 min');
+  await expect(page.locator('#statsPanel [data-set="dailyGoal"][data-v="45"]')).toHaveClass(/is-on/);
+
+  await page.click('.nav-item[data-view="all"]');
+  await expect(page.locator('#statsPanel')).toBeHidden();
+  await page.click('#goalRow');
+  await expect(page.locator('#statsPanel')).toBeVisible();
+  await page.click('#statsPanel [data-set="dailyGoal"][data-v="20"]');
+});
+
+test('? shows the keyboard shortcuts', async () => {
+  await page.click('.nav-item[data-view="all"]');
+  await page.keyboard.press('?');
+  await expect(page.locator('#modal .keys')).toBeVisible();
+  await expect(page.locator('#modal')).toContainText('Read aloud');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modalBack')).toBeHidden();
+  // Not while typing in the search box.
+  await page.click('#search');
+  await page.keyboard.press('?');
+  await expect(page.locator('#modalBack')).toBeHidden();
+  await page.fill('#search', '');
+  await page.locator('#search').blur();
+});

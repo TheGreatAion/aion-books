@@ -2212,10 +2212,27 @@ kbd {
   white-space: pre;
 }
 .set-about {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   color: var(--ink-3);
   font-style: italic;
   font-size: 14px;
+}
+.set-about kbd {
+  margin-left: 6px;
+  font-style: normal;
+}
+#modal .keys {
+  margin: 4px 0 6px;
+}
+.goal-row {
+  cursor: pointer;
+  border-radius: 8px;
+}
+.goal-row:hover span {
+  color: var(--ink);
 }
 .pop-more {
   display: block;

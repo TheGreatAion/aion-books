@@ -265,32 +265,41 @@
     if (view.startsWith('series:') && !State.books.some((b) => b.series === view.slice(7))) view = 'series';
     if (view === 'series' && !State.books.some((b) => b.series)) view = 'all';
     if (Date.now() - goalFetchedAt > 5000) refreshGoal();
-    const inSettings = view === 'settings';
-    $('#libMain').classList.toggle('in-settings', inSettings);
-    $('#openSettings').classList.toggle('is-active', inSettings);
-    $('#settingsPanel').hidden = !inSettings;
+    const page = PAGES[view];
+    $('#libMain').classList.toggle('in-settings', !!page);
+    $('#openSettings').classList.toggle('is-active', view === 'settings');
+    $('#openStats').classList.toggle('is-active', view === 'stats');
+    $('#settingsPanel').hidden = view !== 'settings';
+    $('#statsPanel').hidden = view !== 'stats';
     renderNav();
-    if (inSettings) {
+    if (page) {
       $('#hero').hidden = true;
       $('#grid').innerHTML = '';
       $('#empty').hidden = true;
       $('.lib-heading').hidden = false;
       $('.heading-ornament').hidden = false;
-      $('#viewTitle').textContent = 'Settings';
+      $('#viewTitle').textContent = page.title;
       $('#viewCount').textContent = '';
-      window.Settings.render();
+      page.render();
       return;
     }
     renderHero();
     renderGrid();
   }
 
-  function openSettings() {
+  // Pages that take over the main column instead of showing books.
+  const PAGES = {
+    settings: { title: 'Settings', render: () => window.Settings.render() },
+    stats: { title: 'Your reading', render: () => window.Settings.renderStats() },
+  };
+  function openPage(name) {
     if ($('#reader').classList.contains('is-active')) Reader.close();
-    view = 'settings';
+    view = name;
     $('#libScroll').scrollTop = 0;
     render();
   }
+  const openSettings = () => openPage('settings');
+  const openStats = () => openPage('stats');
 
   // ---------- daily goal ring ----------
   let goalFetchedAt = 0;
@@ -312,7 +321,7 @@
       `<svg class="ring" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10" class="track"/>` +
       `<circle cx="13" cy="13" r="10" class="fill" stroke-dasharray="${(C * frac).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 13 13)"/></svg>` +
       `<span>${frac >= 1 ? `Today’s ${goal} minutes — done` : `${min} of ${goal} min read today`}</span>`;
-    row.title = 'Daily reading goal — change it in Settings';
+    row.title = 'Daily reading goal — see your reading';
   }
 
   // ---------- actions ----------
@@ -384,7 +393,7 @@
 
   async function removeBook(id) {
     const b = State.book(id);
-    const ok = State.settings.confirmRemove === false || await confirmBox({
+    const ok = await confirmBox({
       title: 'Remove this book?',
       sub: `<em>${esc(b.title)}</em> and its highlights will leave your library. The original file on your computer stays where it is.`,
       okLabel: 'Remove',
@@ -523,6 +532,9 @@
     $('#addShelf').innerHTML = icon('plus');
     $('#openSettings').innerHTML = `${icon('gear')}<span>Settings</span>`;
     $('#openSettings').onclick = openSettings;
+    $('#openStats').innerHTML = `${icon('chart')}<span>Your reading</span>`;
+    $('#openStats').onclick = openStats;
+    $('#goalRow').onclick = openStats;
     $('#addBooks').innerHTML = `${icon('plus')}<span>Add books</span>`;
     $('#addFolder').innerHTML = `${icon('folder')}<span>Add a folder</span>`;
     $('#searchIcon').outerHTML = icon('search');
@@ -569,7 +581,7 @@
       clearTimeout(qt);
       qt = setTimeout(() => {
         query = e.target.value.trim();
-        if (view === 'settings') view = 'all';
+        if (PAGES[view]) view = 'all';
         render();
       }, 120);
     });
@@ -746,6 +758,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, refreshGoal, nextInSeries };
+  window.Library = { openSettings, openStats, refreshGoal, nextInSeries };
   boot();
 })();

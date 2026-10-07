@@ -267,7 +267,14 @@
       style.textContent = this.contentCss(base);
       doc.head?.appendChild(style);
 
-      doc.addEventListener('keydown', (e) => this.onKey(e));
+      doc.addEventListener('keydown', (e) => {
+        // The main window's "?" listener can't hear keys pressed inside the book.
+        if (e.key === '?' && !e.ctrlKey && $('#modalBack').hidden) {
+          e.preventDefault();
+          return window.Settings.showShortcuts();
+        }
+        this.onKey(e);
+      });
       doc.addEventListener('mousemove', () => this.poke());
       doc.addEventListener('wheel', (e) => this.onWheel(e), { passive: true });
       doc.addEventListener('mousedown', () => {

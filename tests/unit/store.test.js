@@ -51,3 +51,16 @@ test('survives a corrupt library file', () => {
   fs.writeFileSync(path.join(dir, 'library.json'), '{ not json');
   assert.deepEqual(new Store(dir).data.books, []);
 });
+
+test('turns the old time-left / pages-left switches into the footer choice', () => {
+  const cases = [
+    [{ timeLeft: true, pagesLeft: true }, 'time'],
+    [{ timeLeft: false, pagesLeft: true }, 'pages'],
+    [{ timeLeft: false, pagesLeft: false }, 'percent'],
+  ];
+  for (const [settings, expected] of cases) {
+    const dir = tmp();
+    fs.writeFileSync(path.join(dir, 'library.json'), JSON.stringify({ version: 2, books: [], settings }));
+    assert.equal(new Store(dir).data.settings.footerInfo, expected);
+  }
+});
