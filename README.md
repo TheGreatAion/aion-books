@@ -16,7 +16,7 @@
   <img src="docs/screenshots/library.png" alt="The Aion Books library, with the book you're reading featured at the top and your other books in progress beneath it" width="860">
 </p>
 
-Aion Books is a home for your EPUB collection and a calm place to read them. Pages feel like lightly
+Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
 weathered paper, a few painted botanicals — ivy, lemons, olive — grow in the margins, and everything
 else stays out of the way of the words.
 
@@ -25,7 +25,7 @@ else stays out of the way of the words.
 1. Grab **`Aion-Books-Setup-x.y.z.exe`** from the [latest release](https://github.com/TheGreatAion/aion-books/releases/latest).
 2. Run it. Windows may say the publisher is unknown (the installer isn't code-signed) — choose
    **More info → Run anyway**.
-3. Drop some `.epub` files onto the window, and start reading.
+3. Drop some books onto the window — EPUB, Kindle (MOBI, AZW3), PDF, comics (CBZ) or FictionBook (FB2) — and start reading.
 
 Installed copies keep themselves up to date: new versions download in the background and install the
 next time you restart.
@@ -41,6 +41,8 @@ next time you restart.
 - **A watched folder** — save an EPUB into it and it appears in your library on its own.
 
 ### Reading
+- **EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FictionBook (FB2)**, all in the same reader.
+- **A real page curl** as you turn, and **page edges** either side that show how far through the book you are.
 - **Single page, two-page spread, or continuous scroll**, with a choice of typefaces — or add your own
   `.ttf`, `.otf`, `.woff` or `.woff2` fonts.
 - **Search inside the book**, **footnote pop-ups**, and a **dictionary** for any word you select.
@@ -54,8 +56,14 @@ next time you restart.
   <img src="docs/screenshots/reader.png" alt="A two-page spread being read aloud, with the current sentence highlighted" width="860">
 </p>
 
+### Your commonplace book
+Every passage you've highlighted, from every book, gathered on one page with your notes beside them —
+searchable, sorted by book or by date, with one at random at the top. Click a passage to open the book
+right there.
+
 ### Your reading
-Its own page in the sidebar: time spent reading, streaks, pages turned, a fourteen-day chart, your most-read books, and a daily
+Its own page in the sidebar: a year in books, month by month — what you finished, how long each took and
+how you rated it — plus time spent reading, streaks, pages turned, a fourteen-day chart, your most-read books, and a daily
 reading goal that fills a small ring in the sidebar.
 
 <p align="center">
@@ -121,12 +129,14 @@ Installed copies pick it up automatically.
 | ------------------------ | ------------------------------------------------------------------------- |
 | `main.js`                | The window, library storage, importing, watched folder, backups, sync, updates |
 | `preload.js`             | The bridge between the app window and the main process                    |
-| `lib/`                   | EPUB metadata (including series), the JSON store, bundled and custom fonts |
+| `lib/`                   | EPUB metadata (including series), book formats, the JSON store, bundled and custom fonts |
 | `src/library.js`         | Shelves, the book grid, details, ratings, drag-to-reorder                 |
 | `src/reader.js`, `src/reader-extras.js` | The reader: styling, controls, highlights, search, read aloud, footnotes, time left |
 | `src/vendor/foliate-js/` | The book engine, [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT), included unmodified |
 | `tests/`                 | Unit tests, and app tests that drive the real app against generated sample books |
 | `src/settings.js`        | Settings, the Your reading page, and the shortcuts list                    |
+| `src/journal.js`         | The commonplace book and the reading timeline                             |
+| `src/page-curl.js`       | The page curl                                                             |
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |
 | `src/styles.css`         | Everything visual                                                         |
 

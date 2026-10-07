@@ -269,8 +269,10 @@
     $('#libMain').classList.toggle('in-settings', !!page);
     $('#openSettings').classList.toggle('is-active', view === 'settings');
     $('#openStats').classList.toggle('is-active', view === 'stats');
+    $('#openCommonplace').classList.toggle('is-active', view === 'commonplace');
     $('#settingsPanel').hidden = view !== 'settings';
     $('#statsPanel').hidden = view !== 'stats';
+    $('#commonplacePanel').hidden = view !== 'commonplace';
     renderNav();
     if (page) {
       $('#hero').hidden = true;
@@ -291,6 +293,7 @@
   const PAGES = {
     settings: { title: 'Settings', render: () => window.Settings.render() },
     stats: { title: 'Your reading', render: () => window.Settings.renderStats() },
+    commonplace: { title: 'Commonplace book', render: () => window.Journal.renderCommonplace() },
   };
   function openPage(name) {
     if ($('#reader').classList.contains('is-active')) Reader.close();
@@ -300,6 +303,7 @@
   }
   const openSettings = () => openPage('settings');
   const openStats = () => openPage('stats');
+  const openCommonplace = () => openPage('commonplace');
 
   // ---------- daily goal ring ----------
   let goalFetchedAt = 0;
@@ -535,6 +539,8 @@
     $('#openStats').innerHTML = `${icon('chart')}<span>Your reading</span>`;
     $('#openStats').onclick = openStats;
     $('#goalRow').onclick = openStats;
+    $('#openCommonplace').innerHTML = `${icon('quote')}<span>Commonplace book</span>`;
+    $('#openCommonplace').onclick = openCommonplace;
     $('#addBooks').innerHTML = `${icon('plus')}<span>Add books</span>`;
     $('#addFolder').innerHTML = `${icon('folder')}<span>Add a folder</span>`;
     $('#searchIcon').outerHTML = icon('search');
@@ -751,6 +757,7 @@
     bind();
     Reader.bind();
     window.Settings.bind();
+    window.Journal.bind();
     const snap = await window.aion.getLibrary();
     UI.applyRoot(snap.settings);
     $('#sort').value = snap.settings.sort || 'recent';
@@ -758,6 +765,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, refreshGoal, nextInSeries };
+  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries };
   boot();
 })();

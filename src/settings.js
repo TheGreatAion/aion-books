@@ -245,8 +245,9 @@
 
   // ---------- the "Your reading" page ----------
   function renderStats() {
-    $('#statsPanel').innerHTML = `<section class="set-group" id="statsGroup">${statsHtml()}</section>`;
+    $('#statsPanel').innerHTML = `<section class="set-group" id="statsGroup">${statsHtml()}</section><section class="set-group timeline" id="timelineGroup"></section>`;
     refreshStats();
+    window.Journal.renderTimeline();
   }
 
   // ---------- keyboard shortcuts (press ?) ----------
