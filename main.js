@@ -836,6 +836,14 @@ function registerIpc() {
     return store.data.settings;
   });
 
+  // A picture of part of the window (in CSS pixels), for the page-curl animation.
+  ipcMain.handle('reader:snapshot', async (e, rect) => {
+    const r = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
+    if (r.width < 1 || r.height < 1) return null;
+    const img = await e.sender.capturePage(r);
+    return img.isEmpty() ? null : img.toJPEG(88);
+  });
+
   ipcMain.handle('app:info', () => ({
     version: app.getVersion(),
     dataDir: dirs.root,

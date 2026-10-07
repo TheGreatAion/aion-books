@@ -225,3 +225,54 @@ test('the chapter countdown reaches the last page before the chapter changes', a
     await page.evaluate(() => window.UI.setSettings({ footerInfo: 'time' }));
   }
 });
+
+test('the page curls over and leaves nothing behind', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
+  await page.waitForTimeout(800);
+  const start = (await probe(page)).position;
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.curl-layer')).toHaveCount(1);
+  await expect(page.locator('.curl-layer')).toHaveCount(0, { timeout: 3000 });
+  expect((await probe(page)).position).not.toBe(start);
+
+  // A quick run of turns: every one turns, and no sheet is left on the page.
+  const before = (await probe(page)).fraction;
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.curl-layer')).toHaveCount(0, { timeout: 4000 });
+  await page.waitForTimeout(300);
+  expect((await probe(page)).fraction).toBeGreaterThan(before);
+});
+
+test('no curl when it is switched off or motion is still', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
+  await page.waitForTimeout(800);
+  for (const patch of [{ pageCurl: false }, { motion: 'still' }]) {
+    await page.evaluate((p) => window.UI.setSettings(p), patch);
+    await page.waitForTimeout(400); // let the last turn settle
+    const start = (await probe(page)).position;
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(60);
+    await expect(page.locator('.curl-layer')).toHaveCount(0);
+    await expect.poll(async () => (await probe(page)).position).not.toBe(start);
+    await page.evaluate(() => window.UI.setSettings({ pageCurl: true, motion: 'full' }));
+  }
+});
+
+test('page edges stack up on the left as you read', async () => {
+  await openBook(page, 'Along the Hedge Path');
+  await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[0].href));
+  await page.waitForTimeout(800);
+  const widths = () => page.evaluate(() => ['#edgeL', '#edgeR'].map((s) => (document.querySelector(s).hidden ? 0 : document.querySelector(s).offsetWidth)));
+  const [l0, r0] = await widths();
+  await page.evaluate(() => window.Reader.view.goToFraction(0.9));
+  await page.waitForTimeout(1000);
+  const [l1, r1] = await widths();
+  expect(l1).toBeGreaterThan(l0);
+  expect(r1).toBeLessThan(r0);
+  await page.evaluate(() => window.UI.setSettings({ bookEdges: false }));
+  await page.evaluate(() => window.Reader.renderEdges());
+  await expect(page.locator('#edgeL')).toBeHidden();
+  await page.evaluate(() => window.UI.setSettings({ bookEdges: true }));
+});

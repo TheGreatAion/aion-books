@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('aion', {
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   resetSettings: (scope) => ipcRenderer.invoke('settings:reset', scope),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  snapshot: (rect) => ipcRenderer.invoke('reader:snapshot', rect),
   openDataFolder: () => ipcRenderer.invoke('app:open-data'),
   exportNotes: () => ipcRenderer.invoke('notes:export'),
   fontCss: () => ipcRenderer.invoke('fonts:css'),

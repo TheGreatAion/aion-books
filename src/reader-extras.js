@@ -155,6 +155,47 @@
       return share > 0 ? (Math.max(1, r.pages - 2) * cols) / share : null;
     },
 
+    // ---------- the page as a physical thing ----------
+    // Where the page is on screen: its outer edges sit a little outside the
+    // text, and for two pages, the spine runs down the middle of the gap.
+    pageBox() {
+      const stage = $('#stage').getBoundingClientRect();
+      const wrap = $('.viewer-wrap').getBoundingClientRect();
+      const cols = [...(this.renderer?.heads || [])].map((h) => h.getBoundingClientRect()).filter((r) => r.width > 0);
+      const PAD = 44;
+      let left = wrap.left;
+      let right = wrap.right;
+      let spine = null;
+      if (cols.length) {
+        left = Math.max(stage.left + 20, Math.min(...cols.map((r) => r.left)) - PAD);
+        right = Math.min(stage.right - 20, Math.max(...cols.map((r) => r.right)) + PAD);
+        if (cols.length > 1) spine = (cols[0].right + cols[1].left) / 2;
+      }
+      return { left, right, top: stage.top, bottom: stage.bottom, spine };
+    },
+
+    // A stack of page edges either side: the pages you've read on the left,
+    // the pages to come on the right, thicker for a longer book.
+    renderEdges() {
+      const L = $('#edgeL');
+      const R = $('#edgeR');
+      const total = this.loc?.location?.total;
+      const on = State.settings.bookEdges !== false && !!this.view && !!total && State.settings.layout !== 'scroll';
+      L.classList.toggle('is-on', on);
+      R.classList.toggle('is-on', on);
+      if (!on) return;
+      const box = this.pageBox();
+      const stage = $('#stage').getBoundingClientRect();
+      const thick = Math.max(7, Math.min(18, 5 + total / 30));
+      const f = Math.max(0, Math.min(1, this.progress || 0));
+      const read = Math.round(thick * f * 2) / 2;
+      const ahead = Math.round(thick * (1 - f) * 2) / 2;
+      Object.assign(L.style, { left: `${box.left - stage.left - read}px`, width: `${read}px` });
+      Object.assign(R.style, { left: `${box.right - stage.left}px`, width: `${ahead}px` });
+      L.hidden = read < 1;
+      R.hidden = ahead < 1;
+    },
+
     renderRunning(detail) {
       const r = this.renderer;
       const heads = r?.heads;
@@ -197,6 +238,7 @@
         this.prevLoc = cur;
       }
       this.renderRunning(detail);
+      this.renderEdges();
       if (this.ttsRestartAfterMove) {
         this.ttsRestartAfterMove = false;
         this.ttsStop(true);
