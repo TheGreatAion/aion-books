@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 const { Store, DEFAULT_SETTINGS, READING_KEYS } = require('./lib/store');
 const { readEpubMeta } = require('./lib/epubMeta');
+const { lookupCharacter, isWikipediaUrl } = require('./lib/lookup');
 const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
 const { buildFontCss } = require('./lib/fonts');
 const { fontInfo, FORMATS } = require('./lib/fontInfo');
@@ -753,6 +754,10 @@ function registerIpc() {
 
   // ---- dictionary ----
   ipcMain.handle('lookup:define', (_e, word) => define(word));
+  ipcMain.handle('lookup:character', (_e, name, context) => lookupCharacter(name, context));
+  ipcMain.handle('lookup:open-wikipedia', (_e, url) => {
+    if (isWikipediaUrl(url)) shell.openExternal(url);
+  });
   ipcMain.handle('lookup:web', (_e, word) => {
     const w = String(word || '').trim().slice(0, 80);
     if (w) shell.openExternal(`https://en.wiktionary.org/wiki/${encodeURIComponent(w)}`);

@@ -83,6 +83,8 @@ async function makeBook(file, o) {
           'Nobody remembered who had chosen it.<sup><a href="#fn2">2</a></sup></p>' +
           '<aside epub:type="footnote" id="fn2"><p>Possibly the gardener, who kept no records.</p></aside>';
       }
+      // People, at the end of a chapter (so the first pages stay the same for the other tests).
+      if (o.people?.[i]) body += `<p>${o.people[i]}</p>`;
       zip.file(`OEBPS/ch${i + 1}.xhtml`, xhtml(t, body, o.css));
       items.push(`<item id="ch${i + 1}" href="ch${i + 1}.xhtml" media-type="application/xhtml+xml"/>`);
       spine.push(`<itemref idref="ch${i + 1}"/>`);
@@ -109,8 +111,12 @@ async function makeBook(file, o) {
 }
 
 const BOOKS = {
-  'pear-tree.epub': { title: 'The Pear Tree Letters', author: 'Margaret Ashdown', chapters: CHAPTERS, paras: 24, cover: [70, 95, 78], series: 'The Orchard Years', seriesIndex: 1, notes: true, description: 'A quiet novel of a garden and a letter.' },
-  'hedge-path.epub': { title: 'Along the Hedge Path', author: 'Eleanor Vale', chapters: CHAPTERS.slice(0, 3), paras: 20, series: 'The Orchard Years', seriesIndex: 2 },
+  'pear-tree.epub': { title: 'The Pear Tree Letters', author: 'Margaret Ashdown', chapters: CHAPTERS, paras: 24, cover: [70, 95, 78], series: 'The Orchard Years', seriesIndex: 1, notes: true, description: 'A quiet novel of a garden and a letter.',
+    people: { 0: 'Agnes Hale, the gardener’s widow, kept bees behind the old wall and spoke to them as if they were neighbors.', 2: 'Agnes was waiting by the hives when the second letter came.' } },
+  'hedge-path.epub': {
+    title: 'Along the Hedge Path', author: 'Eleanor Vale', chapters: CHAPTERS.slice(0, 3), paras: 20, series: 'The Orchard Years', seriesIndex: 2,
+    people: { 0: 'Tobias Reed came up the hedge path with a basket of quinces, whistling.', 1: 'Agnes and Tobias did not speak of the letter, though both of them thought of little else.' },
+  },
   'single-file.epub': {
     title: 'One Long Afternoon: An Illustrated Edition [Special] (Orchard Classics)',
     author: 'Isobel Marsh',

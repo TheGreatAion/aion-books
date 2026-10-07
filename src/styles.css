@@ -3336,3 +3336,144 @@ foliate-view {
     gap: 6px;
   }
 }
+
+/* ================================================================
+   "Who is this?" card (shares the note pop-up)
+   ================================================================ */
+.note-pop.wide {
+  width: min(460px, calc(100vw - 32px));
+  max-height: 62vh;
+}
+.who-name {
+  font: 400 23px var(--display);
+  color: var(--ink);
+  margin: 2px 0 8px;
+}
+.who-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.who-head span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0;
+  text-transform: none;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.who-go {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: italic 14px var(--serif);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+.who-go:hover {
+  text-decoration: underline;
+}
+.who-quote {
+  margin: 6px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--line-2);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.who-quote b,
+.who-all b {
+  font-weight: 600;
+}
+.who-count {
+  margin: 12px 0 0;
+  font-size: 14.5px;
+  font-style: italic;
+  color: var(--ink-2);
+}
+.who-all {
+  margin-top: 8px;
+  font-size: 14px;
+}
+.who-all summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-style: italic;
+}
+.who-all ol {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.who-all li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: 14px/1.4 var(--serif);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.who-all li button:hover {
+  color: var(--ink);
+}
+.who-all .ch {
+  display: block;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--ink-3);
+}
+.who-status {
+  margin-top: 10px !important;
+}
+.who-online {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.who-online button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: 15px var(--serif);
+  color: var(--accent);
+  cursor: pointer;
+}
+.who-online button:hover {
+  text-decoration: underline;
+}
+.who-online span {
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--ink-3);
+}
+.who-wiki {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.who-wiki p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}

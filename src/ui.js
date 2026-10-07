@@ -84,6 +84,7 @@
     if (quiet) {
       const i = State.books.findIndex((b) => b.id === id);
       if (i >= 0) State.books[i] = updated;
+      window.Series.group(State.books); // keep it in its series
     } else {
       State.patchBook(updated);
     }
