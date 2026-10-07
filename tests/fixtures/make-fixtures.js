@@ -5,6 +5,7 @@ const JSZip = require('jszip');
 const zlib = require('zlib');
 const fs = require('fs');
 const path = require('path');
+const { OTHER_BOOKS } = require('./other-formats');
 
 const OUT = path.join(__dirname, 'books');
 
@@ -124,8 +125,9 @@ const BOOKS = {
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   for (const [name, o] of Object.entries(BOOKS)) await makeBook(path.join(OUT, name), o);
-  return Object.keys(BOOKS).map((n) => path.join(OUT, n));
+  for (const [name, make] of Object.entries(OTHER_BOOKS)) fs.writeFileSync(path.join(OUT, name), await make({ png }));
+  return [...Object.keys(BOOKS), ...Object.keys(OTHER_BOOKS)].map((n) => path.join(OUT, n));
 }
 
-module.exports = { main, BOOKS, OUT };
+module.exports = { main, BOOKS, OTHER_BOOKS, OUT };
 if (require.main === module) main().then((files) => console.log(`wrote ${files.length} fixtures to ${OUT}`));

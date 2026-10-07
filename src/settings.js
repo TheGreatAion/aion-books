@@ -340,8 +340,8 @@
         ${row(
           'Watch a folder',
           s.watchFolder
-            ? `New EPUBs saved here are added automatically.<br><span class="path">${esc(s.watchFolder)}</span>`
-            : 'Choose a folder, and any EPUB you save there is added to your library automatically.',
+            ? `New books saved here are added automatically.<br><span class="path">${esc(s.watchFolder)}</span>`
+            : 'Choose a folder, and any book you save there is added to your library automatically.',
           `<div class="btn-row">${
             s.watchFolder ? `<button class="ghost-btn bordered" data-action="unwatch">Stop watching</button>` : ''
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`

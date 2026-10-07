@@ -71,6 +71,21 @@
         "ext": "epub",
         "name": "EPUB Book",
         "role": "Viewer"
+      },
+      {
+        "ext": ["mobi", "azw3", "azw"],
+        "name": "Kindle Book",
+        "role": "Viewer"
+      },
+      {
+        "ext": "fb2",
+        "name": "FictionBook",
+        "role": "Viewer"
+      },
+      {
+        "ext": "cbz",
+        "name": "Comic Book",
+        "role": "Viewer"
       }
     ],
     "win": {

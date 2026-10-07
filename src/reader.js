@@ -77,7 +77,33 @@
       import('./vendor/foliate-js/view.js'),
       import('./vendor/foliate-js/epubcfi.js'),
       import('./vendor/foliate-js/overlayer.js'),
-    ]).then(([, CFI, { Overlayer }]) => Object.assign(engine, { CFI, Overlayer })));
+    ]).then(([{ makeBook }, CFI, { Overlayer }]) => Object.assign(engine, { makeBook, CFI, Overlayer })));
+
+  // The engine tells formats apart by file name, so each book is handed over
+  // under a name with its format's extension.
+  const bookFile = (rec, data) => new File([data], `${rec.id}.${rec.format || 'epub'}`, { type: rec.format === 'epub' || !rec.format ? 'application/epub+zip' : '' });
+
+  // Plain text from whatever shape a format gives its details in: a string, a
+  // { name } object, a map of languages, or a list of any of those.
+  const metaText = (v) => {
+    if (v == null) return '';
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return v.map(metaText).filter(Boolean).join(', ');
+    if (typeof v === 'object') return metaText(v.name ?? Object.values(v)[0]);
+    return String(v);
+  };
+  const stripTags = (html) => {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    return d.textContent.replace(/\s+/g, ' ').trim();
+  };
+  const sniffImage = (b) =>
+    b[0] === 0x89 && b[1] === 0x50 ? 'image/png'
+      : b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg'
+      : b[0] === 0x47 && b[1] === 0x49 ? 'image/gif'
+      : b[8] === 0x57 && b[9] === 0x45 ? 'image/webp'
+      : /^\s*(<\?xml|<svg)/.test(new TextDecoder().decode(b.subarray(0, 64))) ? 'image/svg+xml'
+      : 'image/jpeg';
 
   const Reader = {
     id: null,
@@ -157,7 +183,7 @@
         await loadEngine();
         const data = await window.aion.bookData(id);
         if (token !== this.openToken) return;
-        const file = new File([data], `${id}.epub`, { type: 'application/epub+zip' });
+        const file = bookFile(rec, data);
 
         const view = document.createElement('foliate-view');
         view.id = 'book-view';
@@ -176,6 +202,9 @@
             });
           }
         });
+        // Comics list each page by its image file ("page01.png"); call them pages instead.
+        // (Renamed in place: the engine reports the current entry from this same list.)
+        if (rec.format === 'cbz') (this.book.toc || []).forEach((t, i) => (t.label = `Page ${i + 1}`));
         this.toc = this.book.toc || [];
         this.flatToc = [];
         this.flatten(this.toc, 0);
@@ -258,15 +287,19 @@
 
     // Every chapter document, as it's laid out.
     onDocLoad({ doc, index }) {
-      // Text size is applied at the root, so it reaches rem-, em- and %-based
-      // sizes alike. Remember the book's own root size to scale from it.
-      const base = parseFloat(doc.defaultView.getComputedStyle(doc.documentElement).fontSize) || 16;
-      doc.documentElement.dataset.aionBase = base;
-      this.relativizeFontSizes(doc, base);
-      const style = doc.createElement('style');
-      style.id = 'aion-style';
-      style.textContent = this.contentCss(base);
-      doc.head?.appendChild(style);
+      // Pages that are pictures (PDFs, comics, fixed-layout books) keep their
+      // own look: text size, typeface and paper don't apply to them.
+      if (!this.view?.isFixedLayout) {
+        // Text size is applied at the root, so it reaches rem-, em- and %-based
+        // sizes alike. Remember the book's own root size to scale from it.
+        const base = parseFloat(doc.defaultView.getComputedStyle(doc.documentElement).fontSize) || 16;
+        doc.documentElement.dataset.aionBase = base;
+        this.relativizeFontSizes(doc, base);
+        const style = doc.createElement('style');
+        style.id = 'aion-style';
+        style.textContent = this.contentCss(base);
+        doc.head?.appendChild(style);
+      }
 
       doc.addEventListener('keydown', (e) => {
         // The main window's "?" listener can't hear keys pressed inside the book.
@@ -375,6 +408,62 @@
     updateSpread() {
       this.spread = (this.renderer?.heads?.length || 1) > 1;
       $('#reader').classList.toggle('spread', this.spread);
+    },
+
+    // Books that aren't EPUBs arrive with only a title from their file name.
+    // Open each one quietly, read its real title, author and cover, and save them.
+    async fillMissingMeta() {
+      if (this.fillingMeta) return;
+      this.fillingMeta = true;
+      this.metaTried ||= new Set();
+      try {
+        await loadEngine();
+        let rec;
+        while ((rec = State.books.find((b) => b.needsMeta && !this.metaTried.has(b.id)))) {
+          this.metaTried.add(rec.id);
+          let book = null;
+          try {
+            const data = await window.aion.bookData(rec.id);
+            if (!data) continue;
+            const file = bookFile(rec, data);
+            book = await engine.makeBook(file);
+            const m = book.metadata || {};
+            let title = metaText(m.title).trim();
+            if (!title || title === file.name) title = ''; // comics are only named after their file
+            const meta = {
+              title,
+              author: metaText(m.author),
+              publisher: metaText(m.publisher),
+              language: metaText(Array.isArray(m.language) ? m.language[0] : m.language),
+              published: metaText(m.published),
+              description: m.description ? stripTags(metaText(m.description)).slice(0, 4000) : '',
+              subjects: [].concat(m.subject || []).map(metaText).filter(Boolean),
+              series: metaText(m.belongsTo?.series?.name ?? m.belongsTo?.series),
+              seriesIndex: m.belongsTo?.series?.position,
+            };
+            let cover = null;
+            try {
+              const blob = await book.getCover?.();
+              if (blob?.size) {
+                const bytes = new Uint8Array(await blob.arrayBuffer());
+                cover = { data: bytes, type: blob.type && blob.type.startsWith('image/') ? blob.type : sniffImage(bytes) };
+              }
+            } catch (_) {
+              /* no cover: the card shows its painted placeholder */
+            }
+            await window.aion.setBookMeta(rec.id, meta, cover);
+          } catch (err) {
+            console.warn(`Couldn't read the details of ${rec.title}:`, err);
+            await window.aion.setBookMeta(rec.id, {}, null);
+          } finally {
+            try {
+              book?.destroy?.();
+            } catch (_) {}
+          }
+        }
+      } finally {
+        this.fillingMeta = false;
+      }
     },
 
     onResize() {
@@ -906,6 +995,9 @@
 
     bind() {
       loadEngine(); // start fetching the engine before the first book is opened
+      State.on(() => {
+        if (State.books.some((b) => b.needsMeta)) this.fillMissingMeta();
+      });
       $('#rBack').innerHTML = icon('back');
       $('#rToc').innerHTML = icon('toc');
       $('#rType').innerHTML = icon('type');

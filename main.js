@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 const { Store, DEFAULT_SETTINGS, READING_KEYS } = require('./lib/store');
 const { readEpubMeta } = require('./lib/epubMeta');
+const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
 const { buildFontCss } = require('./lib/fonts');
 const { fontInfo, FORMATS } = require('./lib/fontInfo');
 
@@ -37,7 +38,7 @@ if (!app.requestSingleInstanceLock()) {
 
 function queueEpubArgs(argv) {
   for (const a of argv.slice(1)) {
-    if (/\.epub$/i.test(a) && fs.existsSync(a)) pendingOpen.push(a);
+    if (BOOK_FILE.test(a) && fs.existsSync(a)) pendingOpen.push(a);
   }
 }
 
@@ -64,6 +65,11 @@ function bookView(b) {
 // Book covers are often several megabytes; decoding 100+ of them for a grid of
 // small cards wastes hundreds of MB. Keep a ~360px JPEG copy for display.
 const thumbName = (cover) => `${path.parse(cover).name}.jpg`;
+
+// Where a book's file lives in the library (older books are all EPUBs).
+function bookPath(book) {
+  return path.join(dirs.books, `${book.id}.${book.format || 'epub'}`);
+}
 
 function makeThumb(cover) {
   try {
@@ -186,7 +192,7 @@ function collectEpubs(p, out = []) {
       if (name.startsWith('.')) continue;
       collectEpubs(path.join(p, name), out);
     }
-  } else if (/\.epub$/i.test(p)) {
+  } else if (BOOK_FILE.test(p)) {
     out.push(p);
   }
   return out;
@@ -211,8 +217,11 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
       ids.push(id);
       if (findBook(id)) continue; // already in the library
 
-      const meta = await readEpubMeta(buf);
-      fs.writeFileSync(path.join(dirs.books, `${id}.epub`), buf);
+      // EPUB details are read here; other formats get a title from the file name
+      // for now, and the reader fills in the rest (see Reader.fillMissingMeta).
+      const format = formatOf(file);
+      const meta = format === 'epub' ? await readEpubMeta(buf) : detailsFromFilename(file);
+      fs.writeFileSync(bookPath({ id, format }), buf);
 
       let cover = null;
       if (meta.cover) {
@@ -233,6 +242,8 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
         series: meta.series,
         seriesIndex: meta.seriesIndex,
         seriesChecked: true,
+        format,
+        needsMeta: format !== 'epub',
         cover,
         sourcePath: file,
         size: buf.length,
@@ -266,9 +277,9 @@ function notify() {
 async function backfillSeries() {
   let changed = false;
   for (const b of store.data.books) {
-    if (b.seriesChecked) continue;
+    if (b.seriesChecked || (b.format && b.format !== 'epub')) continue;
     try {
-      const meta = await readEpubMeta(fs.readFileSync(path.join(dirs.books, `${b.id}.epub`)));
+      const meta = await readEpubMeta(fs.readFileSync(bookPath(b)));
       b.series = meta.series || '';
       b.seriesIndex = meta.seriesIndex;
     } catch {
@@ -294,7 +305,7 @@ function startWatching(folder) {
   importQuietly([folder]);
   try {
     watcher = fs.watch(folder, { recursive: true }, (_evt, name) => {
-      if (!name || !/\.epub$/i.test(name)) return;
+      if (!name || !BOOK_FILE.test(name)) return;
       const full = path.join(folder, name);
       clearTimeout(watchQueue.get(full));
       // Wait for the copy to finish before importing.
@@ -555,7 +566,14 @@ function registerIpc() {
     const res = await dialog.showOpenDialog(win, {
       title: 'Add books to your library',
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'EPUB books', extensions: ['epub'] }],
+      filters: [
+        { name: 'Books', extensions: BOOK_EXTENSIONS },
+        { name: 'EPUB', extensions: ['epub'] },
+        { name: 'Kindle (MOBI, AZW3)', extensions: ['mobi', 'azw', 'azw3', 'prc'] },
+        { name: 'PDF', extensions: ['pdf'] },
+        { name: 'Comics (CBZ)', extensions: ['cbz'] },
+        { name: 'FictionBook (FB2)', extensions: ['fb2', 'fbz'] },
+      ],
     });
     if (res.canceled) return null;
     return importFiles(res.filePaths);
@@ -765,7 +783,7 @@ function registerIpc() {
     store.data.books = store.data.books.filter((b) => b.id !== id);
     for (const k of Object.keys(store.data.orders)) store.data.orders[k] = store.data.orders[k].filter((x) => x !== id);
     for (const f of [
-      path.join(dirs.books, `${id}.epub`),
+      bookPath(book),
       book.cover && path.join(dirs.covers, book.cover),
       book.cover && path.join(dirs.thumbs, thumbName(book.cover)),
       path.join(dirs.locations, `${id}.json`),
@@ -777,13 +795,38 @@ function registerIpc() {
   });
 
   ipcMain.handle('book:data', (_e, id) => {
-    const file = path.join(dirs.books, `${id}.epub`);
-    return fs.readFileSync(file);
+    const book = findBook(id);
+    return book ? fs.readFileSync(bookPath(book)) : null;
+  });
+
+  // Details the reader worked out for a book that isn't an EPUB (see Reader.fillMissingMeta).
+  ipcMain.handle('book:set-meta', (_e, id, meta, cover) => {
+    const book = findBook(id);
+    if (!book) return null;
+    const text = (v) => (typeof v === 'string' ? v.trim() : '');
+    if (text(meta?.title)) book.title = text(meta.title);
+    if (text(meta?.author)) book.author = text(meta.author);
+    for (const k of ['description', 'publisher', 'language', 'published']) if (text(meta?.[k])) book[k] = text(meta[k]);
+    if (Array.isArray(meta?.subjects)) book.subjects = meta.subjects.filter((s) => typeof s === 'string').slice(0, 12);
+    if (text(meta?.series)) {
+      book.series = text(meta.series);
+      book.seriesIndex = Number(meta.seriesIndex) || undefined;
+    }
+    if (cover?.data?.length && !book.cover) {
+      const ext = { 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/svg+xml': '.svg' }[cover.type] || '.jpg';
+      book.cover = `${id}${ext}`;
+      fs.writeFileSync(path.join(dirs.covers, book.cover), Buffer.from(cover.data));
+      makeThumb(book.cover);
+    }
+    book.needsMeta = false;
+    store.save();
+    notify();
+    return bookView(book);
   });
 
   ipcMain.handle('book:show-source', (_e, id) => {
     const book = findBook(id);
-    const target = book && fs.existsSync(book.sourcePath) ? book.sourcePath : path.join(dirs.books, `${id}.epub`);
+    const target = book && fs.existsSync(book.sourcePath) ? book.sourcePath : book && bookPath(book);
     shell.showItemInFolder(target);
   });
 
