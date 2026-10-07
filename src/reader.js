@@ -200,6 +200,7 @@
     },
 
     async close({ silent = false } = {}) {
+      window.PageCurl.finish();
       this.beforeClose();
       this.openToken++;
       this.trackStop();
@@ -377,8 +378,10 @@
     },
 
     onResize() {
+      window.PageCurl.finish();
       this.updateSpread();
       if (this.loc) this.renderRunning(this.loc);
+      this.renderEdges();
     },
 
     // ---------- where we are ----------
@@ -402,7 +405,7 @@
       this.loc = detail;
       this.hideSel();
       if (this.turnDir) {
-        this.shuffle(this.turnDir);
+        if (!this.curlOn()) this.shuffle(this.turnDir);
         if (this.track) {
           this.track.pages++;
           this.track.active = Date.now();
@@ -464,12 +467,47 @@
 
     // ---------- navigation ----------
     next() {
-      this.turnDir = 1;
-      this.view?.goRight();
+      this.turnPage(1);
     },
     prev() {
-      this.turnDir = -1;
-      this.view?.goLeft();
+      this.turnPage(-1);
+    },
+    // dir 1 turns toward the right-hand page (forward in most books), -1 the other way.
+    turnPage(dir) {
+      if (!this.view) return;
+      const go = () => (dir > 0 ? this.view.goRight() : this.view.goLeft());
+      this.turnDir = dir;
+      if (!this.curlOn()) return go();
+      const view = this.view;
+      return window.PageCurl.turn({
+        dir,
+        box: this.pageBox(),
+        stage: $('#stage'),
+        // Resolves true once the new page is showing, false if there was nowhere to go.
+        turn: () =>
+          new Promise((resolve) => {
+            let done = false;
+            const end = (ok) => {
+              if (done) return;
+              done = true;
+              view.removeEventListener('relocate', onMove);
+              resolve(ok);
+            };
+            const onMove = () => end(true);
+            view.addEventListener('relocate', onMove);
+            Promise.resolve(go())
+              .catch(() => {})
+              .then(() => setTimeout(() => end(false), 80));
+          }),
+      });
+    },
+    curlOn() {
+      return (
+        State.settings.pageCurl !== false &&
+        State.settings.motion !== 'still' &&
+        State.settings.layout !== 'scroll' &&
+        !matchMedia('(prefers-reduced-motion: reduce)').matches
+      );
     },
     // A tiny stop-motion nudge of the page, as if the sheet were slid by hand.
     shuffle(dir) {
@@ -857,6 +895,7 @@
       this.renderTypePop();
       if (!this.view) return;
       if ('layout' in patch || 'margin' in patch || 'runningHeads' in patch) this.applyLayout();
+      if ('bookEdges' in patch) this.renderEdges();
       this.applyStyles();
       if (patch.theme) this.applyHighlights();
     },
