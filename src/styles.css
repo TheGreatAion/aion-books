@@ -2902,56 +2902,12 @@ foliate-view {
 }
 
 /* ================================================================
-   Page curl (see page-curl.js)
+   Page curl (see page-curl.js): one canvas over the stage
    ================================================================ */
 .curl-layer {
   position: absolute;
   z-index: 1;
   pointer-events: none;
-  perspective: 3400px;
-}
-.curl-still,
-.curl-cast,
-.curl-leaf,
-.curl-strip {
-  position: absolute;
-  top: 0;
-  height: 100%;
-}
-.curl-still {
-  background-repeat: no-repeat;
-}
-.curl-cast {
-  opacity: 0;
-}
-.curl-leaf,
-.curl-strip {
-  transform-style: preserve-3d;
-}
-.curl-face {
-  position: absolute;
-  inset: 0 -0.6px; /* a hair of overlap, so the bends don't show seams */
-  backface-visibility: hidden;
-  background-repeat: no-repeat;
-}
-.curl-face.back {
-  transform: rotateY(180deg);
-  background: linear-gradient(rgba(var(--stain), 0.06), rgba(var(--stain), 0.06)), var(--paper);
-  overflow: hidden;
-}
-/* The old page, faintly through the back of the sheet. */
-.curl-ghost {
-  position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  opacity: 0.06;
-  transform: scaleX(-1); /* seen from behind, the words run backwards */
-}
-.curl-shade {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: rgba(var(--stain), 0.5);
 }
 
 /* ================================================================
@@ -2982,12 +2938,6 @@ foliate-view {
 }
 #reader.scroll .page-edges {
   display: none;
-}
-/* The shadows the sheet casts fade out at the top and bottom, like the fold. */
-.curl-cast,
-.curl-still > .curl-shade {
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
 }
 
 /* ================================================================
