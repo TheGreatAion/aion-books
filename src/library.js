@@ -32,7 +32,7 @@
     b.series ? `${b.seriesIndex != null ? `Book ${String(b.seriesIndex).replace(/\.0+$/, '')} · ` : ''}${b.series}` : '';
 
   const EMPTY = {
-    all: ['Your library awaits', 'Drop EPUB files anywhere on this page, or gather them from a folder.'],
+    all: ['Your library awaits', 'Drop books anywhere on this page — EPUB, Kindle, PDF, comics or FB2 — or gather them from a folder.'],
     reading: ['Nothing open on the nightstand', 'Books you begin will rest here until you finish them.'],
     unread: ['Every book has been begun', 'A fine habit. Add something new to keep the shelves full.'],
     favorites: ['No favourites yet', 'Tap the little heart on a cover to keep it close.'],
@@ -340,7 +340,7 @@
     const msg = [];
     if (res.added) msg.push(`${res.added} ${res.added === 1 ? 'book' : 'books'} added to your library`);
     else if (res.found) msg.push('Those books are already on your shelves');
-    else msg.push('No EPUB files found there');
+    else msg.push('No books found there');
     if (res.failed?.length) msg.push(`${res.failed.length} couldn’t be read`);
     toast(msg.join(' · '), 3200);
   }
