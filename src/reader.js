@@ -79,9 +79,34 @@
       import('./vendor/foliate-js/overlayer.js'),
     ]).then(([{ makeBook }, CFI, { Overlayer }]) => Object.assign(engine, { makeBook, CFI, Overlayer })));
 
-  // The engine tells formats apart by file name, so each book is handed over
-  // under a name with its format's extension.
-  const bookFile = (rec, data) => new File([data], `${rec.id}.${rec.format || 'epub'}`, { type: rec.format === 'epub' || !rec.format ? 'application/epub+zip' : '' });
+  // A book's file as the engine sees it: something with a size that hands over
+  // any range of its bytes. The bytes are read from disk only when asked for
+  // (a zip's index, one chapter, one PDF page), so even a 100 MB book opens
+  // without being copied into the window first. The engine tells formats
+  // apart by file name, so each one carries its format's extension.
+  class BookFile {
+    constructor(id, name, type, start, end) {
+      Object.assign(this, { id, name, type, start, end, size: end - start });
+    }
+    slice(from = 0, to = this.size, type = '') {
+      const at = (x) => (x < 0 ? Math.max(this.size + x, 0) : Math.min(x, this.size));
+      const s = at(from);
+      return new BookFile(this.id, this.name, type || this.type, this.start + s, this.start + Math.max(s, at(to)));
+    }
+    async arrayBuffer() {
+      if (!this.size) return new ArrayBuffer(0);
+      const bytes = await window.aion.readBook(this.id, this.start, this.end);
+      return bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? bytes.buffer : bytes.slice().buffer;
+    }
+    async text() {
+      return new TextDecoder().decode(await this.arrayBuffer());
+    }
+  }
+  async function bookFile(rec) {
+    const size = await window.aion.bookSize(rec.id);
+    const epub = !rec.format || rec.format === 'epub';
+    return new BookFile(rec.id, `${rec.id}.${rec.format || 'epub'}`, epub ? 'application/epub+zip' : '', 0, size || 0);
+  }
 
   // Plain text from whatever shape a format gives its details in: a string, a
   // { name } object, a map of languages, or a list of any of those.
@@ -182,9 +207,8 @@
 
       try {
         await loadEngine();
-        const data = await window.aion.bookData(id);
+        const file = await bookFile(rec);
         if (token !== this.openToken) return;
-        const file = bookFile(rec, data);
 
         const view = document.createElement('foliate-view');
         view.id = 'book-view';
@@ -424,9 +448,8 @@
           this.metaTried.add(rec.id);
           let book = null;
           try {
-            const data = await window.aion.bookData(rec.id);
-            if (!data) continue;
-            const file = bookFile(rec, data);
+            const file = await bookFile(rec);
+            if (!file.size) continue;
             book = await engine.makeBook(file);
             const m = book.metadata || {};
             let title = metaText(m.title).trim();
@@ -1114,5 +1137,6 @@
   };
 
   Reader.engine = engine;
+  Reader.bookFile = bookFile;
   window.Reader = Reader;
 })();
