@@ -65,7 +65,11 @@
       "lib/**",
       "src/**",
       "build/icon.png",
-      "node_modules/**"
+      "node_modules/**",
+      "!node_modules/@fontsource/*/*.css",
+      "!node_modules/@fontsource/*/*.scss",
+      "!node_modules/@fontsource/*/files/*.woff",
+      "!node_modules/@fontsource/*/files/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese,latin-ext,math,symbols,hebrew}-*"
     ],
     "fileAssociations": [
       {
