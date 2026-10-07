@@ -1077,9 +1077,18 @@ button {
   gap: 2px;
 }
 .bar-right {
+  grid-column: 3; /* the title floats over the middle, centered on the window */
   justify-content: flex-end;
 }
+/* Centered on the window (and the page below it), not on the space left
+   beside the window buttons; long titles are cut short before they reach
+   the buttons on either side. */
 .bar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: max(200px, calc(100% - 2 * (var(--controls) + 236px)));
   text-align: center;
   min-width: 0;
   line-height: 1.15;
