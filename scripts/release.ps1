@@ -36,8 +36,13 @@ if (-not (& $gitPath tag --list $tag)) {
 
 # Create the release up front. electron-builder uploads files in parallel, and
 # if the release doesn't exist yet each upload can create its own copy.
+# (gh reports "release not found" on stderr, which Windows PowerShell would
+# otherwise treat as fatal under 'Stop'.)
+$ErrorActionPreference = 'Continue'
 & $ghPath release view $tag --repo TheGreatAion/aion-books *> $null
-if ($LASTEXITCODE -ne 0) {
+$exists = $LASTEXITCODE -eq 0
+$ErrorActionPreference = 'Stop'
+if (-not $exists) {
   & $ghPath release create $tag --repo TheGreatAion/aion-books --title "Aion Books $version" --notes "Aion Books $version"
   if ($LASTEXITCODE -ne 0) { throw "Couldn't create release $tag" }
 }
