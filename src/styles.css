@@ -1159,7 +1159,8 @@ foliate-view::part(foot) {
 .gutter {
   display: none;
   position: absolute;
-  top: 10px;
+  z-index: 1;
+  top: 16px;
   bottom: 10px;
   left: 50%;
   width: 96px;
