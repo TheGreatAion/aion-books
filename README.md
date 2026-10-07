@@ -7,6 +7,8 @@
 <p align="center">
   <a href="https://github.com/TheGreatAion/aion-books/releases/latest"><b>Download for Windows</b></a>
   &nbsp;·&nbsp;
+  <a href="https://thegreataion.github.io/aion-books/">Website</a>
+  &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
   <a href="#building-from-source">Build from source</a>
