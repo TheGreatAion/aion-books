@@ -90,10 +90,8 @@ body {
 
 body {
   background-color: var(--paper);
-  background-image:
-    radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(var(--stain), 0.13) 100%),
-    radial-gradient(circle at 6% 94%, rgba(var(--stain), 0.09), transparent 11%),
-    radial-gradient(circle at 97% 4%, rgba(var(--stain), 0.07), transparent 8%);
+  /* Smooth book paper: an even tone that darkens a little toward the edges. */
+  background-image: radial-gradient(ellipse 125% 95% at 50% 45%, transparent 60%, rgba(var(--stain), 0.08) 100%);
   color: var(--ink);
   font-family: var(--serif);
   font-size: 16px;
@@ -103,17 +101,14 @@ body {
   transition: background-color 0.4s var(--ease), color 0.4s var(--ease);
 }
 
-/* Layered paper texture: fine tooth + faint blotchy weathering */
+/* A fine grain, like good book paper: there if you look closely, never in the way. */
 .paper-grain {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   mix-blend-mode: var(--grain-blend);
-  background-image:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .32  0 0 0 0 .24  0 0 0 0 .15  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.2'/></svg>"),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.0055' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .32  0 0 0 0 .17  1.6 0 0 0 -.62'/></filter><rect width='100%' height='100%' filter='url(%23b)' opacity='.16'/></svg>"),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='f'><feTurbulence type='turbulence' baseFrequency='.012 .35' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .4  0 0 0 0 .3  0 0 0 0 .2  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23f)' opacity='.06'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .32  0 0 0 0 .24  0 0 0 0 .15  0 0 0 .6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.11'/></svg>");
 }
 
 [data-theme='dusk'] .paper-grain {
