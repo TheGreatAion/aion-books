@@ -1,7 +1,7 @@
 <h1 align="center">Aion Books</h1>
 
 <p align="center">
-  <em>A quiet, paper-textured e-book reader and library for Windows.</em>
+  <em>A free, quiet, paper-textured e-book reader and library for Windows —<br>EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FB2.</em>
 </p>
 
 <p align="center">
@@ -13,12 +13,16 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/library.png" alt="The Aion Books library, with the book you're reading featured at the top and your other books in progress beneath it" width="860">
+  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, other books in progress beneath it, and the shelf of EPUB and Kindle books below" width="860">
 </p>
 
 Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
 weathered paper, a few painted botanicals — ivy, lemons, olive — grow in the margins, and everything
 else stays out of the way of the words.
+
+It's a free, open-source e-book reader for Windows that opens **EPUB, Kindle (MOBI and AZW3), PDF,
+comic book (CBZ) and FictionBook (FB2)** files, keeps them in one library sorted into series and
+shelves, and works entirely offline — no account, no subscription, no tracking.
 
 ## Download
 
@@ -29,6 +33,19 @@ else stays out of the way of the words.
 
 Installed copies keep themselves up to date: new versions download in the background and install the
 next time you restart.
+
+## Supported formats
+
+| Format | Extensions | Notes |
+| --- | --- | --- |
+| EPUB | `.epub` | Reflowable and fixed-layout EPUB 2 and 3 |
+| Kindle | `.mobi`, `.azw3`, `.azw`, `.prc` | Books without DRM |
+| PDF | `.pdf` | Pages shown as they were printed |
+| Comics | `.cbz` | A page at a time, or two side by side |
+| FictionBook | `.fb2`, `.fbz` | |
+
+Books bought from a store with DRM (copy protection) can't be opened — the same as with any reader
+that isn't the store's own.
 
 ## Features
 
@@ -44,6 +61,10 @@ next time you restart.
 - **Tidy titles:** ISBNs, Kindle tags and repeated series numbers come off titles, and a title that names its series puts the book in it. Older books can be reviewed in Settings, and every original title can be restored.
 - **Choose several books** with Ctrl- or Shift-click to shelve, finish, favorite or remove them together. Removing shows **Undo** instead of asking first. Arrow keys move around the shelf.
 - **A watched folder** — save a book into it and it appears in your library on its own.
+
+<p align="center">
+  <img src="docs/screenshots/series.png" alt="A book series in Aion Books: the books you have in reading order, with the ones you're missing marked where they fall" width="860">
+</p>
 
 ### Reading
 - **EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FictionBook (FB2)**, all in the same reader.
@@ -63,7 +84,7 @@ next time you restart.
 - **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
-  <img src="docs/screenshots/reader.png" alt="A two-page spread being read aloud, with the current sentence highlighted" width="860">
+  <img src="docs/screenshots/reader.png" alt="Reading an EPUB in Aion Books: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860">
 </p>
 
 ### Your commonplace book
@@ -77,7 +98,7 @@ how you rated it — plus time spent reading, streaks, pages turned, a fourteen-
 reading goal that fills a small ring in the sidebar.
 
 <p align="center">
-  <img src="docs/screenshots/stats.png" alt="Reading stats: time read, current streak, books finished, pages turned and a 14-day chart" width="860">
+  <img src="docs/screenshots/stats.png" alt="Your reading: time spent reading, current streak, books finished, pages turned, a 14-day chart and the books you spent the most time with" width="860">
 </p>
 
 ### Your data stays yours
@@ -89,8 +110,25 @@ reading goal that fills a small ring in the sidebar.
   turn off in Settings.
 
 <p align="center">
-  <img src="docs/screenshots/library-dusk.png" alt="The library in the dark Dusk theme" width="860">
+  <img src="docs/screenshots/library-dusk.png" alt="The Aion Books library in the dark Dusk theme" width="860">
 </p>
+
+## Questions
+
+**Is Aion Books free?** Yes — free and open source, under the MIT license. No ads, no account, no
+in-app purchases.
+
+**Can it read Kindle books?** Kindle files (MOBI, AZW3) without DRM, yes. Books still locked to
+Amazon's apps can't be opened.
+
+**Does it work offline?** Completely. It only goes online when you look up a word, a character or a
+book's series, and to check for updates — each of which you can turn off or simply not use.
+
+**Is there a Mac or Linux version?** Not yet: Aion Books is made for Windows 10 and 11. It's built on
+Electron, so other systems are possible later.
+
+**Where are my books kept?** In one folder on your PC (`%APPDATA%\Aion Books`), which you can move —
+to a OneDrive or Dropbox folder, say, to share your library and reading progress between PCs.
 
 ## Keyboard shortcuts
 
