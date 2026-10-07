@@ -385,6 +385,8 @@
     // Shared floating card for notes and definitions.
     showPop(x, yTop, yBottom, html) {
       const pop = $('#notePop');
+      pop.dataset.kind = ''; // the "Who is this?" card marks itself afterwards
+      pop.classList.remove('wide');
       pop.innerHTML = html;
       pop.hidden = false;
       const w = pop.offsetWidth;

@@ -164,6 +164,7 @@
       if (this.view) await this.close({ silent: true });
       const token = ++this.openToken;
       this.id = id;
+      this.whoReset?.();
       this.loc = null;
       this.progress = rec.progress || 0;
 
@@ -1069,7 +1070,9 @@
         const dot = e.target.closest('.hl-dot');
         const act = e.target.closest('.sel-btn')?.dataset.act;
         if (dot) this.addHighlight(dot.dataset.color);
-        else if (act === 'define') {
+        else if (act === 'who') {
+          this.whoIsThis(this.pendingSel);
+        } else if (act === 'define') {
           this.define(this.pendingSel);
         } else if (act === 'copy') {
           this.copy(this.pendingSel?.text);

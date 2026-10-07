@@ -46,6 +46,9 @@ next time you restart.
 - **Single page, two-page spread, or continuous scroll**, with a choice of typefaces — or add your own
   `.ttf`, `.otf`, `.woff` or `.woff2` fonts.
 - **Search inside the book**, **footnote pop-ups**, and a **dictionary** for any word you select.
+- **Who is this?** Select a character's name to see where they were first mentioned and where you last saw
+  them, from the pages you've already read, and from the earlier books in the series. It only ever looks
+  back, so it can't spoil anything. Wikipedia is there too, if you ask, with a warning that it may.
 - **Read aloud** with the voices built into Windows, following along sentence by sentence.
 - **Highlights, notes and bookmarks**, exportable to Markdown.
 - **Time left** in the chapter and the book, learned from how fast you actually read — or pages left, or
@@ -74,8 +77,8 @@ reading goal that fills a small ring in the sidebar.
 - Everything lives in one folder on your PC. **Back up and restore** the whole library — books,
   progress, highlights, shelves and fonts — as a single file.
 - Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between PCs.
-- No accounts and no tracking. The only time Aion Books goes online is when you look up a word
-  (via [Wiktionary](https://en.wiktionary.org)) and when it checks GitHub for updates — which you can
+- No accounts and no tracking. The only times Aion Books goes online are when you look up a word
+  (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, and when it checks GitHub for updates — which you can
   turn off in Settings.
 
 <p align="center">
@@ -135,6 +138,7 @@ Installed copies pick it up automatically.
 | `src/vendor/foliate-js/` | The book engine, [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT), included unmodified |
 | `tests/`                 | Unit tests, and app tests that drive the real app against generated sample books |
 | `src/settings.js`        | Settings, the Your reading page, and the shortcuts list                    |
+| `src/who.js`             | Who is this? — where you've met a character before                       |
 | `src/journal.js`         | The commonplace book and the reading timeline                             |
 | `src/page-curl.js`       | The page curl                                                             |
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |

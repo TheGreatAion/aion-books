@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('aion', {
   resetLocation: () => ipcRenderer.invoke('location:reset'),
   define: (word) => ipcRenderer.invoke('lookup:define', word),
   lookupWeb: (word) => ipcRenderer.invoke('lookup:web', word),
+  lookupCharacter: (name, context) => ipcRenderer.invoke('lookup:character', name, context),
+  openWikipedia: (url) => ipcRenderer.invoke('lookup:open-wikipedia', url),
   updateStatus: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),

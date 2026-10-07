@@ -106,3 +106,9 @@ test('? shows the keyboard shortcuts', async () => {
   await page.fill('#search', '');
   await page.locator('#search').blur();
 });
+
+test('a book stays in its series after it has been opened', async () => {
+  const id = await page.evaluate(() => window.UI.State.books.find((b) => b.title === 'Along the Hedge Path').id);
+  await page.evaluate((id) => window.UI.updateBook(id, { lastOpenedAt: Date.now() }, { quiet: true }), id);
+  expect(await page.evaluate((id) => window.UI.State.book(id).seriesName, id)).toBe('The Orchard Years');
+});
