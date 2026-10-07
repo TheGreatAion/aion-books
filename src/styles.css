@@ -1154,24 +1154,31 @@ foliate-view::part(foot) {
 #viewer iframe {
   background: transparent !important;
 }
+/* The fold between two pages: a soft shadow that deepens toward the crease,
+   with no hard line, and fades out before it reaches the bars above and below. */
 .gutter {
   display: none;
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 10px;
+  bottom: 10px;
   left: 50%;
-  width: 70px;
+  width: 96px;
   transform: translateX(-50%);
   pointer-events: none;
   background: linear-gradient(
     90deg,
-    transparent,
-    rgba(var(--stain), 0.05) 40%,
-    rgba(var(--stain), 0.12) 49.5%,
-    rgba(255, 255, 255, 0.05) 50.5%,
-    rgba(var(--stain), 0.05) 60%,
-    transparent
+    transparent 0%,
+    rgba(var(--stain), 0.018) 22%,
+    rgba(var(--stain), 0.045) 36%,
+    rgba(var(--stain), 0.085) 45%,
+    rgba(var(--stain), 0.11) 50%,
+    rgba(var(--stain), 0.085) 55%,
+    rgba(var(--stain), 0.045) 64%,
+    rgba(var(--stain), 0.018) 78%,
+    transparent 100%
   );
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
 }
 #reader.spread .gutter {
   display: block;
