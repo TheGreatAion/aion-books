@@ -353,6 +353,25 @@
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`
         )}
         ${row(
+          'Find series online',
+          'Books you add without a series are looked up on Wikidata — only the title and author are sent. Whatever’s found waits for you to review.',
+          toggle('seriesLookup', s.seriesLookup !== false)
+        )}
+        ${(() => {
+          const loose = State.books.filter((b) => !b.series && !b.seriesLookedUp && b.seriesSource !== 'you').length;
+          const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
+          if (!loose && !waiting) return '';
+          return row(
+            'Series for your other books',
+            [loose ? `${loose} ${loose === 1 ? 'book hasn’t' : 'books haven’t'} been looked up yet.` : '', waiting ? `Series found for ${waiting}, waiting for you.` : '']
+              .filter(Boolean)
+              .join(' '),
+            `<div class="btn-row">${waiting ? `<button class="ghost-btn bordered" data-action="series-review">Review…</button>` : ''}${
+              loose ? `<button class="ghost-btn bordered" data-action="series-lookup">Look them up</button>` : ''
+            }</div>`
+          );
+        })()}
+        ${row(
           'Tidy book titles',
           'Take ISBNs, Kindle tags and repeated series numbers off titles, and give a series to books whose titles name one. You’ll see every change first.',
           `<button class="ghost-btn bordered" data-action="tidy-titles">Review…</button>`
@@ -578,6 +597,12 @@
       }
       if (act === 'tts-sample') return sample();
       if (act === 'tidy-titles') return reviewTidy();
+      if (act === 'series-review') return window.Library.reviewSeries();
+      if (act === 'series-lookup') {
+        const n = await window.aion.seriesLookupAll();
+        toast(n ? `Looking up ${n} ${n === 1 ? 'book' : 'books'} on Wikidata…` : 'Nothing left to look up', n ? 0 : 1800);
+        return;
+      }
       if (act === 'shortcuts') return showShortcuts();
       if (act === 'check-update') {
         update = { state: 'checking' };

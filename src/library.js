@@ -190,29 +190,100 @@
       also;
   }
 
+  // What's known of a series beyond the books you have: Wikidata's list of
+  // every book in it, when it's been looked up.
+  const seriesInfoFor = (id) => State.seriesInfo?.[window.Series.key(seriesTitle(id))] || null;
+
+  // A series as you'd read it: your books in order, with the ones you don't
+  // have yet marked where they fall.
+  function seriesShelf(id) {
+    const books = seriesBooks(id);
+    const parts = seriesInfoFor(id)?.parts || [];
+    const whole = (n) => n != null && Number.isInteger(n) && n >= 1;
+    const have = new Set(books.map((b) => b.seriesNo).filter(whole));
+    const last = Math.max(0, ...books.map((b) => b.seriesNo).filter(whole), ...parts.map((p) => p.number).filter(whole));
+    const missing = [];
+    // Gaps only between books we know are there, or that Wikidata lists.
+    for (let n = 1; n <= last; n++) {
+      if (have.has(n)) continue;
+      const part = parts.find((p) => p.number === n);
+      if (part || n < Math.max(0, ...have)) missing.push({ gap: true, number: n, title: part?.title || '' });
+    }
+    const order = (x) => (x.gap ? x.number : (x.seriesNo ?? 1e9));
+    const shelf = [...books, ...missing].sort((a, b) => order(a) - order(b));
+    const read = books.filter((b) => b.finished).length;
+    const total = Math.max(books.length, last, books.length + missing.length);
+    const next = books.find((b) => !b.finished);
+    return { books, shelf, missing, read, total, next };
+  }
+
   function renderSeriesGroups() {
     const groups = new Map();
     for (const b of State.books) if (b.seriesId) (groups.get(b.seriesId) || groups.set(b.seriesId, []).get(b.seriesId)).push(b);
     const names = [...groups.keys()].sort((a, b) => sortKey(seriesTitle(a)).localeCompare(sortKey(seriesTitle(b))));
     $('#viewTitle').textContent = 'Series';
-    $('#viewCount').textContent = `${names.length} ${names.length === 1 ? 'series' : 'series'}`;
+    const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
+    $('#viewCount').innerHTML =
+      `${names.length} ${names.length === 1 ? 'series' : 'series'}` +
+      (waiting ? ` · <button class="crumb found" data-review-series>Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'} — review</button>` : '');
     $('#grid').innerHTML = names
       .map((name, i) => {
-        const list = seriesBooks(name);
-        const read = list.filter((b) => b.finished).length;
-        const stack = list
+        const { books, read, total, next } = seriesShelf(name);
+        const stack = books
           .slice(0, 3)
           .map((b, k) => `<div class="stack-item" style="--k:${k}">${coverHtml(b)}</div>`)
           .reverse()
           .join('');
+        const author = books[0]?.author || '';
+        const have = total > books.length ? `${books.length} of ${total}` : `${books.length} ${books.length === 1 ? 'book' : 'books'}`;
         return (
           `<div class="card series-card enter" tabindex="0" data-series="${esc(name)}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:0">` +
           `<div class="stack">${stack}</div><div class="t">${esc(seriesTitle(name))}</div>` +
-          `<div class="a">${list.length} ${list.length === 1 ? 'book' : 'books'}${read ? ` · ${read} read` : ''}</div></div>`
+          (author ? `<div class="a">${esc(author)}</div>` : '') +
+          `<div class="meta series-meta"><div class="bar"><i style="width:${total ? Math.round((read / total) * 100) : 0}%"></i></div><span>${have}${read ? ` · ${read} read` : ''}</span></div>` +
+          (next && read ? `<div class="ser">Up next: ${esc(next.title)}</div>` : '') +
+          `</div>`
         );
       })
       .join('');
     $('#empty').hidden = true;
+  }
+
+  // One series: your books in order, the missing ones marked, what's next.
+  function renderSeriesBooks(id, enter) {
+    const { shelf, books, read, total, next } = seriesShelf(id);
+    $('#viewTitle').textContent = seriesTitle(id);
+    const summary = [
+      total > books.length ? `${books.length} of ${total} in your library` : `${books.length} ${books.length === 1 ? 'book' : 'books'}`,
+      read ? `${read} read` : '',
+      next ? `up next: <i>${esc(next.title)}</i>` : read ? 'all read' : '',
+    ].filter(Boolean);
+    $('#viewCount').innerHTML = `<button class="crumb" data-goto="series">${icon('back')}All series</button> · ${summary.join(' · ')}`;
+    $('#grid').innerHTML = shelf
+      .map((x, i) =>
+        x.gap
+          ? `<div class="card gap-card${enter ? ' enter' : ''}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:0" title="Not in your library">` +
+            `<div class="cover gap"><span>Book ${x.number}</span></div>` +
+            `<div class="t">${esc(x.title || `Book ${x.number}`)}</div><div class="a">Not in your library</div></div>`
+          : cardHtml(x, i, enter, { draggable: !query, upNext: next && x.id === next.id })
+      )
+      .join('');
+    $('#empty').hidden = shelf.length > 0;
+  }
+
+  function cardHtml(b, i, enter, { draggable = true, upNext = false } = {}) {
+    const meta = b.finished
+      ? `<div class="meta done">${icon('check')}Finished</div>`
+      : b.progress > 0
+        ? `<div class="meta"><div class="bar"><i style="width:${pct(b.progress)}"></i></div><span>${pct(b.progress)}</span></div>`
+        : `<div class="meta"><span>${upNext ? 'Up next' : 'New'}</span></div>`;
+    return (
+      `<div class="card${enter ? ' enter' : ''}${selected.has(b.id) ? ' is-selected' : ''}${upNext ? ' up-next' : ''}" aria-selected="${selected.has(b.id)}" tabindex="0" draggable="${draggable}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
+      `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
+      `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
+      `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
+      `${b.seriesId ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
+    );
   }
 
   let gridKey = '';
@@ -227,28 +298,14 @@
     const key = `${view}|${query}|${State.settings.sort}|${$('#library').dataset.visit || 0}`;
     const enter = key !== gridKey;
     gridKey = key;
+    if (inSeries && !query) return renderSeriesBooks(view.slice(7), enter);
     const isShelf = view.startsWith('shelf:');
     const shelf = isShelf && State.shelves.find((s) => s.id === view.slice(6));
     $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? seriesTitle(view.slice(7)) : VIEWS[view].label;
     const n = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
     $('#viewCount').innerHTML = inSeries ? `<button class="crumb" data-goto="series">${icon('back')}All series</button> · ${n}` : n;
 
-    $('#grid').innerHTML = books
-      .map((b, i) => {
-        const meta = b.finished
-          ? `<div class="meta done">${icon('check')}Finished</div>`
-          : b.progress > 0
-            ? `<div class="meta"><div class="bar"><i style="width:${pct(b.progress)}"></i></div><span>${pct(b.progress)}</span></div>`
-            : `<div class="meta"><span>New</span></div>`;
-        return (
-          `<div class="card${enter ? ' enter' : ''}${selected.has(b.id) ? ' is-selected' : ''}" aria-selected="${selected.has(b.id)}" tabindex="0" draggable="${query || inSeries ? 'false' : 'true'}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
-          `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
-          `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
-          `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
-          `${b.seriesId ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
-        );
-      })
-      .join('');
+    $('#grid').innerHTML = books.map((b, i) => cardHtml(b, i, enter, { draggable: !query })).join('');
 
     const empty = !books.length;
     $('#empty').hidden = !empty;
@@ -427,6 +484,105 @@
     });
   }
 
+  // ---------- series you set yourself ----------
+  const seriesNames = () => [...new Set(State.books.filter((b) => b.seriesName).map((b) => b.seriesName))].sort();
+  const seriesDatalist = () => `<datalist id="seriesNames">${seriesNames().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>`;
+
+  // Put several books in a series (in the order they're shown), or take them out.
+  async function setSeriesOf(ids) {
+    if (!ids.length) return;
+    const first = State.book(ids[0]);
+    const name = await openModal(
+      `<h3>Set series</h3><div class="sub">For the ${ids.length} ${ids.length === 1 ? 'book' : 'books'} you chose. Leave it empty to take them out of any series.</div>` +
+        `<input type="text" id="sName" value="${esc(first?.series || '')}" placeholder="Series name" list="seriesNames" spellcheck="false">` +
+        seriesDatalist() +
+        `<label class="check-row"><input type="checkbox" id="sNumber" ${ids.length > 1 ? 'checked' : ''}>Number them 1, 2, 3… in the order they’re shown</label>` +
+        `<div class="actions"><button class="ghost-btn" data-x>Cancel</button><button class="solid-btn" data-ok>Save</button></div>`,
+      {
+        onMount(m, close) {
+          $('#sName', m).focus();
+          const ok = () => close({ name: $('#sName', m).value.trim(), number: $('#sNumber', m).checked });
+          $('[data-ok]', m).onclick = ok;
+          $('[data-x]', m).onclick = () => close(null);
+          m.addEventListener('keydown', (e) => e.key === 'Enter' && ok());
+        },
+      }
+    );
+    if (!name) return;
+    let snap = await window.aion.seriesRename(ids, name.name);
+    if (name.name && name.number) snap = await window.aion.seriesOrder(ids);
+    State.set(snap);
+    clearSelection();
+    toast(name.name ? `Added to <em>${esc(name.name)}</em>` : 'Taken out of their series', 2000);
+  }
+
+  // Dragging books within a series puts them in that order, numbered 1, 2, 3…
+  async function reorderSeries(ids) {
+    State.set(await window.aion.seriesOrder(ids));
+    toast('Series order saved', 1600);
+  }
+
+  function seriesMenu(id, x, y) {
+    const books = seriesBooks(id);
+    openMenu(x, y, [
+      { label: 'Open', icon: 'stack', run: () => ((view = `series:${id}`), render()) },
+      {
+        label: 'Rename series…',
+        icon: 'edit',
+        run: async () => {
+          const name = await promptText({ title: 'Rename series', value: seriesTitle(id), okLabel: 'Rename' });
+          if (name?.trim()) State.set(await window.aion.seriesRename(books.map((b) => b.id), name.trim()));
+        },
+      },
+      '-',
+      {
+        label: 'Not a series',
+        icon: 'close',
+        danger: true,
+        run: async () => {
+          State.set(await window.aion.seriesRename(books.map((b) => b.id), ''));
+          toast(`${books.length} ${books.length === 1 ? 'book' : 'books'} taken out of the series`, 2000);
+        },
+      },
+    ]);
+  }
+
+  // ---------- series found online: review before they're used ----------
+  async function reviewSeries() {
+    const found = State.books.filter((b) => b.seriesSuggestion && !b.series).sort((a, b) => sortKey(a.title).localeCompare(sortKey(b.title)));
+    if (!found.length) return toast('No series waiting for review', 1800);
+    const label = (n) => (n ? `Add ${n} to ${n === 1 ? 'its series' : 'their series'}` : 'Put these aside');
+    await openModal(
+      `<h3>Series found online</h3>` +
+        `<div class="sub">Wikidata knows which series these books belong to. Untick any that look wrong — they won’t be suggested again.</div>` +
+        `<div class="tidy-list">${found
+          .map(
+            (b) =>
+              `<label class="tidy-row"><input type="checkbox" data-id="${esc(b.id)}" checked>` +
+              `<span class="review-book">${esc(b.title)}${b.author ? ` · ${esc(b.author)}` : ''}</span>` +
+              `<span class="tidy-to">${esc(b.seriesSuggestion.series)}${b.seriesSuggestion.number != null ? ` <em>· book ${esc(b.seriesSuggestion.number)}</em>` : ''}</span></label>`
+          )
+          .join('')}</div>` +
+        `<div class="actions"><button class="ghost-btn" data-x>Not now</button><button class="solid-btn" data-ok>${label(found.length)}</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          const ok = $('[data-ok]', m);
+          const ticked = () => [...m.querySelectorAll('.tidy-row input')].filter((i) => i.checked).map((i) => i.dataset.id);
+          m.addEventListener('change', () => (ok.textContent = label(ticked().length)));
+          $('[data-x]', m).onclick = () => close(null);
+          ok.onclick = async () => {
+            const yes = ticked();
+            const no = found.map((b) => b.id).filter((id) => !yes.includes(id));
+            State.set(await window.aion.seriesReview(yes, no));
+            close(true);
+            if (yes.length) toast(`${yes.length} ${yes.length === 1 ? 'book' : 'books'} added to ${yes.length === 1 ? 'its series' : 'their series'}`, 2200);
+          };
+        },
+      }
+    );
+  }
+
   // ---------- choosing several books ----------
   // Ctrl-click adds or takes away a book, Shift-click takes in a run of them;
   // then shelve, finish, favorite or remove them together.
@@ -468,6 +624,7 @@
     bar.innerHTML =
       `<span class="sb-count">${selected.size} ${selected.size === 1 ? 'book' : 'books'} chosen</span>` +
       `<button class="ghost-btn" data-sel="shelf">${icon('shelf')}<span>Add to shelf</span></button>` +
+      `<button class="ghost-btn" data-sel="series">${icon('stack')}<span>Set series</span></button>` +
       `<button class="ghost-btn" data-sel="finish">${icon('check')}<span>${allFinished ? 'Mark as unread' : 'Mark as finished'}</span></button>` +
       `<button class="ghost-btn" data-sel="fav">${icon('heart')}<span>${allFav ? 'Remove from favorites' : 'Add to favorites'}</span></button>` +
       `<button class="ghost-btn danger" data-sel="remove">${icon('trash')}<span>Remove</span></button>` +
@@ -479,6 +636,7 @@
     const books = ids.map((id) => State.book(id)).filter(Boolean);
     if (act === 'clear') return clearSelection();
     if (act === 'remove') return removeBooks(ids);
+    if (act === 'series') return setSeriesOf(gridCards().map((c) => c.dataset.id).filter((x) => selected.has(x)));
     if (act === 'finish') {
       const finish = !books.every((b) => b.finished);
       for (const b of books) await updateBook(b.id, finish ? { finished: true } : { finished: false, progress: 0, location: null, chapter: '' }, { quiet: true });
@@ -549,7 +707,10 @@
     await openModal(
       `<h3>Edit details</h3><div class="sub">How this book appears on your shelves.</div>` +
         `<input type="text" id="eTitle" value="${esc(b.title)}" placeholder="Title" spellcheck="false" style="margin-bottom:10px">` +
-        `<input type="text" id="eAuthor" value="${esc(b.author)}" placeholder="Author" spellcheck="false">` +
+        `<input type="text" id="eAuthor" value="${esc(b.author)}" placeholder="Author" spellcheck="false" style="margin-bottom:10px">` +
+        `<div class="series-fields"><input type="text" id="eSeries" value="${esc(b.series || '')}" placeholder="Series (none)" list="seriesNames" spellcheck="false">` +
+        `<input type="number" id="eSeriesNo" value="${b.seriesIndex ?? ''}" placeholder="Book" min="0" step="any" aria-label="Book number in the series"></div>` +
+        seriesDatalist() +
         `<div class="actions"><button class="ghost-btn" data-x>Cancel</button><button class="solid-btn" data-ok>Save</button></div>`,
       {
         onMount(m, close) {
@@ -557,7 +718,12 @@
           const save = async () => {
             const title = $('#eTitle', m).value.trim();
             const author = $('#eAuthor', m).value.trim();
-            if (title) await updateBook(id, { title, author: author || 'Unknown author' });
+            const series = $('#eSeries', m).value.trim();
+            const no = $('#eSeriesNo', m).value.trim();
+            const patch = { title, author: author || 'Unknown author' };
+            // Only touch the series if it changed (a series you set is yours from then on).
+            if (series !== (b.series || '') || no !== String(b.seriesIndex ?? '')) Object.assign(patch, { series, seriesIndex: series && no !== '' ? Number(no) : null });
+            if (title) await updateBook(id, patch);
             close(true);
           };
           $('[data-ok]', m).onclick = save;
@@ -609,6 +775,7 @@
     const b = State.book(id);
     const fmt = (t) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
     const rows = [
+      ['Series', b.seriesName ? `${b.seriesName}${b.seriesNo != null ? `, book ${b.seriesNo}` : ''}` : ''],
       ['Publisher', b.publisher],
       ['Published', b.published],
       ['Language', b.language],
@@ -746,6 +913,7 @@
         updateBook(b.id, { favorite: !b.favorite });
         return;
       }
+      if (e.target.closest('[data-review-series]')) return reviewSeries();
       const crumb = e.target.closest('[data-goto]');
       if (crumb) {
         view = crumb.dataset.goto;
@@ -807,7 +975,7 @@
     let dragged = null;
     let startOrder = '';
     const grid = $('#grid');
-    const gridIds = () => [...grid.querySelectorAll('.card')].map((c) => c.dataset.id);
+    const gridIds = () => [...grid.querySelectorAll('.card[data-id]')].map((c) => c.dataset.id);
     grid.addEventListener('dragstart', (e) => {
       const card = e.target.closest('.card');
       if (!card || query) return e.preventDefault();
@@ -838,6 +1006,7 @@
       card.classList.remove('dragging');
       const ids = gridIds();
       if (ids.join() === startOrder) return;
+      if (view.startsWith('series:')) return reorderSeries(ids);
       commitOrder(ids, card.dataset.id);
     });
 
@@ -845,6 +1014,8 @@
       const card = e.target.closest('.card, [data-open]');
       if (!card) return;
       e.preventDefault();
+      if (card.dataset.series) return seriesMenu(card.dataset.series, e.clientX, e.clientY);
+      if (card.classList.contains('gap-card')) return;
       bookMenu(card.dataset.id || card.dataset.open, e.clientX, e.clientY);
     });
 
@@ -901,6 +1072,13 @@
 
     // Library changed outside this window: watched folder, a synced copy, series backfill.
     window.aion.onLibraryChanged((snap) => State.set(snap));
+    // Looking up series on Wikidata (when you asked for your other books).
+    window.aion.onSeriesProgress((p) => {
+      if (!p) return;
+      if (!p.finished) return toast(`Looking up series on Wikidata… ${p.done} of ${p.total}${p.found ? ` · ${p.found} found` : ''}`, 0);
+      if (p.found) toast(`Found the series of ${p.found} ${p.found === 1 ? 'book' : 'books'} <button class="toast-btn" data-review-series>Review</button>`, 10000);
+      else toast('No new series found', 2400);
+    });
     window.aion.onAutoImport(({ added }) => toast(`${added} new ${added === 1 ? 'book' : 'books'} from your watched folder`, 3000));
     window.aion.onUpdateStatus((s) => {
       if (s.state === 'ready') {
@@ -908,6 +1086,10 @@
       }
     });
     $('#toast').addEventListener('click', (e) => {
+      if (e.target.closest('[data-review-series]')) {
+        $('#toast').hidden = true;
+        return reviewSeries();
+      }
       if (e.target.closest('[data-update-install]')) return window.aion.installUpdate();
       const b = e.target.closest('[data-open]');
       if (!b) return;
@@ -941,6 +1123,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries };
+  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries, reviewSeries };
   boot();
 })();

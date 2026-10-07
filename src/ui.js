@@ -54,6 +54,7 @@
       if (snapshot.shelves) this.shelves = snapshot.shelves;
       if (snapshot.settings) this.settings = snapshot.settings;
       if (snapshot.orders) this.orders = snapshot.orders;
+      if (snapshot.seriesInfo) this.seriesInfo = snapshot.seriesInfo;
       if (snapshot.fonts) {
         const changed = JSON.stringify(snapshot.fonts) !== JSON.stringify(this.fonts);
         this.fonts = snapshot.fonts;

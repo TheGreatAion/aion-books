@@ -8,6 +8,9 @@ const { readEpubMeta } = require('./lib/epubMeta');
 const { lookupCharacter, isWikipediaUrl } = require('./lib/lookup');
 const bookFiles = require('./lib/book-files');
 const { planTidy, tidyOne } = require('./lib/titles');
+const { naturalAuthor } = require('./lib/authors');
+const seriesLookup = require('./lib/series-lookup');
+const SeriesKey = require('./src/series.js');
 const { execFile } = require('child_process');
 const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
 const { buildFontCss, bundledFontFile } = require('./lib/fonts');
@@ -104,6 +107,7 @@ function snapshot() {
     shelves: store.data.shelves,
     settings: store.data.settings,
     orders: store.data.orders,
+    seriesInfo: store.data.seriesInfo,
     fonts: fontFamilies(),
   };
 }
@@ -236,7 +240,7 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
       const book = {
         id,
         title: meta.title,
-        author: meta.author,
+        author: naturalAuthor(meta.author),
         description: meta.description,
         publisher: meta.publisher,
         language: meta.language,
@@ -270,7 +274,10 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
     }
   }
 
-  if (added.length) store.save();
+  if (added.length) {
+    store.save();
+    queueSeriesLookup(added);
+  }
   if (!quiet) win?.webContents.send('import:progress', { done: files.length, total: files.length, finished: true });
   return { added: added.length, found: files.length, ids, failed, library: snapshot() };
 }
@@ -598,11 +605,20 @@ function registerIpc() {
 
   const EDITABLE = new Set([
     'title', 'author', 'progress', 'location', 'finished', 'favorite',
-    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating',
+    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex',
   ]);
   ipcMain.handle('book:update', (_e, id, patch) => {
     const book = findBook(id);
     if (!book) return null;
+    // A series you set yourself is yours: no suggestions over it.
+    if (patch && ('series' in patch || 'seriesIndex' in patch)) {
+      patch = { ...patch };
+      if ('series' in patch) patch.series = String(patch.series || '').trim();
+      if ('seriesIndex' in patch) patch.seriesIndex = patch.seriesIndex === '' || patch.seriesIndex == null ? null : Number(patch.seriesIndex) || null;
+      book.seriesSource = 'you';
+      delete book.seriesSuggestion;
+      delete book.seriesFromTitle;
+    }
     // A title you change yourself is never tidied again.
     if (typeof patch?.title === 'string' && patch.title !== book.title) book.titleEdited = true;
     if (patch && 'finished' in patch) {
@@ -828,6 +844,55 @@ function registerIpc() {
 
   // Details the reader worked out for a book that isn't an EPUB (see Reader.fillMissingMeta).
   // ---- tidying titles ----
+  // ---- series ----
+  ipcMain.handle('series:lookup-all', () => {
+    const ids = store.data.books.filter((b) => !b.series && !b.seriesLookedUp && b.seriesSource !== 'you').map((b) => b.id);
+    queueSeriesLookup(ids, { all: true });
+    return ids.length;
+  });
+  // Accept some suggestions; put the rest aside (they won't be offered again).
+  ipcMain.handle('series:review', (_e, accept = [], dismiss = []) => {
+    for (const id of accept) {
+      const b = findBook(id);
+      if (!b?.seriesSuggestion || b.series) continue;
+      b.series = b.seriesSuggestion.series;
+      b.seriesIndex = b.seriesSuggestion.number ?? null;
+      b.seriesSource = 'online';
+      delete b.seriesSuggestion;
+    }
+    for (const id of dismiss) {
+      const b = findBook(id);
+      if (b) delete b.seriesSuggestion;
+    }
+    store.save();
+    return snapshot();
+  });
+  // Rename a series, or take its books out of it: every book in it at once.
+  ipcMain.handle('series:rename', (_e, ids, name) => {
+    name = String(name || '').trim();
+    for (const id of Array.isArray(ids) ? ids : []) {
+      const b = findBook(id);
+      if (!b) continue;
+      b.series = name;
+      if (!name) b.seriesIndex = null;
+      b.seriesSource = 'you';
+      delete b.seriesSuggestion;
+    }
+    store.save();
+    return snapshot();
+  });
+  // A new order for a series' books: numbered 1, 2, 3… in that order.
+  ipcMain.handle('series:order', (_e, ids) => {
+    (Array.isArray(ids) ? ids : []).forEach((id, i) => {
+      const b = findBook(id);
+      if (!b) return;
+      b.seriesIndex = i + 1;
+      b.seriesSource = 'you';
+    });
+    store.save();
+    return snapshot();
+  });
+
   ipcMain.handle('titles:plan', () => planTidy(store.data.books));
   ipcMain.handle('titles:apply', (_e, ids) => {
     const want = new Set(Array.isArray(ids) ? ids : []);
@@ -858,7 +923,7 @@ function registerIpc() {
     if (!book) return null;
     const text = (v) => (typeof v === 'string' ? v.trim() : '');
     if (text(meta?.title)) book.title = text(meta.title);
-    if (text(meta?.author)) book.author = text(meta.author);
+    if (text(meta?.author)) book.author = naturalAuthor(text(meta.author));
     for (const k of ['description', 'publisher', 'language', 'published']) if (text(meta?.[k])) book[k] = text(meta[k]);
     if (Array.isArray(meta?.subjects)) book.subjects = meta.subjects.filter((s) => typeof s === 'string').slice(0, 12);
     if (text(meta?.series)) {
@@ -1031,6 +1096,111 @@ async function checkSystemTheme() {
   win?.webContents.send('settings:changed', s);
 }
 
+// ---------- finding series online (Wikidata) ----------
+// New books without a series are looked up in the background, one at a time
+// and politely spaced; what's found waits as a suggestion for you to review.
+// Series already in the library are looked up once too, to learn which books
+// they hold (for showing the ones you're missing).
+const lookupQueue = [];
+let lookupRunning = false;
+let lookupProgress = null;
+const lookupTries = new Map(); // item → failed attempts this session
+
+function queueSeriesLookup(ids, { all = false } = {}) {
+  if (!all && store.data.settings.seriesLookup === false) return;
+  for (const id of ids) {
+    const b = findBook(id);
+    if (!b || b.series || b.seriesLookedUp || b.seriesSource === 'you' || lookupQueue.includes(id)) continue;
+    b.seriesLookupPending = true;
+    lookupQueue.push(id);
+  }
+  // One book from each series we don't yet know the shape of.
+  for (const b of store.data.books) {
+    if (!b.series) continue;
+    const key = SeriesKey.key(b.series);
+    if (store.data.seriesInfo[key] || lookupQueue.includes(`series:${key}`)) continue;
+    lookupQueue.push(`series:${key}`);
+  }
+  if (all) lookupProgress = { done: 0, total: lookupQueue.length, found: 0 };
+  runLookups();
+}
+
+async function learnSeries(key, found) {
+  if (store.data.seriesInfo[key]?.parts) return;
+  try {
+    const parts = await seriesLookup.seriesParts(found.qid);
+    store.data.seriesInfo[key] = { name: found.series, qid: found.qid, parts, at: Date.now() };
+  } catch {
+    /* try again another time */
+  }
+}
+
+async function runLookups() {
+  if (lookupRunning) return;
+  lookupRunning = true;
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    while (lookupQueue.length) {
+      const item = lookupQueue[0];
+      const known = [...new Set(store.data.books.map((b) => b.series).filter(Boolean))];
+      try {
+        if (item.startsWith('series:')) {
+          // Learn what a series in the library holds, through one of its books.
+          const key = item.slice(7);
+          const b = store.data.books.find((x) => x.series && SeriesKey.key(x.series) === key);
+          if (b && !store.data.seriesInfo[key]) {
+            const found = await seriesLookup.findSeries(b, [b.series]);
+            if (found && SeriesKey.key(found.series) === key) await learnSeries(key, found);
+            else store.data.seriesInfo[key] = { name: b.series, qid: null, parts: [], at: Date.now() };
+          }
+        } else {
+          const b = findBook(item);
+          if (b && !b.series && !b.seriesLookedUp) {
+            const found = await seriesLookup.findSeries(b, known);
+            b.seriesLookedUp = Date.now();
+            delete b.seriesLookupPending;
+            if (found) {
+              b.seriesSuggestion = { series: found.series, number: found.number, qid: found.qid };
+              await learnSeries(SeriesKey.key(found.series), found);
+              if (lookupProgress) lookupProgress.found++;
+            }
+          } else if (b) delete b.seriesLookupPending;
+        }
+        lookupQueue.shift();
+        if (lookupProgress) lookupProgress.done++;
+        store.save();
+        notifyLater();
+        win?.webContents.send('series:progress', lookupProgress && { ...lookupProgress, finished: !lookupQueue.length });
+        await pause(process.env.AION_WIKIDATA_FIXTURE ? 0 : 1100);
+      } catch (err) {
+        if (err instanceof seriesLookup.RateLimited) {
+          await pause(60000); // Wikidata asked us to slow down
+          continue;
+        }
+        // A hiccup: try this one again twice, a little later; then skip it
+        // (it's looked up again next time Aion starts) and carry on.
+        const tries = (lookupTries.get(item) || 0) + 1;
+        lookupTries.set(item, tries);
+        if (tries <= 2) {
+          await pause(5000 * tries);
+          continue;
+        }
+        lookupQueue.shift();
+        if (lookupProgress) lookupProgress.done++;
+      }
+    }
+  } finally {
+    lookupRunning = false;
+    if (!lookupQueue.length) lookupProgress = null;
+  }
+}
+
+let notifyTimer = null;
+function notifyLater() {
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(notify, 400);
+}
+
 // A tidied title (and a series found in it) onto a book; the original title is kept.
 function applyTidy(book, p) {
   if (p.title && p.title !== book.title) {
@@ -1192,6 +1362,7 @@ app.whenReady().then(() => {
     setTimeout(() => {
       backfillSeries();
       backfillThumbs();
+      queueSeriesLookup(store.data.books.filter((b) => b.seriesLookupPending).map((b) => b.id));
       if (store.data.settings.watchFolder) startWatching(store.data.settings.watchFolder);
       watchLibraryFile();
       setupUpdates();
