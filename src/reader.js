@@ -320,6 +320,7 @@
         const base = parseFloat(doc.defaultView.getComputedStyle(doc.documentElement).fontSize) || 16;
         doc.documentElement.dataset.aionBase = base;
         this.relativizeFontSizes(doc, base);
+        this.keepPictureShapes(doc);
         const style = doc.createElement('style');
         style.id = 'aion-style';
         style.textContent = this.contentCss(base);
@@ -346,6 +347,18 @@
       // Selections: show the highlight / define / copy bar once the mouse is released.
       doc.addEventListener('mouseup', () => setTimeout(() => this.onSelected(doc, index), 10));
       this.extendDoc(doc, index);
+    },
+
+    // Covers made by Calibre (and some other converters) draw the picture as an
+    // SVG told to stretch to fill the page (preserveAspectRatio="none"), so it
+    // takes whatever shape the page happens to be: squashed in a wide window, a
+    // thin strip in a narrow one. Scale such pictures to fit instead, keeping
+    // their true proportions. (Drawings, with shapes of their own, are left be.)
+    keepPictureShapes(doc) {
+      for (const svg of doc.querySelectorAll('svg[preserveAspectRatio="none" i]')) {
+        const onlyPictures = svg.querySelector('image') && !svg.querySelector('path, rect, circle, ellipse, line, polyline, polygon, text');
+        if (onlyPictures) svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      }
     },
 
     // Some books fix text sizes in px, pt or keywords like "small", which a root
@@ -397,6 +410,8 @@
         ${family}
         body p, body li, body blockquote, body dd { line-height: ${s.lineHeight} !important; }
         body p { hyphens: auto; -webkit-hyphens: auto; }
+        /* A picture squeezed into a box of the wrong shape keeps its own. */
+        body img { object-fit: contain; }
         body img, body svg image { mix-blend-mode: ${t.blend}; ${s.theme === 'dusk' ? 'filter: brightness(.85) sepia(.15);' : ''} }
         body hr { border-color: ${t.ink}33 !important; }
         ::selection { background: ${s.theme === 'dusk' ? 'rgba(205,120,110,.35)' : 'rgba(214,140,130,.35)'}; }

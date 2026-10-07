@@ -276,3 +276,30 @@ test('page edges stack up on the left as you read', async () => {
   await expect(page.locator('#edgeL')).toBeHidden();
   await page.evaluate(() => window.UI.setSettings({ bookEdges: true }));
 });
+
+// Calibre's cover pages stretch the picture to fill the page; the reader keeps its shape.
+test('a stretched cover page keeps the picture’s proportions', async () => {
+  const other = await launch({ books: ['svg-cover.epub'] });
+  try {
+    for (const [w, h] of [[1280, 840], [760, 600]]) {
+      await other.app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setSize(s[0], s[1]), [w, h]);
+      await other.page.waitForTimeout(300);
+      await openBook(other.page, 'The Winter Orchard');
+      const frame = await bookFrame(other.page, 'svg image');
+      const ratio = await frame.evaluate(() => {
+        const svg = document.querySelector('svg');
+        const r = svg.querySelector('image').getBoundingClientRect(); // the picture as drawn, before fitting
+        const box = svg.getBoundingClientRect();
+        // With "meet", the drawn picture is the largest 2:3 rectangle inside the box.
+        const scale = Math.min(box.width / 60, box.height / 90);
+        return { attr: svg.getAttribute('preserveAspectRatio'), drawn: (r.width / r.height).toFixed(3), fits: r.width <= box.width + 1 && r.height <= box.height + 1, scale };
+      });
+      expect(ratio.attr).toBe('xMidYMid meet');
+      expect(Number(ratio.drawn)).toBeCloseTo(60 / 90, 2);
+      expect(ratio.fits).toBe(true);
+      await toLibrary(other.page);
+    }
+  } finally {
+    await other.app.close();
+  }
+});

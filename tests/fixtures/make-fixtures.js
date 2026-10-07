@@ -60,6 +60,18 @@ async function makeBook(file, o) {
   zip.file('META-INF/container.xml', `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
   const items = [];
   const spine = [];
+  if (o.coverPage) {
+    // A cover page the way Calibre makes them: an SVG picture told to stretch
+    // to fill the page (preserveAspectRatio="none").
+    zip.file(
+      'OEBPS/titlepage.xhtml',
+      `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Cover</title><style type="text/css">body { text-align: center; padding: 0; margin: 0; }</style></head>` +
+        `<body><div><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 60 90" preserveAspectRatio="none">` +
+        `<image width="60" height="90" xlink:href="cover.png"/></svg></div></body></html>`
+    );
+    items.push('<item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml" properties="svg"/>');
+    spine.push('<itemref idref="titlepage"/>');
+  }
   const nav = [];
   if (o.css) {
     zip.file('OEBPS/style.css', o.css);
@@ -125,6 +137,8 @@ const BOOKS = {
     singleFile: true,
     css: 'html { font-size: 16px; } p { font-size: 1rem; margin: 0; text-indent: 1.2em; } h1 { font-size: 1.6rem; }',
   },
+  // A Calibre-style cover page that stretches its picture (kept in shape by the reader).
+  'svg-cover.epub': { title: 'The Winter Orchard', author: 'Clara Holm', chapters: CHAPTERS.slice(0, 2), paras: 8, cover: [90, 60, 40], coverPage: true },
   // A title carrying clutter: a series name and number in front, an ISBN behind (tidied when added).
   'cluttered.epub': { title: 'The Orchard Years 3 - Winter Pruning (9780000000002)', author: 'Eleanor Vale', chapters: CHAPTERS.slice(0, 2), paras: 8 },
   'point-sized.epub': { title: 'Late Roses', author: 'Thomas Wren', chapters: CHAPTERS.slice(0, 3), paras: 20, cover: [150, 90, 70], css: 'p { font-size: 12pt; } h1 { font-size: 20pt; }' },
