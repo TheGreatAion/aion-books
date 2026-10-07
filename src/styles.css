@@ -2004,7 +2004,7 @@ input[type='range']:hover::-webkit-slider-thumb {
   height: 100%;
 }
 /* ================================================================
-   Settings-driven behaviour
+   Settings-driven behavior
    ================================================================ */
 [data-motion='gentle'] .painted .pop,
 [data-motion='gentle'] .card.enter {
@@ -2897,7 +2897,7 @@ kbd {
 foliate-view {
   --overlayer-highlight-opacity: 0.4;
   --overlayer-highlight-blend-mode: multiply;
-  /* Scroll mode: a slim scrollbar in the paper's colours (inherited into the reader). */
+  /* Scroll mode: a slim scrollbar in the paper's colors (inherited into the reader). */
   scrollbar-width: thin;
   scrollbar-color: var(--line-2) transparent;
 }
@@ -3121,7 +3121,7 @@ foliate-view {
 .cp-entry:last-child {
   border-bottom: 0;
 }
-/* A stroke of the highlight's colour down the margin. */
+/* A stroke of the highlight's color down the margin. */
 .cp-entry::before {
   content: '';
   position: absolute;

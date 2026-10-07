@@ -1,7 +1,7 @@
 <h1 align="center">Aion Books</h1>
 
 <p align="center">
-  <em>A quiet, paper-textured EPUB reader and library for Windows.</em>
+  <em>A quiet, paper-textured e-book reader and library for Windows.</em>
 </p>
 
 <p align="center">
@@ -33,12 +33,12 @@ next time you restart.
 ## Features
 
 ### Your library
-- **Shelves, favourites and series** — books from the same series are grouped together, and when you
+- **Shelves, favorites and series** — books from the same series are grouped together, and when you
   finish one, the next is waiting for you.
 - **Continue reading** — your current book up front, with every other book in progress beneath it.
 - **Star ratings**, search, and sorting — including your own order, arranged by dragging books around.
 - **Custom covers**, editable titles and authors.
-- **A watched folder** — save an EPUB into it and it appears in your library on its own.
+- **A watched folder** — save a book into it and it appears in your library on its own.
 
 ### Reading
 - **EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FictionBook (FB2)**, all in the same reader.

@@ -27,7 +27,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (_e, argv) => {
-    queueEpubArgs(argv);
+    queueBookArgs(argv);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -36,7 +36,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
-function queueEpubArgs(argv) {
+function queueBookArgs(argv) {
   for (const a of argv.slice(1)) {
     if (BOOK_FILE.test(a) && fs.existsSync(a)) pendingOpen.push(a);
   }
@@ -174,7 +174,7 @@ function findBook(id) {
   return store.data.books.find((b) => b.id === id);
 }
 
-function collectEpubs(p, out = []) {
+function collectBooks(p, out = []) {
   let stat;
   try {
     stat = fs.statSync(p);
@@ -190,7 +190,7 @@ function collectEpubs(p, out = []) {
     }
     for (const name of entries) {
       if (name.startsWith('.')) continue;
-      collectEpubs(path.join(p, name), out);
+      collectBooks(path.join(p, name), out);
     }
   } else if (BOOK_FILE.test(p)) {
     out.push(p);
@@ -199,7 +199,7 @@ function collectEpubs(p, out = []) {
 }
 
 async function importFiles(inputPaths, { quiet = false } = {}) {
-  const files = [...new Set(inputPaths.flatMap((p) => collectEpubs(p)))];
+  const files = [...new Set(inputPaths.flatMap((p) => collectBooks(p)))];
   const added = [];
   const ids = [];
   const failed = [];
@@ -439,7 +439,7 @@ async function define(word) {
     const opts = () => {
       const ctrl = new AbortController();
       setTimeout(() => ctrl.abort(), ms);
-      return { signal: ctrl.signal, headers: { 'User-Agent': 'AionBooks/1.0 (desktop EPUB reader)' } };
+      return { signal: ctrl.signal, headers: { 'User-Agent': 'AionBooks/1.0 (desktop e-book reader)' } };
     };
     try {
       return await fetch(url, opts());
@@ -1009,7 +1009,7 @@ app.whenReady().then(() => {
   for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
   store = new Store(root);
 
-  queueEpubArgs(process.argv);
+  queueBookArgs(process.argv);
   registerIpc();
   createWindow();
   win.webContents.once('did-finish-load', () => {

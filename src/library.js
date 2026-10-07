@@ -10,7 +10,7 @@
     all: { label: 'All books', icon: 'books', filter: () => true },
     reading: { label: 'Reading now', icon: 'reading', filter: (b) => b.progress > 0 && !b.finished },
     unread: { label: 'Not yet begun', icon: 'sprout', filter: (b) => !b.progress && !b.finished },
-    favorites: { label: 'Favourites', icon: 'heart', filter: (b) => b.favorite },
+    favorites: { label: 'Favorites', icon: 'heart', filter: (b) => b.favorite },
     finished: { label: 'Finished', icon: 'check', filter: (b) => b.finished },
     series: { label: 'Series', icon: 'stack', filter: (b) => !!b.seriesId },
   };
@@ -38,7 +38,7 @@
     all: ['Your library awaits', 'Drop books anywhere on this page — EPUB, Kindle, PDF, comics or FB2 — or gather them from a folder.'],
     reading: ['Nothing open on the nightstand', 'Books you begin will rest here until you finish them.'],
     unread: ['Every book has been begun', 'A fine habit. Add something new to keep the shelves full.'],
-    favorites: ['No favourites yet', 'Tap the little heart on a cover to keep it close.'],
+    favorites: ['No favorites yet', 'Tap the little heart on a cover to keep it close.'],
     finished: ['No finished books — yet', 'Each book you complete will be pressed here like a flower.'],
     shelf: ['An empty shelf', 'Right-click any book and choose “Shelves…” to place it here.'],
     search: ['Nothing by that name', 'Try a different title or author.'],
@@ -242,7 +242,7 @@
             : `<div class="meta"><span>New</span></div>`;
         return (
           `<div class="card${enter ? ' enter' : ''}" tabindex="0" draggable="${query || inSeries ? 'false' : 'true'}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
-          `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favourite">${icon('heart')}</button></div>` +
+          `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
           `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
           `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
           `${b.seriesId ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
@@ -376,7 +376,7 @@
             { label: 'Move to end', icon: 'sort', run: () => moveBook(id, 'end') },
           ]),
       '-',
-      { label: b.favorite ? 'Remove from favourites' : 'Add to favourites', icon: 'heart', run: () => updateBook(id, { favorite: !b.favorite }) },
+      { label: b.favorite ? 'Remove from favorites' : 'Add to favorites', icon: 'heart', run: () => updateBook(id, { favorite: !b.favorite }) },
       {
         label: b.finished ? 'Mark as unread' : 'Mark as finished',
         icon: 'check',

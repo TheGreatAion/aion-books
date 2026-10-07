@@ -102,8 +102,8 @@ function fb2({ title, first, last }) {
 // ---------- CBZ (a zip of page images) ----------
 async function cbz(png) {
   const zip = new JSZip();
-  const colours = [[120, 90, 60], [70, 95, 78], [150, 90, 70], [60, 70, 100]];
-  colours.forEach((rgb, i) => zip.file(`page${String(i + 1).padStart(2, '0')}.png`, png(300, 450, rgb)));
+  const colors = [[120, 90, 60], [70, 95, 78], [150, 90, 70], [60, 70, 100]];
+  colors.forEach((rgb, i) => zip.file(`page${String(i + 1).padStart(2, '0')}.png`, png(300, 450, rgb)));
   return zip.generateAsync({ type: 'nodebuffer' });
 }
 

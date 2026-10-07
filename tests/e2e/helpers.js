@@ -12,12 +12,12 @@ const ALL_BOOKS = ['pear-tree.epub', 'hedge-path.epub', 'single-file.epub', 'poi
 async function launch({ books = ALL_BOOKS, dataDir } = {}) {
   dataDir = dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'aion-e2e-'));
   const app = await electron.launch({
-    args: [ROOT, ...books.map(book)], // EPUB paths on the command line are imported, like "Open with"
+    args: [ROOT, ...books.map(book)], // book paths on the command line are imported, like "Open with"
     env: { ...process.env, AION_DATA_DIR: dataDir },
   });
   const page = await app.firstWindow();
   await page.waitForFunction((n) => window.UI?.State?.books?.length >= n, books.length, { timeout: 30000 });
-  // Opening EPUBs from the command line opens the last one; start from the library.
+  // Opening books from the command line opens the last one; start from the library.
   await page.waitForTimeout(500);
   await toLibrary(page);
   return { app, page, dataDir };

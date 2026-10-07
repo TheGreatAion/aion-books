@@ -347,7 +347,7 @@
   }
   const lerpN = (a, b, t) => a + (b - a) * t;
 
-  // A little burst of painted petals from a point (e.g. the favourite heart).
+  // A little burst of painted petals from a point (e.g. the favorite heart).
   function burst(x, y) {
     if (!fullMotion()) return;
     const layer = cutoutLayer();
