@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { BOOK_FILE, formatOf, detailsFromFilename } = require('../../lib/formats');
 
-test('recognises every supported book file', () => {
+test('recognizes every supported book file', () => {
   for (const f of ['a.epub', 'B.MOBI', 'c.azw3', 'd.azw', 'e.prc', 'f.fb2', 'g.fbz', 'h.fb2.zip', 'i.cbz', 'j.pdf']) assert.ok(BOOK_FILE.test(f), f);
   for (const f of ['a.txt', 'b.zip', 'c.m4b', 'd.epub.part']) assert.ok(!BOOK_FILE.test(f), f);
 });

@@ -48,7 +48,7 @@ test('gathers every highlight, with notes, by book', async () => {
   await expect(page.locator('.cp-note')).toHaveText('Like the old garden at home.');
 });
 
-test('search, colours, notes and grouping by date', async () => {
+test('search, colors, notes and grouping by date', async () => {
   await page.click('#openCommonplace');
   await page.fill('#cpSearch', 'garden at home'); // matches the note
   await expect(page.locator('#cpList .cp-entry')).toHaveCount(1);
@@ -97,7 +97,7 @@ test('the timeline shows the books finished this year, month by month', async ()
   await expect(row.locator('.tl-label')).toHaveText(month);
   await expect(row.locator('.tl-book .t')).toHaveText('Along the Hedge Path');
   await expect(row.locator('.tl-book .m')).toContainText('in a day');
-  await expect(tl.locator('.tl-notes')).toContainText('Along the Hedge Path'); // the favourite
+  await expect(tl.locator('.tl-notes')).toContainText('Along the Hedge Path'); // the favorite
   // The months before, with nothing in them, fold into a single quiet line.
   if (new Date().getMonth() > 0) {
     await expect(tl.locator('.tl-month')).toHaveCount(2);

@@ -286,7 +286,7 @@
         </div>
         ${row(
           'Paper',
-          'The colour of the app and the reading page.',
+          'The color of the app and the reading page.',
           `<div class="swatches set-swatches">${THEMES.map(
             ([k, label, bg, ink]) =>
               `<button class="swatch ${s.theme === k ? 'is-on' : ''}" data-set="theme" data-v="${k}">

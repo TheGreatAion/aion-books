@@ -46,7 +46,7 @@
 
   // Books converted from Kindle format sometimes still wrap their fonts in
   // Amazon's "FONT" container (a header, an XOR-scrambled first kilobyte and
-  // zlib compression), which no EPUB reader can use. Unwrap them as they load.
+  // zlib compression), which no e-book reader can use. Unwrap them as they load.
   async function unwrapKindleFont(data) {
     const buf = data instanceof Blob ? await data.arrayBuffer() : data instanceof ArrayBuffer ? data : null;
     if (!buf || buf.byteLength < 24 || new TextDecoder().decode(buf.slice(0, 4)) !== 'FONT') return data;

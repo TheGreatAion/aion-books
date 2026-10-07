@@ -220,7 +220,7 @@
       readDays ? `on <b>${readDays}</b> ${readDays === 1 ? 'day' : 'days'}` : '',
     ].filter(Boolean);
     const notes = [
-      best ? `Your favourite: <i>${esc(best.title)}</i> ${starsHtml(best.rating)}` : '',
+      best ? `Your favorite: <i>${esc(best.title)}</i> ${starsHtml(best.rating)}` : '',
       longest?.readingMs > 30 * 60000 && longest !== best ? `The longest with you: <i>${esc(longest.title)}</i>, ${fmtTime(longest.readingMs)}` : '',
     ].filter(Boolean);
 

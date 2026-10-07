@@ -1,5 +1,5 @@
 // Hand-drawn botanical ornaments and line icons, built as inline SVG strings.
-// Colours come from CSS variables so every theme recolours them for free.
+// Colors come from CSS variables so every theme recolors them for free.
 (function () {
   const f = (n) => Math.round(n * 100) / 100;
 
