@@ -111,8 +111,9 @@
       <button class="turn prev" id="rPrev" aria-label="Previous page"></button>
       <div class="viewer-wrap">
         <div id="viewer"></div>
-        <div class="gutter" aria-hidden="true"></div>
       </div>
+      <!-- Outside the viewer, so it stays put while the page is nudged on a turn. -->
+      <div class="gutter" aria-hidden="true"></div>
       <button class="turn next" id="rNext" aria-label="Next page"></button>
       <div class="r-loading" id="rLoading"><div class="loading-bloom" id="loadingBloom"></div><span>Opening…</span></div>
     </div>
