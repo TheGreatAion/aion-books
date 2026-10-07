@@ -118,7 +118,7 @@
 
   function coverHtml(book) {
     if (book.coverUrl) {
-      return `<div class="cover"><img src="${esc(book.coverUrl)}" alt="" loading="lazy" draggable="false"></div>`;
+      return `<div class="cover"><img src="${esc(book.coverUrl)}" alt="" loading="lazy" decoding="async" draggable="false"></div>`;
     }
     const cloth = CLOTHS[hash(book.title + book.author) % CLOTHS.length];
     return (

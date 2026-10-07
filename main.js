@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, nativeImage, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -6,8 +6,9 @@ const { pathToFileURL } = require('url');
 const { Store, DEFAULT_SETTINGS, READING_KEYS } = require('./lib/store');
 const { readEpubMeta } = require('./lib/epubMeta');
 const { lookupCharacter, isWikipediaUrl } = require('./lib/lookup');
+const bookFiles = require('./lib/book-files');
 const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
-const { buildFontCss } = require('./lib/fonts');
+const { buildFontCss, bundledFontFile } = require('./lib/fonts');
 const { fontInfo, FORMATS } = require('./lib/fontInfo');
 
 let win = null;
@@ -120,12 +121,11 @@ function customFontCss() {
   for (const f of store.data.fonts) {
     const file = path.join(dirs.fonts, f.file);
     if (!fs.existsSync(file)) continue;
-    const [fmt, mime] = FORMATS[path.extname(f.file).toLowerCase()] || ['truetype', 'font/ttf'];
-    const b64 = fs.readFileSync(file).toString('base64');
+    const [fmt] = FORMATS[path.extname(f.file).toLowerCase()] || ['truetype'];
     out[f.family] =
       (out[f.family] || '') +
       `@font-face{font-family:'${f.family.replace(/'/g, "\\'")}';font-style:${f.style};font-weight:${f.weight};` +
-      `font-display:swap;src:url(data:${mime};base64,${b64}) format('${fmt}');}\n`;
+      `font-display:swap;src:url(aion-font://user/${encodeURIComponent(f.file)}) format('${fmt}');}\n`;
   }
   return out;
 }
@@ -700,6 +700,7 @@ function registerIpc() {
     });
     if (res.canceled) return null;
     try {
+      await bookFiles.closeAll();
       await restoreBackup(res.filePaths[0]);
     } catch (err) {
       return { error: err.message };
@@ -725,6 +726,7 @@ function registerIpc() {
   ipcMain.handle('location:set', async (_e, folder, mode) => {
     if (!folder || !fs.existsSync(folder)) return { error: 'That folder no longer exists' };
     store.flush();
+    await bookFiles.closeAll();
     if (mode === 'move') {
       for (const d of [...DATA_DIRS, 'library.json']) {
         const p = path.join(dirs.root, d);
@@ -784,9 +786,10 @@ function registerIpc() {
   });
   ipcMain.handle('fonts:custom-css', () => customFontCss());
 
-  ipcMain.handle('book:remove', (_e, id) => {
+  ipcMain.handle('book:remove', async (_e, id) => {
     const book = findBook(id);
     if (!book) return snapshot();
+    await bookFiles.closeFile(bookPath(book)); // Windows won't delete a file that's open
     store.data.books = store.data.books.filter((b) => b.id !== id);
     for (const k of Object.keys(store.data.orders)) store.data.orders[k] = store.data.orders[k].filter((x) => x !== id);
     for (const f of [
@@ -799,6 +802,16 @@ function registerIpc() {
     }
     store.save();
     return snapshot();
+  });
+
+  // Parts of a book's file, as the reader asks for them (see lib/book-files.js).
+  ipcMain.handle('book:size', (_e, id) => {
+    const book = findBook(id);
+    return book ? bookFiles.sizeOf(bookPath(book)) : 0;
+  });
+  ipcMain.handle('book:read', (_e, id, start, end) => {
+    const book = findBook(id);
+    return book ? bookFiles.readRange(bookPath(book), start, end) : null;
   });
 
   ipcMain.handle('book:data', (_e, id) => {
@@ -917,7 +930,7 @@ function registerIpc() {
     return { written: true, count: books.length };
   });
 
-  ipcMain.handle('fonts:css', () => buildFontCss(__dirname));
+  ipcMain.handle('fonts:css', () => buildFontCss());
 
   ipcMain.handle('window:fullscreen', () => {
     win.setFullScreen(!win.isFullScreen());
@@ -998,6 +1011,33 @@ function createWindow() {
   });
 }
 
+// Fonts for the app and for book pages, from one place: aion-font://app/<file>
+// for the bundled typefaces, aion-font://user/<file> for fonts you've added.
+// Each is read once and then shared by every page, instead of every chapter
+// carrying its own copy inline.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'aion-font', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+const fontBytes = new Map();
+function serveFonts() {
+  protocol.handle('aion-font', async (req) => {
+    const { host, pathname } = new URL(req.url);
+    const name = decodeURIComponent(pathname.replace(/^\//, ''));
+    let file = null;
+    if (host === 'app') file = bundledFontFile(__dirname, name);
+    else if (host === 'user' && store.data.fonts.some((f) => f.file === name)) file = path.join(dirs.fonts, name);
+    if (!file) return new Response(null, { status: 404 });
+    try {
+      let bytes = fontBytes.get(file);
+      if (!bytes) fontBytes.set(file, (bytes = await fs.promises.readFile(file)));
+      const mime = (FORMATS[path.extname(file).toLowerCase()] || [])[1] || 'font/woff2';
+      return new Response(bytes, { headers: { 'content-type': mime, 'access-control-allow-origin': '*', 'cache-control': 'max-age=31536000, immutable' } });
+    } catch {
+      return new Response(null, { status: 404 });
+    }
+  });
+}
+
 app.whenReady().then(() => {
   nativeTheme.themeSource = 'light';
   // The library can live elsewhere (e.g. a OneDrive folder); fall back if it's gone.
@@ -1013,6 +1053,7 @@ app.whenReady().then(() => {
   };
   for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
   store = new Store(root);
+  serveFonts();
 
   queueBookArgs(process.argv);
   registerIpc();
