@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('aion', {
   updateBook: (id, patch) => ipcRenderer.invoke('book:update', id, patch),
   removeBook: (id) => ipcRenderer.invoke('book:remove', id),
   bookData: (id) => ipcRenderer.invoke('book:data', id),
+  bookSize: (id) => ipcRenderer.invoke('book:size', id),
+  readBook: (id, start, end) => ipcRenderer.invoke('book:read', id, start, end),
   showSource: (id) => ipcRenderer.invoke('book:show-source', id),
   getLocations: (id) => ipcRenderer.invoke('book:locations-get', id),
   saveLocations: (id, json) => ipcRenderer.invoke('book:locations-save', id, json),

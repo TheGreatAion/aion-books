@@ -122,9 +122,7 @@
   // ---------- earlier books in the series ----------
   async function loadOtherBook(rec) {
     if (otherBooks.has(rec.id)) return otherBooks.get(rec.id);
-    const data = await window.aion.bookData(rec.id);
-    const file = new File([data], `${rec.id}.${rec.format || 'epub'}`);
-    const book = await R.engine.makeBook(file);
+    const book = await R.engine.makeBook(await R.bookFile(rec));
     const labels = sectionLabels(book, (href) => book.resolveHref?.(href));
     const sections = [];
     try {

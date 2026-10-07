@@ -3477,3 +3477,10 @@ foliate-view {
   line-height: 1.5;
   color: var(--ink-2);
 }
+
+/* Cards off screen aren't laid out or painted until you scroll near them;
+   "auto" remembers each card's real size, so the scrollbar doesn't jump. */
+#grid > .card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
