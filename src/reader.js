@@ -375,6 +375,12 @@
     },
 
     // ---------- where we are ----------
+    // Where we are, for saving: the CFI of the whole visible passage. Saving a single
+    // point (the first character on the page) is ambiguous when a page starts
+    // mid-paragraph — it can resolve to the end of the previous page.
+    placeCfi() {
+      return this.loc?.cfi || null;
+    },
     // Collapsed CFIs for the start and end of what's on screen.
     startCfi() {
       if (!this.loc?.cfi || !engine.CFI) return null;
@@ -431,7 +437,7 @@
       if (!this.id || !this.loc) return;
       const rec = this.record;
       const patch = {
-        location: this.startCfi(),
+        location: this.placeCfi(),
         progress: this.progress,
         chapter: this.chapter,
         lastOpenedAt: Date.now(),
@@ -630,7 +636,10 @@
       const start = this.startCfi();
       const end = this.endCfi();
       if (!rec || !start || !end) return [];
-      return (rec.bookmarks || []).filter((bm) => this.cfiCmp(bm.cfi, start) >= 0 && this.cfiCmp(bm.cfi, end) <= 0);
+      return (rec.bookmarks || []).filter((bm) => {
+        const at = engine.CFI.collapse(bm.cfi); // bookmarks may store a passage or a point
+        return this.cfiCmp(at, start) >= 0 && this.cfiCmp(at, end) <= 0;
+      });
     },
     updateBookmarkBtn() {
       const on = this.bookmarksHere().length > 0;
@@ -647,7 +656,7 @@
         bookmarks = bookmarks.filter((bm) => !here.includes(bm));
         toast('Bookmark removed', 1600);
       } else {
-        bookmarks = [...bookmarks, { cfi: this.startCfi(), chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
+        bookmarks = [...bookmarks, { cfi: this.placeCfi(), chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
         toast('Page bookmarked', 1600);
       }
       await updateBook(this.id, { bookmarks }, { quiet: true });

@@ -38,6 +38,25 @@ test('reopens a book where you left off', async () => {
   await expect.poll(async () => (await probe(page)).position, { timeout: 15000 }).toBe(here);
 });
 
+// A narrow window shows one column, and pages often start mid-paragraph; the
+// saved place must still bring you back to the same page, not the one before.
+test('reopens on the same page in a narrow window', async () => {
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 560));
+  try {
+    await page.waitForTimeout(500);
+    await openBook(page, 'The Pear Tree Letters');
+    await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
+    await page.waitForTimeout(800);
+    await turn(2);
+    const here = (await probe(page)).position;
+    await toLibrary(page);
+    await openBook(page, 'The Pear Tree Letters');
+    await expect.poll(async () => (await probe(page)).position, { timeout: 15000 }).toBe(here);
+  } finally {
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 840));
+  }
+});
+
 // Books size their text in different ways; every one must respond to the size buttons.
 for (const [title, how] of [
   ['The Pear Tree Letters', 'em'],
