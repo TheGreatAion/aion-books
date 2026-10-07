@@ -199,3 +199,29 @@ test('? inside the book shows the keyboard shortcuts', async () => {
   await expect(page.locator('#modalBack')).toBeHidden();
   expect((await probe(page)).open).toBe(true);
 });
+
+// On a chapter's last spread the engine reports the start of the next file;
+// the countdown must still finish this chapter rather than skip to the next.
+test('the chapter countdown reaches the last page before the chapter changes', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await waitForMeasured(page);
+  await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
+  await page.waitForTimeout(800);
+  try {
+    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'pages' }));
+    const seen = [];
+    for (let i = 0; i < 8; i++) {
+      await turn(1);
+      const { footer, chapter } = await probe(page);
+      seen.push({ left: /^Last page/.test(footer) ? 0 : Number(/^(\d+) pages/.exec(footer)?.[1]), chapter });
+    }
+    // Within a chapter the count only goes down, and every chapter we leave ends on "Last page".
+    for (let i = 1; i < seen.length; i++) {
+      if (seen[i].chapter === seen[i - 1].chapter) expect(seen[i].left).toBeLessThan(seen[i - 1].left);
+      else expect(seen[i - 1].left).toBe(0);
+    }
+    expect(new Set(seen.map((s) => s.chapter)).size).toBeGreaterThan(1);
+  } finally {
+    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'time' }));
+  }
+});
