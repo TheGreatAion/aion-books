@@ -38,6 +38,8 @@ next time you restart.
 - **Continue reading** — your current book up front, with every other book in progress beneath it.
 - **Star ratings**, search, and sorting — including your own order, arranged by dragging books around.
 - **Custom covers**, editable titles and authors.
+- **Tidy titles:** ISBNs, Kindle tags and repeated series numbers come off titles, and a title that names its series puts the book in it. Older books can be reviewed in Settings, and every original title can be restored.
+- **Choose several books** with Ctrl- or Shift-click to shelve, finish, favorite or remove them together. Removing shows **Undo** instead of asking first. Arrow keys move around the shelf.
 - **A watched folder** — save a book into it and it appears in your library on its own.
 
 ### Reading
@@ -54,6 +56,8 @@ next time you restart.
 - **Time left** in the chapter and the book, learned from how fast you actually read — or pages left, or
   just the percentage.
 - Three papers — **Linen**, **Parchment** and **Dusk** — plus spacing, margins and size controls.
+- **Dusk when Windows is dark**, if you like: it follows Windows’ light and dark mode.
+- **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
   <img src="docs/screenshots/reader.png" alt="A two-page spread being read aloud, with the current sentence highlighted" width="860">

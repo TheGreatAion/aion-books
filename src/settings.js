@@ -294,6 +294,11 @@
           ).join('')}</div>`,
           'wide'
         )}
+        ${row(
+          'Dusk when Windows is dark',
+          'Follows Windows’ light and dark mode: Dusk in dark mode, the paper you chose in light mode.',
+          toggle('followSystem', !!s.followSystem)
+        )}
         ${row('Typeface', 'Add your own .ttf, .otf, .woff or .woff2 files — add each weight and italic of a family and they’re grouped together.', fontChips(s.fontFamily), 'wide')}
         ${row(
           'Text size',
@@ -346,6 +351,11 @@
           `<div class="btn-row">${
             s.watchFolder ? `<button class="ghost-btn bordered" data-action="unwatch">Stop watching</button>` : ''
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`
+        )}
+        ${row(
+          'Tidy book titles',
+          'Take ISBNs, Kindle tags and repeated series numbers off titles, and give a series to books whose titles name one. You’ll see every change first.',
+          `<button class="ghost-btn bordered" data-action="tidy-titles">Review…</button>`
         )}
       </section>
 
@@ -423,7 +433,57 @@
     rerender();
   }
 
+  // ---------- tidying titles ----------
+  // Every change is listed first; untick any to leave them as they are.
+  async function reviewTidy() {
+    const plans = await window.aion.tidyPlan();
+    if (!plans.length) return toast('Every title is already tidy', 2200);
+    const label = (n) => `Tidy ${n} ${n === 1 ? 'title' : 'titles'}`;
+    await window.UI.openModal(
+      `<h3>Tidy book titles</h3>` +
+        `<div class="sub">Only clutter Aion can be sure of. Each original title is kept: “Restore original title” on a book’s menu puts it back.</div>` +
+        `<div class="tidy-list">${plans
+          .map(
+            (p) =>
+              `<label class="tidy-row"><input type="checkbox" data-id="${esc(p.id)}" checked>` +
+              `<span class="tidy-from">${esc(p.from)}</span>` +
+              `<span class="tidy-to">${esc(p.title)}${p.series ? ` <em>· ${esc(p.series)}, book ${esc(p.seriesIndex)}</em>` : ''}</span></label>`
+          )
+          .join('')}</div>` +
+        `<div class="actions"><button class="ghost-btn" data-x>Cancel</button><button class="solid-btn" data-ok>${label(plans.length)}</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          const ok = $('[data-ok]', m);
+          const ticked = () => [...m.querySelectorAll('.tidy-row input:checked')].map((i) => i.dataset.id);
+          m.addEventListener('change', () => {
+            ok.textContent = label(ticked().length);
+            ok.disabled = !ticked().length;
+          });
+          $('[data-x]', m).onclick = () => close(null);
+          ok.onclick = async () => {
+            const ids = ticked();
+            State.set(await window.aion.tidyApply(ids));
+            close(true);
+            toast(`Tidied ${ids.length} ${ids.length === 1 ? 'title' : 'titles'}`, 2000);
+          };
+        },
+      }
+    );
+  }
+
   function bind() {
+    // Windows switched between light and dark mode while we follow it.
+    window.aion.onSettingsChanged((s) => {
+      State.settings = s;
+      window.UI.applyRoot(s);
+      if (window.Reader?.view) {
+        window.Reader.applyStyles();
+        window.Reader.applyHighlights?.();
+        window.Reader.renderTypePop?.();
+      }
+      rerender();
+    });
     Fonts.listeners.add(() => {
       if (!$('#settingsPanel').hidden) render();
     });
@@ -517,6 +577,7 @@
         return;
       }
       if (act === 'tts-sample') return sample();
+      if (act === 'tidy-titles') return reviewTidy();
       if (act === 'shortcuts') return showShortcuts();
       if (act === 'check-update') {
         update = { state: 'checking' };

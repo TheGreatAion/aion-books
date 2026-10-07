@@ -1,6 +1,6 @@
 // The library: navigation, shelves, search, grid, details, import.
 (function () {
-  const { $, $$, esc, State, updateBook, setSettings, coverHtml, toast, openMenu, openModal, closeModal, promptText, confirmBox, pct, stars } =
+  const { $, $$, esc, State, updateBook, setSettings, coverHtml, toast, undoToast, openMenu, openModal, closeModal, promptText, confirmBox, pct, stars } =
     window.UI;
   const { icon } = window.Ornaments;
   const Painted = window.Painted;
@@ -241,7 +241,7 @@
             ? `<div class="meta"><div class="bar"><i style="width:${pct(b.progress)}"></i></div><span>${pct(b.progress)}</span></div>`
             : `<div class="meta"><span>New</span></div>`;
         return (
-          `<div class="card${enter ? ' enter' : ''}" tabindex="0" draggable="${query || inSeries ? 'false' : 'true'}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
+          `<div class="card${enter ? ' enter' : ''}${selected.has(b.id) ? ' is-selected' : ''}" aria-selected="${selected.has(b.id)}" tabindex="0" draggable="${query || inSeries ? 'false' : 'true'}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
           `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
           `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
           `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
@@ -290,6 +290,7 @@
     }
     renderHero();
     renderGrid();
+    paintSelection();
   }
 
   // Pages that take over the main column instead of showing books.
@@ -392,22 +393,155 @@
         },
       },
       { label: 'Edit title & author', icon: 'edit', run: () => editMeta(id) },
+      ...(b.originalTitle
+        ? [{ label: 'Restore original title', icon: 'reset', run: async () => State.set(await window.aion.restoreTitle(id)) }]
+        : []),
       { label: 'Show in folder', icon: 'folder', run: () => window.aion.showSource(id) },
       '-',
-      { label: 'Remove from library', icon: 'trash', danger: true, run: () => removeBook(id) },
+      { label: 'Remove from library', icon: 'trash', danger: true, run: () => removeBooks([id]) },
     ]);
   }
 
-  async function removeBook(id) {
-    const b = State.book(id);
-    const ok = await confirmBox({
-      title: 'Remove this book?',
-      sub: `<em>${esc(b.title)}</em> and its highlights will leave your library. The original file on your computer stays where it is.`,
-      okLabel: 'Remove',
+  // Books leave the shelves at once; they're really removed a few seconds
+  // later, unless you press Undo. (The files on your computer are never touched.)
+  function removeBooks(ids) {
+    const books = ids.map((id) => State.book(id)).filter(Boolean);
+    if (!books.length) return;
+    for (const b of books) {
+      State.hidden.add(b.id);
+      selected.delete(b.id);
+    }
+    State.books = State.books.filter((b) => !State.hidden.has(b.id));
+    State.emit();
+    undoToast(books.length === 1 ? `Removed <em>${esc(books[0].title)}</em>` : `Removed ${books.length} books`, {
+      undo: async () => {
+        for (const b of books) State.hidden.delete(b.id);
+        await State.getFresh();
+      },
+      commit: async () => {
+        let snap = null;
+        for (const b of books) snap = await window.aion.removeBook(b.id);
+        for (const b of books) State.hidden.delete(b.id);
+        if (snap) State.set(snap);
+      },
     });
-    if (!ok) return;
-    State.set(await window.aion.removeBook(id));
-    toast('Removed from your library', 1800);
+  }
+
+  // ---------- choosing several books ----------
+  // Ctrl-click adds or takes away a book, Shift-click takes in a run of them;
+  // then shelve, finish, favorite or remove them together.
+  const selected = new Set();
+  let anchor = null; // where a Shift-click run starts
+  const gridCards = () => [...$('#grid').querySelectorAll('.card[data-id]')];
+
+  function select(id, { range = false, toggle = false } = {}) {
+    if (range && anchor) {
+      const ids = gridCards().map((c) => c.dataset.id);
+      const [a, b] = [ids.indexOf(anchor), ids.indexOf(id)].sort((x, y) => x - y);
+      if (a >= 0 && b >= 0) ids.slice(a, b + 1).forEach((x) => selected.add(x));
+    } else if (toggle) {
+      if (selected.has(id)) selected.delete(id);
+      else selected.add(id);
+      anchor = id;
+    }
+    paintSelection();
+  }
+  function clearSelection() {
+    if (!selected.size) return;
+    selected.clear();
+    anchor = null;
+    paintSelection();
+  }
+  function paintSelection() {
+    for (const id of [...selected]) if (!State.book(id)) selected.delete(id);
+    for (const c of gridCards()) {
+      const on = selected.has(c.dataset.id);
+      c.classList.toggle('is-selected', on);
+      c.setAttribute('aria-selected', on);
+    }
+    const bar = $('#selectBar');
+    bar.hidden = !selected.size;
+    if (!selected.size) return;
+    const books = [...selected].map((id) => State.book(id));
+    const allFinished = books.every((b) => b.finished);
+    const allFav = books.every((b) => b.favorite);
+    bar.innerHTML =
+      `<span class="sb-count">${selected.size} ${selected.size === 1 ? 'book' : 'books'} chosen</span>` +
+      `<button class="ghost-btn" data-sel="shelf">${icon('shelf')}<span>Add to shelf</span></button>` +
+      `<button class="ghost-btn" data-sel="finish">${icon('check')}<span>${allFinished ? 'Mark as unread' : 'Mark as finished'}</span></button>` +
+      `<button class="ghost-btn" data-sel="fav">${icon('heart')}<span>${allFav ? 'Remove from favorites' : 'Add to favorites'}</span></button>` +
+      `<button class="ghost-btn danger" data-sel="remove">${icon('trash')}<span>Remove</span></button>` +
+      `<button class="icon-btn small" data-sel="clear" title="Clear (Esc)">${icon('close')}</button>`;
+  }
+
+  async function onSelectionAction(act, btn) {
+    const ids = [...selected];
+    const books = ids.map((id) => State.book(id)).filter(Boolean);
+    if (act === 'clear') return clearSelection();
+    if (act === 'remove') return removeBooks(ids);
+    if (act === 'finish') {
+      const finish = !books.every((b) => b.finished);
+      for (const b of books) await updateBook(b.id, finish ? { finished: true } : { finished: false, progress: 0, location: null, chapter: '' }, { quiet: true });
+      State.emit();
+      return toast(`${books.length} ${books.length === 1 ? 'book' : 'books'} marked as ${finish ? 'finished' : 'unread'}`, 1800);
+    }
+    if (act === 'fav') {
+      const fav = !books.every((b) => b.favorite);
+      for (const b of books) await updateBook(b.id, { favorite: fav }, { quiet: true });
+      return State.emit();
+    }
+    if (act === 'shelf') {
+      const r = btn.getBoundingClientRect();
+      const addTo = async (shelfId) => {
+        for (const b of books) if (!(b.shelves || []).includes(shelfId)) await updateBook(b.id, { shelves: [...(b.shelves || []), shelfId] }, { quiet: true });
+        State.emit();
+        const s = State.shelves.find((x) => x.id === shelfId);
+        toast(`Added to <em>${esc(s?.name || 'the shelf')}</em>`, 1800);
+      };
+      openMenu(r.left, r.top - 8, [
+        ...State.shelves.map((s) => ({ label: s.name, icon: 'shelf', run: () => addTo(s.id) })),
+        ...(State.shelves.length ? ['-'] : []),
+        {
+          label: 'New shelf…',
+          icon: 'plus',
+          run: async () => {
+            const name = await promptText({ title: 'A new shelf', sub: `For the ${books.length} ${books.length === 1 ? 'book' : 'books'} you chose.`, placeholder: 'e.g. Autumn evenings', okLabel: 'Create' });
+            if (!name?.trim()) return;
+            const snap = await window.aion.createShelf(name);
+            State.set(snap);
+            await addTo(snap.shelves[snap.shelves.length - 1].id);
+          },
+        },
+      ]);
+    }
+  }
+
+  // ---------- moving around the grid with the keyboard ----------
+  // Arrow keys move between books (up and down by row), Home and End to the
+  // first and last, Enter opens, Space chooses, Delete removes.
+  function moveFocus(card, key) {
+    const cards = gridCards();
+    const i = cards.indexOf(card);
+    if (i < 0) return null;
+    if (key === 'ArrowLeft') return cards[i - 1];
+    if (key === 'ArrowRight') return cards[i + 1];
+    if (key === 'Home') return cards[0];
+    if (key === 'End') return cards[cards.length - 1];
+    const here = card.getBoundingClientRect();
+    const x = here.left + here.width / 2;
+    const down = key === 'ArrowDown';
+    // The nearest card, by column, in the next row up or down.
+    let best = null;
+    let bestScore = Infinity;
+    for (const c of cards) {
+      const r = c.getBoundingClientRect();
+      const dy = down ? r.top - here.bottom : here.top - r.bottom;
+      if (dy < -here.height / 2) continue;
+      if (c === card || (down ? r.top <= here.top + 4 : r.top >= here.top - 4)) continue;
+      const score = Math.abs(r.top - here.top) * 4 + Math.abs(r.left + r.width / 2 - x);
+      if (score < bestScore) (bestScore = score), (best = c);
+    }
+    return best;
   }
 
   async function editMeta(id) {
@@ -572,6 +706,7 @@
       const b = e.target.closest('.nav-item');
       if (!b) return;
       view = b.dataset.view;
+      selected.clear();
       $('#libScroll').scrollTop = 0;
       render();
     };
@@ -625,11 +760,43 @@
       const open = e.target.closest('[data-open]');
       if (open) return openBook(open.dataset.open);
       const card = e.target.closest('.card');
-      if (card) openBook(card.dataset.id);
+      if (card?.dataset.id && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+        e.preventDefault();
+        return select(card.dataset.id, { range: e.shiftKey, toggle: !e.shiftKey });
+      }
+      if (card) {
+        clearSelection();
+        openBook(card.dataset.id);
+      }
+    });
+    $('#selectBar').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-sel]');
+      if (b) onSelectionAction(b.dataset.sel, b);
     });
     $('#libMain').addEventListener('keydown', (e) => {
       const card = e.target.closest?.('.card');
-      if (!card || e.key !== 'Enter') return;
+      if (!card) return;
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        const next = moveFocus(card, e.key);
+        e.preventDefault();
+        if (!next) return;
+        next.focus({ preventScroll: true });
+        next.scrollIntoView({ block: 'nearest' });
+        if (e.shiftKey && next.dataset.id) {
+          anchor ||= card.dataset.id;
+          select(next.dataset.id, { range: true });
+        }
+        return;
+      }
+      if (e.key === ' ' && card.dataset.id) {
+        e.preventDefault();
+        return select(card.dataset.id, { toggle: true });
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && card.dataset.id) {
+        e.preventDefault();
+        return removeBooks(selected.size ? [...selected] : [card.dataset.id]);
+      }
+      if (e.key !== 'Enter') return;
       if (card.dataset.series) {
         view = `series:${card.dataset.series}`;
         render();
@@ -693,6 +860,12 @@
       } else if (e.ctrlKey && e.key === 'o') {
         e.preventDefault();
         addBooks('files');
+      } else if (e.ctrlKey && e.key === 'a' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+        e.preventDefault();
+        gridCards().forEach((c) => selected.add(c.dataset.id));
+        paintSelection();
+      } else if (e.key === 'Escape' && selected.size && document.activeElement !== $('#search')) {
+        clearSelection();
       } else if (e.key === 'Escape' && document.activeElement === $('#search')) {
         $('#search').value = '';
         query = '';

@@ -812,7 +812,7 @@
       let bookmarks = rec.bookmarks || [];
       if (here.length) {
         bookmarks = bookmarks.filter((bm) => !here.includes(bm));
-        toast('Bookmark removed', 1600);
+        this.offerBookmarksBack(this.id, here);
       } else {
         bookmarks = [...bookmarks, { cfi: this.placeCfi(), chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
         toast('Page bookmarked', 1600);
@@ -933,18 +933,48 @@
       this.renderMarks();
     },
     async removeHighlight(cfi) {
+      const id = this.id;
+      const gone = (this.record.highlights || []).find((x) => x.cfi === cfi);
       try {
         this.view?.deleteAnnotation({ value: cfi });
       } catch (_) {}
       const highlights = (this.record.highlights || []).filter((x) => x.cfi !== cfi);
-      await updateBook(this.id, { highlights }, { quiet: true });
+      await updateBook(id, { highlights }, { quiet: true });
       this.renderMarks();
+      if (gone) {
+        window.UI.undoToast(gone.note ? 'Highlight and note removed' : 'Highlight removed', {
+          undo: async () => {
+            const rec = State.book(id);
+            await updateBook(id, { highlights: [...(rec.highlights || []).filter((x) => x.cfi !== cfi), gone] }, { quiet: true });
+            if (this.id === id) {
+              this.view?.addAnnotation({ value: cfi });
+              this.renderMarks();
+            }
+          },
+        });
+      }
     },
     async removeBookmark(cfi) {
+      const id = this.id;
+      const gone = (this.record.bookmarks || []).filter((x) => x.cfi === cfi);
       const bookmarks = (this.record.bookmarks || []).filter((x) => x.cfi !== cfi);
-      await updateBook(this.id, { bookmarks }, { quiet: true });
+      await updateBook(id, { bookmarks }, { quiet: true });
       this.updateBookmarkBtn();
       this.renderMarks();
+      if (gone.length) this.offerBookmarksBack(id, gone);
+    },
+    // "Bookmark removed · Undo"
+    offerBookmarksBack(id, gone) {
+      window.UI.undoToast('Bookmark removed', {
+        undo: async () => {
+          const rec = State.book(id);
+          await updateBook(id, { bookmarks: [...(rec.bookmarks || []), ...gone] }, { quiet: true });
+          if (this.id === id) {
+            this.updateBookmarkBtn();
+            this.renderMarks();
+          }
+        },
+      });
     },
     copy(text) {
       navigator.clipboard.writeText(text || '').then(() => toast('Copied to clipboard', 1400));
