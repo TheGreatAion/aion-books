@@ -601,6 +601,8 @@ function registerIpc() {
       if (patch.finished && !book.finished) book.finishedAt = Date.now();
       if (!patch.finished) book.finishedAt = null;
     }
+    // The first time a book is opened is when you began it (for the reading timeline).
+    if (patch?.lastOpenedAt && !book.startedAt) book.startedAt = patch.lastOpenedAt;
     for (const [k, v] of Object.entries(patch || {})) if (EDITABLE.has(k)) book[k] = v;
     store.save();
     return bookView(book);
