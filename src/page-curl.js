@@ -1,30 +1,58 @@
-// The page curl: a stop-motion page turn.
+// The page curl: a page that peels from its bottom corner and rolls over.
 //
-// Just before a turn we take a picture of the page being turned. That picture
-// becomes a paper leaf laid exactly over the real page, and the real turn
-// happens underneath it, out of sight. The leaf then lifts from its outer
-// edge, bends and folds over the spine in a handful of held frames, uncovering
-// the new page beneath. Its back shows the old page faintly through the paper.
+// Just before a turn we take a picture of the page being turned and lay it,
+// on a canvas, exactly over the real page; the real turn then happens
+// underneath, out of sight. Each frame, a fold line sweeps from the corner
+// across the page: what's past the fold is cut away (showing the new page
+// beneath) and drawn folded back over as a flap — the back of the sheet, with
+// the old page showing faintly through it, mirrored, as it does with real
+// paper. The flap rolls with a highlight, casts a soft shadow, and the new
+// page is shaded where the sheet still hangs over it.
+//
+// The geometry is the classic page-peel: the corner moves along a path, the
+// fold is the line halfway between where the corner was and where it is, and
+// the corner is kept within reach of the spine so the paper never stretches.
 (function () {
-  const STRIPS = 12; // vertical bands the leaf bends along
-  const FRAMES = 7; // held drawings, stop-motion style
-  let FRAME_MS = 52; // (tests slow this down to look at each frame)
-  const LAG = 0.3; // how far the spine edge trails the free edge
+  let DURATION = 320; // ms for the page to come over (tests can slow it down)
+  const FADE = 90; // ms for the landed sheet to give way to the real new page
 
-  let current = null; // the leaf on screen, if any
+  let current = null; // the canvas on screen, if any
   let seq = 0; // bumped whenever a turn is cut short, so older turns know to stop
 
-  const clamp01 = (x) => Math.max(0, Math.min(1, x));
-  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+  // Starts briskly, eases as it lands — like a page let go of.
+  const ease = (t) => 1 - Math.pow(1 - t, 2.2);
 
-  function el(cls, parent, style = {}) {
-    const d = document.createElement('div');
-    d.className = cls;
-    Object.assign(d.style, style);
-    parent?.appendChild(d);
-    return d;
+  // ---------- geometry ----------
+  const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+  const dot = (a, b) => a.x * b.x + a.y * b.y;
+  const len = (a) => Math.hypot(a.x, a.y);
+
+  // The part of a convex polygon on one side of a line (through m, normal n).
+  function clip(poly, m, n, positive) {
+    const side = (p) => dot(sub(p, m), n) * (positive ? 1 : -1);
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      const sa = side(a);
+      const sb = side(b);
+      if (sa >= 0) out.push(a);
+      if (sa >= 0 !== sb >= 0) {
+        const t = sa / (sa - sb);
+        out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      }
+    }
+    return out;
+  }
+  const reflect = (p, m, n) => {
+    const d = 2 * dot(sub(p, m), n);
+    return { x: p.x - d * n.x, y: p.y - d * n.y };
+  };
+  function trace(ctx, poly) {
+    ctx.beginPath();
+    poly.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
   }
 
   // Ends a turn at once (for a quick run of page turns, or leaving the book).
@@ -39,7 +67,7 @@
    * @param dir    1 when the page goes right-to-left (forward in most books), -1 the other way
    * @param box    the page area, in window coordinates: { left, right, top, bottom, spine }
    *               (spine is null for a single page)
-   * @param stage  the element the leaf is drawn in
+   * @param stage  the element the curl is drawn in
    * @param turn   starts the real turn; resolves true once the new page is showing, false if nothing turned
    */
   async function turn({ dir, box, stage, turn }) {
@@ -48,12 +76,7 @@
     const stale = () => id !== seq;
     const W = box.right - box.left;
     const H = box.bottom - box.top;
-    // The leaf: for two pages, the half on the side we're turning from; for one page, all of it.
-    const spine = box.spine ?? (dir > 0 ? box.left : box.right);
-    const leafL = dir > 0 ? spine : box.left;
-    const leafR = dir > 0 ? box.right : spine;
-    const leafW = leafR - leafL;
-    if (W < 40 || H < 40 || leafW < 40) return turn();
+    if (W < 40 || H < 40) return turn();
 
     const buf = await window.aion.snapshot({ x: box.left, y: box.top, width: W, height: H }).catch(() => null);
     if (!buf) return turn();
@@ -66,87 +89,149 @@
       URL.revokeObjectURL(url);
       return turn();
     }
-    // A newer turn (or closing the book) came along while we were taking the picture.
-    if (stale()) {
-      URL.revokeObjectURL(url);
-      return turn();
-    }
+    URL.revokeObjectURL(url); // decoded: the image keeps its pixels
+    if (stale()) return turn(); // a newer turn (or closing the book) came along
 
+    // The canvas covers the whole stage, so the page can swing out past its edges.
     const sr = stage.getBoundingClientRect();
-    const layer = el('curl-layer', null, {
-      left: `${box.left - sr.left}px`,
-      top: `${box.top - sr.top}px`,
-      width: `${W}px`,
-      height: `${H}px`,
-      perspectiveOrigin: `${spine - box.left}px 50%`,
-    });
-    current = layer;
-    const picture = (node, x) => {
-      node.style.backgroundImage = `url(${url})`;
-      node.style.backgroundSize = `${W}px ${H}px`;
-      node.style.backgroundPosition = `${-x}px 0`;
-    };
+    const dpr = devicePixelRatio || 1;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'curl-layer';
+    canvas.width = Math.round(sr.width * dpr);
+    canvas.height = Math.round(sr.height * dpr);
+    Object.assign(canvas.style, { left: '0px', top: '0px', width: `${sr.width}px`, height: `${sr.height}px` });
+    const ctx = canvas.getContext('2d');
 
-    // The far page (two-page spread only) stays as it was until the leaf lands on it.
-    let far = null;
-    if (box.spine != null) {
-      const farL = dir > 0 ? box.left : spine;
-      const farR = dir > 0 ? spine : box.right;
-      far = el('curl-still', layer, { left: `${farL - box.left}px`, width: `${farR - farL}px` });
-      picture(far, farL - box.left);
-      far.shade = el('curl-shade', far, { background: `linear-gradient(${dir > 0 ? 270 : 90}deg, rgba(var(--stain), .32), transparent 45%)` });
+    // Everything below in stage coordinates.
+    const left = box.left - sr.left;
+    const right = box.right - sr.left;
+    const top = box.top - sr.top;
+    const bottom = box.bottom - sr.top;
+    const spine = (box.spine ?? (dir > 0 ? box.left : box.right)) - sr.left;
+    const outer = dir > 0 ? right : left;
+    const leafW = Math.abs(outer - spine);
+    const leaf = [
+      { x: Math.min(spine, outer), y: top },
+      { x: Math.max(spine, outer), y: top },
+      { x: Math.max(spine, outer), y: bottom },
+      { x: Math.min(spine, outer), y: bottom },
+    ];
+    const far = box.spine != null ? { x0: dir > 0 ? left : spine, x1: dir > 0 ? spine : right } : null;
+    const corner = { x: outer, y: bottom };
+    const spineBottom = { x: spine, y: bottom };
+    const spineTop = { x: spine, y: top };
+    const diagonal = Math.hypot(leafW, H);
+    const paper = getComputedStyle(document.body).backgroundColor || '#f2eadb';
+    const dark = document.documentElement.dataset.theme === 'dusk';
+
+    const page = (x0, x1) => ctx.drawImage(img, x0 - left, 0, x1 - x0, H, x0, top, x1 - x0, H);
+
+    // One frame, t from 0 (flat) to 1 (landed on the far side of the spine).
+    function draw(t) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, sr.width, sr.height);
+      if (far) page(far.x0, far.x1);
+      const e = ease(t);
+      if (e <= 0.001) return page(leaf[0].x, leaf[1].x);
+
+      // Where the corner has got to: across and back down, lifted on the way.
+      const d = {
+        x: outer + (spine - dir * leafW - outer) * e,
+        y: bottom - Math.min(H * 0.3, leafW * 0.42) * Math.sin(Math.PI * Math.min(1, e * 1.08)),
+      };
+      // Keep it within reach of the spine, so the page never stretches.
+      const fromBottom = sub(d, spineBottom);
+      if (len(fromBottom) > leafW) {
+        const k = leafW / len(fromBottom);
+        d.x = spineBottom.x + fromBottom.x * k;
+        d.y = spineBottom.y + fromBottom.y * k;
+      }
+      const fromTop = sub(d, spineTop);
+      if (len(fromTop) > diagonal) {
+        const k = diagonal / len(fromTop);
+        d.x = spineTop.x + fromTop.x * k;
+        d.y = spineTop.y + fromTop.y * k;
+      }
+      // The fold: halfway between the corner's start and where it is now.
+      const c = sub(corner, d);
+      const cl = len(c) || 1;
+      const n = { x: c.x / cl, y: c.y / cl }; // points into the part that has turned
+      const m = { x: (corner.x + d.x) / 2, y: (corner.y + d.y) / 2 };
+      const flat = clip(leaf, m, n, false); // still lying on the page
+      const lifted = clip(leaf, m, n, true); // turned over: the new page shows here
+      const flap = lifted.map((p) => reflect(p, m, n));
+      const swing = Math.sin(Math.PI * Math.min(1, e));
+
+      // The page still lying flat.
+      if (flat.length > 2) {
+        ctx.save();
+        trace(ctx, flat);
+        ctx.clip();
+        page(leaf[0].x, leaf[1].x);
+        ctx.restore();
+      }
+      if (flap.length < 3) return;
+
+      // Shade on the new page, under the sheet that's still over it.
+      if (lifted.length > 2) {
+        const reach = 24 + 70 * swing;
+        const g = ctx.createLinearGradient(m.x, m.y, m.x + n.x * reach, m.y + n.y * reach);
+        g.addColorStop(0, `rgba(0,0,0,${dark ? 0.42 : 0.22})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save();
+        trace(ctx, lifted);
+        ctx.clip();
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, sr.width, sr.height);
+        ctx.restore();
+      }
+
+      // The flap: the back of the sheet, casting a soft shadow.
+      ctx.save();
+      ctx.shadowColor = `rgba(0,0,0,${dark ? 0.5 : 0.24})`;
+      ctx.shadowBlur = 10 + 22 * swing;
+      trace(ctx, flap);
+      ctx.fillStyle = paper;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      trace(ctx, flap);
+      ctx.clip();
+      // The old page, faintly through the paper, mirrored as it would be.
+      const k = 2 * dot(m, n);
+      ctx.globalAlpha = dark ? 0.055 : 0.07;
+      ctx.setTransform(
+        dpr * (1 - 2 * n.x * n.x),
+        dpr * (-2 * n.x * n.y),
+        dpr * (-2 * n.x * n.y),
+        dpr * (1 - 2 * n.y * n.y),
+        dpr * k * n.x,
+        dpr * k * n.y
+      );
+      ctx.drawImage(img, left, top, W, H);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalAlpha = 1;
+      // The roll: a crease, a highlight where the paper turns to the light,
+      // and a gentle darkening across the flap — all fading as the sheet
+      // settles flat on the far side.
+      const s = Math.max(0, swing);
+      const depth = Math.max(...flap.map((p) => -dot(sub(p, m), n)), 1);
+      const g = ctx.createLinearGradient(m.x, m.y, m.x - n.x * depth, m.y - n.y * depth);
+      const at = (px) => Math.min(0.95, px / depth);
+      g.addColorStop(0, `rgba(0,0,0,${(dark ? 0.32 : 0.16) * s})`);
+      g.addColorStop(at(5), `rgba(255,255,255,${(dark ? 0.08 : 0.32) * s})`);
+      g.addColorStop(at(26), `rgba(255,255,255,${(dark ? 0.03 : 0.1) * s})`);
+      g.addColorStop(Math.max(at(26) + 0.01, 0.55), `rgba(0,0,0,${0.04 * s})`);
+      g.addColorStop(1, `rgba(0,0,0,${(dark ? 0.22 : 0.1) * s})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, sr.width, sr.height);
+      ctx.restore();
     }
 
-    // Shadow the lifted leaf casts on the newly uncovered page.
-    const cast = el('curl-cast', layer, {
-      left: `${leafL - box.left}px`,
-      width: `${leafW}px`,
-      background: `linear-gradient(${dir > 0 ? 90 : 270}deg, rgba(var(--stain), .30), rgba(var(--stain), .08) 40%, transparent 75%)`,
-    });
-
-    // The leaf: strips nested one inside the next, so each bends a little further than the last.
-    const sw = leafW / STRIPS;
-    const root = el('curl-leaf', layer, { left: `${leafL - box.left}px`, width: `${leafW}px` });
-    const strips = [];
-    let parent = root;
-    for (let i = 0; i < STRIPS; i++) {
-      // Strip 0 sits at the spine; the last one is the free edge.
-      const s = el('curl-strip', parent, {
-        width: `${sw}px`,
-        [dir > 0 ? 'left' : 'right']: i === 0 ? '0px' : `${sw}px`,
-        transformOrigin: dir > 0 ? 'left center' : 'right center',
-      });
-      const x = dir > 0 ? leafL - box.left + i * sw : leafR - box.left - (i + 1) * sw;
-      const front = el('curl-face front', s);
-      picture(front, x);
-      const back = el('curl-face back', s);
-      const ghost = el('curl-ghost', back);
-      picture(ghost, x);
-      s.frontShade = el('curl-shade', front);
-      s.backShade = el('curl-shade', back);
-      strips.push(s);
-      parent = s;
-    }
-
-    const draw = (t) => {
-      let prev = 0;
-      strips.forEach((s, i) => {
-        // The free edge leads; the spine edge follows.
-        const lead = 1 - i / (STRIPS - 1);
-        const p = clamp01((t - lead * LAG) / (1 - LAG));
-        const a = 180 * ease(p) * (dir > 0 ? -1 : 1);
-        s.style.transform = `rotateY(${(a - prev).toFixed(2)}deg)`;
-        prev = a;
-        const lit = Math.abs(Math.sin((a * Math.PI) / 180));
-        s.frontShade.style.opacity = (lit * 0.45).toFixed(3);
-        s.backShade.style.opacity = (lit * 0.35).toFixed(3);
-      });
-      cast.style.opacity = (Math.sin(Math.PI * clamp01(t * 1.2)) * 0.9).toFixed(3);
-      if (far) far.shade.style.opacity = (clamp01((t - 0.45) / 0.55) * Math.sin(Math.PI * t) * 1.6).toFixed(3);
-    };
     draw(0);
-    stage.appendChild(layer);
-    await frame();
+    stage.appendChild(canvas);
+    current = canvas;
     await frame();
 
     // Turn the real page underneath, out of sight.
@@ -157,24 +242,51 @@
       turned = false;
     }
     const done = () => {
-      layer.remove();
-      if (current === layer) current = null;
-      URL.revokeObjectURL(url);
+      canvas.remove();
+      if (current === canvas) current = null;
     };
     if (stale() || !turned) {
       done();
       return turned;
     }
     await frame();
-    await frame();
 
-    for (let f = 1; f <= FRAMES && !stale(); f++) {
-      draw(f / FRAMES);
-      await wait(FRAME_MS);
+    // Bring the page over, then let the landed sheet give way to the real one.
+    const start = performance.now();
+    await new Promise((resolve) => {
+      const step = (now) => {
+        if (stale()) return resolve();
+        const t = Math.min(1, (now - start) / DURATION);
+        draw(t);
+        // With one page there's nowhere for it to land: it fades as it leaves.
+        if (!far) canvas.style.opacity = String(Math.min(1, (1 - t) / 0.3));
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+    if (!stale() && far) {
+      const from = performance.now();
+      await new Promise((resolve) => {
+        const step = (now) => {
+          if (stale()) return resolve();
+          const f = Math.min(1, (now - from) / FADE);
+          canvas.style.opacity = String(1 - f);
+          if (f < 1) requestAnimationFrame(step);
+          else resolve();
+        };
+        requestAnimationFrame(step);
+      });
     }
     done();
     return true;
   }
 
-  window.PageCurl = { turn, finish, busy: () => !!current, setFrameMs: (ms) => (FRAME_MS = ms) };
+  window.PageCurl = {
+    turn,
+    finish,
+    busy: () => !!current,
+    // For looking at it frame by frame: 10 makes it ten times slower.
+    slowMotion: (factor = 1) => (DURATION = 320 * factor),
+  };
 })();
