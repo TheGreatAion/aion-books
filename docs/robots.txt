@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://thegreataion.github.io/aion-books/sitemap.xml
