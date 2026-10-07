@@ -3479,3 +3479,164 @@ foliate-view {
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
 }
+
+/* ================================================================
+   Back to where you were (after a jump in the reader)
+   ================================================================ */
+.back-pill {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--paper-raise);
+  box-shadow: 0 8px 20px -14px var(--shadow);
+  animation: pop 0.24s steps(1, end);
+}
+.back-pill[hidden] {
+  display: none;
+}
+.bar-left {
+  min-width: 0;
+  align-items: center;
+}
+.back-pill [data-back] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.back-pill button {
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 15px var(--serif);
+  cursor: pointer;
+}
+.back-pill [data-back] {
+  padding: 5px 4px 5px 13px;
+}
+.back-pill [data-back] span {
+  font-style: italic;
+  color: var(--ink-3);
+}
+.back-pill [data-back]:hover,
+.back-pill [data-back]:hover span {
+  color: var(--ink);
+}
+.back-pill [data-back-x] {
+  padding: 5px 11px 5px 6px;
+  font-size: 17px;
+  color: var(--ink-3);
+}
+.back-pill [data-back-x]:hover {
+  color: var(--ink);
+}
+
+/* Where the progress bar would take you, while you drag it. */
+.scrub-tip {
+  position: absolute;
+  bottom: 40px;
+  z-index: 5;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  max-width: 340px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 24px -14px var(--shadow);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.scrub-tip b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: var(--ink);
+}
+.scrub-tip span {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* ================================================================
+   Choosing several books
+   ================================================================ */
+.card.is-selected .cover {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.card.is-selected .t {
+  color: var(--accent);
+}
+.select-bar {
+  position: fixed;
+  left: calc(50% + 118px); /* centered on the library, beside the sidebar */
+  bottom: 26px;
+  z-index: 60;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 18px;
+  border-radius: 999px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 18px 40px -20px var(--shadow), 0 4px 12px -6px var(--shadow);
+  animation: pop 0.24s steps(1, end);
+  white-space: nowrap;
+}
+body:has(#reader.is-active) .select-bar {
+  display: none;
+}
+.select-bar .sb-count {
+  margin-right: 8px;
+  font-style: italic;
+  color: var(--ink-2);
+}
+.select-bar .ghost-btn {
+  font-size: 14.5px;
+}
+.select-bar .ghost-btn.danger:hover {
+  color: var(--accent);
+}
+
+/* ================================================================
+   Tidying titles (review before applying)
+   ================================================================ */
+.tidy-list {
+  max-height: 52vh;
+  overflow-y: auto;
+  margin: 12px 0 4px;
+  border-top: 1px solid var(--line);
+}
+.tidy-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 2px 10px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.tidy-row input {
+  grid-row: span 2;
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.tidy-from {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-2);
+}
+.tidy-to {
+  font-size: 15.5px;
+  color: var(--ink);
+}
+.tidy-to em {
+  color: var(--ink-3);
+}

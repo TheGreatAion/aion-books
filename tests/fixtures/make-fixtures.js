@@ -125,6 +125,8 @@ const BOOKS = {
     singleFile: true,
     css: 'html { font-size: 16px; } p { font-size: 1rem; margin: 0; text-indent: 1.2em; } h1 { font-size: 1.6rem; }',
   },
+  // A title carrying clutter: a series name and number in front, an ISBN behind (tidied when added).
+  'cluttered.epub': { title: 'The Orchard Years 3 - Winter Pruning (9780000000002)', author: 'Eleanor Vale', chapters: CHAPTERS.slice(0, 2), paras: 8 },
   'point-sized.epub': { title: 'Late Roses', author: 'Thomas Wren', chapters: CHAPTERS.slice(0, 3), paras: 20, cover: [150, 90, 70], css: 'p { font-size: 12pt; } h1 { font-size: 20pt; }' },
 };
 

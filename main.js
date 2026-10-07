@@ -7,6 +7,8 @@ const { Store, DEFAULT_SETTINGS, READING_KEYS } = require('./lib/store');
 const { readEpubMeta } = require('./lib/epubMeta');
 const { lookupCharacter, isWikipediaUrl } = require('./lib/lookup');
 const bookFiles = require('./lib/book-files');
+const { planTidy, tidyOne } = require('./lib/titles');
+const { execFile } = require('child_process');
 const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
 const { buildFontCss, bundledFontFile } = require('./lib/fonts');
 const { fontInfo, FORMATS } = require('./lib/fontInfo');
@@ -258,6 +260,9 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
         bookmarks: [],
         highlights: [],
       };
+      // Take the clutter off the title (ISBNs, series numbers…); the original is kept.
+      const tidy = tidyOne(book, store.data.books);
+      if (tidy) applyTidy(book, tidy);
       store.data.books.push(book);
       added.push(id);
     } catch (err) {
@@ -598,6 +603,8 @@ function registerIpc() {
   ipcMain.handle('book:update', (_e, id, patch) => {
     const book = findBook(id);
     if (!book) return null;
+    // A title you change yourself is never tidied again.
+    if (typeof patch?.title === 'string' && patch.title !== book.title) book.titleEdited = true;
     if (patch && 'finished' in patch) {
       if (patch.finished && !book.finished) book.finishedAt = Date.now();
       if (!patch.finished) book.finishedAt = null;
@@ -820,6 +827,32 @@ function registerIpc() {
   });
 
   // Details the reader worked out for a book that isn't an EPUB (see Reader.fillMissingMeta).
+  // ---- tidying titles ----
+  ipcMain.handle('titles:plan', () => planTidy(store.data.books));
+  ipcMain.handle('titles:apply', (_e, ids) => {
+    const want = new Set(Array.isArray(ids) ? ids : []);
+    for (const p of planTidy(store.data.books)) {
+      const book = findBook(p.id);
+      if (book && want.has(p.id)) applyTidy(book, p);
+    }
+    store.save();
+    return snapshot();
+  });
+  ipcMain.handle('book:restore-title', (_e, id) => {
+    const book = findBook(id);
+    if (!book?.originalTitle) return snapshot();
+    book.title = book.originalTitle;
+    delete book.originalTitle;
+    if (book.seriesFromTitle) {
+      book.series = '';
+      book.seriesIndex = null;
+      delete book.seriesFromTitle;
+    }
+    book.titleEdited = true; // keep it as it was from now on
+    store.save();
+    return snapshot();
+  });
+
   ipcMain.handle('book:set-meta', (_e, id, meta, cover) => {
     const book = findBook(id);
     if (!book) return null;
@@ -831,6 +864,10 @@ function registerIpc() {
     if (text(meta?.series)) {
       book.series = text(meta.series);
       book.seriesIndex = Number(meta.seriesIndex) || undefined;
+    }
+    if (!book.titleEdited) {
+      const tidy = tidyOne(book, store.data.books);
+      if (tidy) applyTidy(book, tidy);
     }
     if (cover?.data?.length && !book.cover) {
       const ext = { 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/svg+xml': '.svg' }[cover.type] || '.jpg';
@@ -885,10 +922,18 @@ function registerIpc() {
   });
 
   ipcMain.handle('settings:set', (_e, patch) => {
-    for (const [k, v] of Object.entries(patch || {})) if (k in DEFAULT_SETTINGS) store.data.settings[k] = v;
+    const s = store.data.settings;
+    if (patch?.theme && s.followSystem && !('followSystem' in patch)) {
+      // Choosing a paper by hand: a light one becomes the paper for light mode;
+      // one that goes against Windows' current mode stops following it.
+      if ((patch.theme === 'dusk') !== systemDark) patch = { ...patch, followSystem: false };
+    }
+    for (const [k, v] of Object.entries(patch || {})) if (k in DEFAULT_SETTINGS) s[k] = v;
+    if (patch?.theme && patch.theme !== 'dusk') s.lightTheme = patch.theme;
     store.save();
     if (patch && patch.theme) applyTitlebar(patch.theme);
-    return store.data.settings;
+    if (patch?.followSystem) checkSystemTheme();
+    return s;
   });
 
   ipcMain.handle('settings:reset', (_e, scope) => {
@@ -960,6 +1005,46 @@ function notesMarkdown(books) {
   return out.join('\n');
 }
 
+// ---------- following Windows' light / dark mode ----------
+// Aion keeps its own paper colors, so it reads Windows' "app mode" setting
+// directly rather than letting Chromium switch to dark controls.
+let systemDark = false;
+function readSystemDark() {
+  if (process.env.AION_SYSTEM_DARK) return Promise.resolve(process.env.AION_SYSTEM_DARK === '1'); // tests
+  if (process.platform !== 'win32') return Promise.resolve(nativeTheme.shouldUseDarkColors);
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize';
+  return new Promise((resolve) =>
+    execFile('reg', ['query', key, '/v', 'AppsUseLightTheme'], { windowsHide: true }, (err, out) =>
+      resolve(!err && /AppsUseLightTheme\s+REG_DWORD\s+0x0\b/i.test(String(out)))
+    )
+  );
+}
+async function checkSystemTheme() {
+  systemDark = await readSystemDark();
+  const s = store?.data.settings;
+  if (!s?.followSystem) return;
+  const want = systemDark ? 'dusk' : s.lightTheme && s.lightTheme !== 'dusk' ? s.lightTheme : 'linen';
+  if (s.theme === want) return;
+  s.theme = want;
+  store.save();
+  applyTitlebar(want);
+  win?.webContents.send('settings:changed', s);
+}
+
+// A tidied title (and a series found in it) onto a book; the original title is kept.
+function applyTidy(book, p) {
+  if (p.title && p.title !== book.title) {
+    book.originalTitle ||= book.title;
+    book.title = p.title;
+  }
+  if (p.series && !book.series) {
+    book.originalTitle ||= p.from;
+    book.series = p.series;
+    book.seriesIndex = p.seriesIndex;
+    book.seriesFromTitle = true;
+  }
+}
+
 function applyTitlebar(theme) {
   if (!win || process.platform !== 'win32') return;
   try {
@@ -970,11 +1055,38 @@ function applyTitlebar(theme) {
 }
 
 // ---------- window ----------
+// The window's size and place, as you left it (kept per PC, not in the synced library).
+function savedBounds() {
+  const w = readConfig().window;
+  if (!w || !(w.width > 0) || !(w.height > 0)) return null;
+  // Only put it back where it was if that's still on a screen (a monitor may be gone).
+  const { screen } = require('electron');
+  const area = screen.getDisplayMatching({ x: w.x ?? 0, y: w.y ?? 0, width: w.width, height: w.height }).workArea;
+  const visible =
+    w.x != null && w.x < area.x + area.width - 80 && w.x + w.width > area.x + 80 && w.y >= area.y - 10 && w.y < area.y + area.height - 80;
+  return {
+    width: Math.min(w.width, area.width),
+    height: Math.min(w.height, area.height),
+    ...(visible ? { x: w.x, y: w.y } : {}),
+    maximized: !!w.maximized,
+  };
+}
+
+function rememberBounds() {
+  if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+  const cfg = readConfig();
+  const b = win.isMaximized() ? win.getNormalBounds() : win.getBounds();
+  cfg.window = { x: b.x, y: b.y, width: b.width, height: b.height, maximized: win.isMaximized() };
+  writeConfig(cfg);
+}
+
 function createWindow() {
   const theme = store.data.settings.theme;
+  const saved = savedBounds();
   win = new BrowserWindow({
-    width: 1280,
-    height: 840,
+    width: saved?.width || 1280,
+    height: saved?.height || 840,
+    ...(saved?.x != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 760,
     minHeight: 560,
     title: 'Aion Books',
@@ -991,7 +1103,21 @@ function createWindow() {
     },
   });
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    if (saved?.maximized) win.maximize();
+    win.show();
+  });
+  let boundsTimer;
+  const later = () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(rememberBounds, 600);
+  };
+  for (const ev of ['resize', 'move', 'maximize', 'unmaximize']) win.on(ev, later);
+  win.on('close', () => {
+    clearTimeout(boundsTimer);
+    rememberBounds();
+  });
+  win.on('focus', () => checkSystemTheme());
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
 
   // Links inside books open in the default browser, never in-app.
@@ -1040,6 +1166,10 @@ function serveFonts() {
 
 app.whenReady().then(() => {
   nativeTheme.themeSource = 'light';
+  // Windows' light/dark mode, for "Dusk when Windows is dark".
+  nativeTheme.on('updated', () => checkSystemTheme());
+  setInterval(() => checkSystemTheme(), 60000);
+  checkSystemTheme();
   // The library can live elsewhere (e.g. a OneDrive folder); fall back if it's gone.
   const cfgDir = readConfig().dataDir;
   const root = cfgDir && fs.existsSync(cfgDir) ? cfgDir : app.getPath('userData');

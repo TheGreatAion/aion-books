@@ -48,8 +48,9 @@
     fonts: [],
     settings: {},
     listeners: new Set(),
+    hidden: new Set(), // removed, but the Undo is still on offer
     set(snapshot) {
-      if (snapshot.books) this.books = window.Series.group(snapshot.books);
+      if (snapshot.books) this.books = window.Series.group(snapshot.books.filter((b) => !this.hidden.has(b.id)));
       if (snapshot.shelves) this.shelves = snapshot.shelves;
       if (snapshot.settings) this.settings = snapshot.settings;
       if (snapshot.orders) this.orders = snapshot.orders;
@@ -139,6 +140,34 @@
     clearTimeout(toastTimer);
     if (ms) toastTimer = setTimeout(() => (t.hidden = true), ms);
   }
+
+  // ---------- undo ----------
+  // "Removed · Undo" instead of "Are you sure?": the change shows at once, and
+  // is made final (commit) only when the moment to undo it has passed.
+  let pendingUndo = null;
+  function undoToast(html, { undo, commit, ms = 6000 } = {}) {
+    settleUndo();
+    const p = { undo, commit };
+    p.timer = setTimeout(() => settleUndo(p), ms);
+    pendingUndo = p;
+    toast(`${html} <button class="toast-btn" data-undo>Undo</button>`, ms);
+  }
+  function settleUndo(p = pendingUndo) {
+    if (!p || p !== pendingUndo) return;
+    pendingUndo = null;
+    clearTimeout(p.timer);
+    p.commit?.();
+  }
+  $('#toast').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-undo]') || !pendingUndo) return;
+    const p = pendingUndo;
+    pendingUndo = null;
+    clearTimeout(p.timer);
+    $('#toast').hidden = true;
+    p.undo?.();
+  });
+  // Closing the window makes anything pending final.
+  window.addEventListener('beforeunload', () => settleUndo());
 
   // ---------- context menu ----------
   function openMenu(x, y, items) {
@@ -377,7 +406,7 @@
   }
 
   window.UI = {
-    $, $$, esc, State, updateBook, setSettings, coverHtml, toast,
+    $, $$, esc, State, updateBook, setSettings, coverHtml, toast, undoToast, settleUndo,
     openMenu, closeMenu, openModal, closeModal, promptText, confirmBox, pct, flurry, burst, applyRoot, fullMotion, Fonts, stars,
   };
 })();

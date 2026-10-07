@@ -312,6 +312,7 @@
 
     goToHit(cfi) {
       this.closePanels();
+      this.markJump();
       return this.view?.goTo(cfi);
     },
 
@@ -354,6 +355,7 @@
         target = null;
       }
       if (!target) {
+        this.markJump();
         this.view.goTo(href);
         return;
       }
@@ -663,6 +665,7 @@
         const act = e.target.closest('[data-np]')?.dataset.np;
         if (act === 'go') {
           this.hideNote();
+          this.markJump();
           this.view?.goTo(this.notePendingHref);
         } else if (act === 'web') {
           window.aion.lookupWeb(this.defineWord);
