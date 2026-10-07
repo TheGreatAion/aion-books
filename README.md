@@ -46,15 +46,16 @@ next time you restart.
 - **Search inside the book**, **footnote pop-ups**, and a **dictionary** for any word you select.
 - **Read aloud** with the voices built into Windows, following along sentence by sentence.
 - **Highlights, notes and bookmarks**, exportable to Markdown.
-- **Time left** in the chapter and the book, learned from how fast you actually read.
+- **Time left** in the chapter and the book, learned from how fast you actually read — or pages left, or
+  just the percentage.
 - Three papers — **Linen**, **Parchment** and **Dusk** — plus spacing, margins and size controls.
 
 <p align="center">
   <img src="docs/screenshots/reader.png" alt="A two-page spread being read aloud, with the current sentence highlighted" width="860">
 </p>
 
-### Reading stats
-Time spent reading, streaks, pages turned, a fourteen-day chart, your most-read books, and a daily
+### Your reading
+Its own page in the sidebar: time spent reading, streaks, pages turned, a fourteen-day chart, your most-read books, and a daily
 reading goal that fills a small ring in the sidebar.
 
 <p align="center">
@@ -80,6 +81,7 @@ reading goal that fills a small ring in the sidebar.
 | Library  | <kbd>Ctrl</kbd>+<kbd>O</kbd>      | Add books                     |
 | Library  | <kbd>Ctrl</kbd>+<kbd>F</kbd> or <kbd>/</kbd> | Search your library |
 | Anywhere | <kbd>Ctrl</kbd>+<kbd>,</kbd>      | Settings                      |
+| Anywhere | <kbd>?</kbd>                      | Show these shortcuts          |
 | Reader   | <kbd>←</kbd> <kbd>→</kbd>, <kbd>PgUp</kbd> <kbd>PgDn</kbd>, <kbd>Space</kbd>, mouse wheel | Turn pages |
 | Reader   | <kbd>Ctrl</kbd>+<kbd>F</kbd>      | Search this book              |
 | Reader   | <kbd>R</kbd>                      | Read aloud — play / pause     |
@@ -124,7 +126,7 @@ Installed copies pick it up automatically.
 | `src/reader.js`, `src/reader-extras.js` | The reader: styling, controls, highlights, search, read aloud, footnotes, time left |
 | `src/vendor/foliate-js/` | The book engine, [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT), included unmodified |
 | `tests/`                 | Unit tests, and app tests that drive the real app against generated sample books |
-| `src/settings.js`        | Settings and reading stats                                                |
+| `src/settings.js`        | Settings, the Your reading page, and the shortcuts list                    |
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |
 | `src/styles.css`         | Everything visual                                                         |
 

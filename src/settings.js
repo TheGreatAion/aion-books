@@ -29,14 +29,10 @@
       ['auto', 'Two pages'],
       ['scroll', 'Scroll'],
     ],
-    sort: [
-      ['recent', 'Recently read'],
-      ['added', 'Recently added'],
-      ['title', 'Title'],
-      ['author', 'Author'],
-      ['progress', 'Progress'],
-      ['rating', 'Rating'],
-      ['custom', 'My order'],
+    footerInfo: [
+      ['time', 'Time left'],
+      ['pages', 'Pages left'],
+      ['percent', 'Just the percentage'],
     ],
   };
 
@@ -44,6 +40,7 @@
     ['Library', 'Ctrl O', 'Add books'],
     ['Library', 'Ctrl F  or  /', 'Search'],
     ['Anywhere', 'Ctrl ,', 'Settings'],
+    ['Anywhere', '?', 'These shortcuts'],
     ['Reader', '← →  PgUp PgDn  Space', 'Turn pages'],
     ['Reader', 'T', 'Contents & notes'],
     ['Reader', 'B', 'Bookmark this page'],
@@ -223,7 +220,6 @@
           .join('')}</div>`
       : '';
     return (
-      `<h2>Your reading</h2>` +
       `<div class="stat-tiles">${tiles
         .map(([n, l, sub]) => `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ''}</div>`)
         .join('')}</div>` +
@@ -244,7 +240,31 @@
   async function refreshStats() {
     statData = await window.aion.getStats();
     const g = $('#statsGroup');
-    if (g && !$('#settingsPanel').hidden) g.innerHTML = statsHtml();
+    if (g && !$('#statsPanel').hidden) g.innerHTML = statsHtml();
+  }
+
+  // ---------- the "Your reading" page ----------
+  function renderStats() {
+    $('#statsPanel').innerHTML = `<section class="set-group" id="statsGroup">${statsHtml()}</section>`;
+    refreshStats();
+  }
+
+  // ---------- keyboard shortcuts (press ?) ----------
+  function showShortcuts() {
+    return window.UI.openModal(
+      `<h3>Keyboard shortcuts</h3>` +
+        `<table class="keys">${SHORTCUTS.map(
+          ([where, keys, what]) => `<tr><td class="where">${where}</td><td><kbd>${esc(keys)}</kbd></td><td>${esc(what)}</td></tr>`
+        ).join('')}</table>` +
+        `<div class="actions"><button class="solid-btn" data-ok>Done</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          $('[data-ok]', m).onclick = () => close(true);
+          $('[data-ok]', m).focus();
+        },
+      }
+    );
   }
 
   function render() {
@@ -253,10 +273,16 @@
     const scroll = $('#libScroll').scrollTop;
     const previewSize = Math.round(17 * (s.fontSize / 100) * 10) / 10;
     const previewFont = s.fontFamily === 'Original' ? 'var(--serif)' : `'${s.fontFamily}', serif`;
+    const busy = update.state === 'unsupported' || update.state === 'checking' || update.state === 'downloading';
 
-    panel.innerHTML = `<section class="set-group" id="statsGroup">${statsHtml()}</section>
-      <section class="set-group">
-        <h2>Appearance</h2>
+    panel.innerHTML = `
+      <section class="set-group" data-group="reading">
+        <h2>Reading</h2>
+        <p class="set-note">Your defaults for every book. You can still adjust them from <b>Aa</b> while reading.</p>
+        <div class="set-preview" style="font-family:${previewFont};font-size:${previewSize}px;line-height:${s.lineHeight}">
+          The garden had gone quiet in the way gardens do at the end of summer, when the bees grow slow and heavy
+          and the light comes in sideways through the hedges.
+        </div>
         ${row(
           'Paper',
           'The colour of the app and the reading page.',
@@ -267,21 +293,6 @@
           ).join('')}</div>`,
           'wide'
         )}
-        ${row(
-          'Motion',
-          'Full plays every stop-motion flourish. Gentle keeps things quiet: no leaf gusts or petal bursts, and the vines are already grown. Still turns animation off.',
-          chips('motion', CHOICES.motion, s.motion)
-        )}
-        ${row('Botanical decorations', 'The painted vines, lemon bough and olive sprigs.', toggle('flora', s.flora !== false))}
-      </section>
-
-      <section class="set-group">
-        <h2>Reading</h2>
-        <p class="set-note">Your defaults for every book. You can still adjust them from <b>Aa</b> while reading.</p>
-        <div class="set-preview" style="font-family:${previewFont};font-size:${previewSize}px;line-height:${s.lineHeight}">
-          The garden had gone quiet in the way gardens do at the end of summer, when the bees grow slow and heavy
-          and the light comes in sideways through the hedges.
-        </div>
         ${row('Typeface', 'Add your own .ttf, .otf, .woff or .woff2 files — add each weight and italic of a family and they’re grouped together.', fontChips(s.fontFamily), 'wide')}
         ${row(
           'Text size',
@@ -294,39 +305,36 @@
         <div class="set-actions"><button class="ghost-btn" data-action="reset-reading">${icon('reset')}<span>Restore reading defaults</span></button></div>
       </section>
 
-      <section class="set-group">
-        <h2>While reading</h2>
-        ${row('Turn pages with the scroll wheel', 'Scroll down for the next page, up for the previous one.', toggle('wheelTurns', s.wheelTurns !== false))}
-        ${row('Hide controls while reading', 'The top and bottom bars fade away until you move the mouse.', toggle('autoHideBars', s.autoHideBars !== false))}
+      <section class="set-group" data-group="pages">
+        <h2>Turning pages &amp; the page</h2>
+        ${row('At the foot of the page', 'Time left is learned from how fast you read.', chips('footerInfo', CHOICES.footerInfo, s.footerInfo || 'time'))}
         ${row(
           'Page numbers & running heads',
           'The book’s title, the chapter and a page number around each page, like a printed book.',
           toggle('runningHeads', s.runningHeads !== false)
         )}
-        ${row(
-          'Show time left',
-          'Estimates minutes left in the chapter and the book, learned from how fast you read.',
-          toggle('timeLeft', s.timeLeft !== false)
-        )}
-        ${row('Show pages left in chapter', 'Used when time left is off.', toggle('pagesLeft', s.pagesLeft !== false))}
+        ${row('Turn pages with the scroll wheel', 'Scroll down for the next page, up for the previous one.', toggle('wheelTurns', s.wheelTurns !== false))}
         ${row('Click page edges to turn', 'Click the left or right third of the page to go back or forward.', toggle('tapZones', !!s.tapZones))}
+        ${row('Hide controls while reading', 'The top and bottom bars fade away until you move the mouse.', toggle('autoHideBars', s.autoHideBars !== false))}
       </section>
 
-      <section class="set-group">
+      <section class="set-group" data-group="read-aloud">
         <h2>Read aloud</h2>
         <p class="set-note">Press <b>R</b> or the speaker button while reading. Uses the voices installed in Windows, so it works offline.</p>
-        ${row('Voice', '', voiceSelect(s.ttsVoice))}
+        ${row(
+          'Voice',
+          '',
+          `<div class="btn-row">${voiceSelect(s.ttsVoice)}<button class="ghost-btn bordered" data-action="tts-sample" title="Hear a sample">${icon('speaker')}<span>Sample</span></button></div>`
+        )}
         ${row(
           'Speed',
           '',
           `<div class="stepper"><button data-rate="-0.1" aria-label="Slower">−</button><span>${(s.ttsRate || 1).toFixed(1)}×</span><button data-rate="0.1" aria-label="Faster">+</button></div>`
         )}
-        <div class="set-actions"><button class="ghost-btn" data-action="tts-sample">${icon('speaker')}<span>Hear a sample</span></button></div>
       </section>
 
-      <section class="set-group">
+      <section class="set-group" data-group="library">
         <h2>Library</h2>
-        ${row('Sort books by', '', chips('sort', CHOICES.sort, s.sort), 'wide')}
         ${row(
           'Watch a folder',
           s.watchFolder
@@ -336,10 +344,9 @@
             s.watchFolder ? `<button class="ghost-btn bordered" data-action="unwatch">Stop watching</button>` : ''
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`
         )}
-        ${row('Ask before removing a book', '', toggle('confirmRemove', s.confirmRemove !== false))}
       </section>
 
-      <section class="set-group">
+      <section class="set-group" data-group="data">
         <h2>Your data</h2>
         <p class="set-note">${stats()}</p>
         ${row(
@@ -366,6 +373,28 @@
               info?.customLocation ? `<button class="ghost-btn bordered" data-action="default-location">Use default</button>` : ''
             }</div>`
         )}
+      </section>
+
+      <section class="set-group" data-group="app">
+        <h2>App</h2>
+        ${row(
+          'Motion',
+          'Full plays every stop-motion flourish. Gentle keeps things quiet: no leaf gusts or petal bursts, and the vines are already grown. Still turns animation off.',
+          chips('motion', CHOICES.motion, s.motion)
+        )}
+        ${row('Botanical decorations', 'The painted vines, lemon bough and olive sprigs.', toggle('flora', s.flora !== false))}
+        ${row(
+          'Updates',
+          updateText(),
+          update.state === 'ready'
+            ? `<button class="solid-btn" data-action="install-update">Restart to update</button>`
+            : `<button class="ghost-btn bordered" data-action="check-update" ${busy ? 'disabled' : ''}>${icon('reset')}<span>Check now</span></button>`
+        )}
+        ${row(
+          'Check for updates automatically',
+          'New versions download quietly in the background and install the next time you restart.',
+          toggle('autoUpdate', s.autoUpdate !== false)
+        )}
         ${row(
           'Reset all settings',
           'Puts every setting on this page back to how it started. Your books and notes are untouched.',
@@ -373,47 +402,31 @@
         )}
       </section>
 
-      <section class="set-group">
-        <h2>Updates</h2>
-        ${row(
-          `Aion Books ${info ? esc(info.version) : ''}`,
-          updateText(),
-          update.state === 'ready'
-            ? `<button class="solid-btn" data-action="install-update">Restart to update</button>`
-            : `<button class="ghost-btn bordered" data-action="check-update" ${
-                update.state === 'unsupported' || update.state === 'checking' || update.state === 'downloading' ? 'disabled' : ''
-              }>${icon('reset')}<span>Check now</span></button>`
-        )}
-        ${row(
-          'Check for updates automatically',
-          'New versions download quietly in the background and install the next time you restart.',
-          toggle('autoUpdate', s.autoUpdate !== false)
-        )}
-      </section>
-
-      <section class="set-group">
-        <h2>Keyboard</h2>
-        <table class="keys">${SHORTCUTS.map(
-          ([where, keys, what]) => `<tr><td class="where">${where}</td><td><kbd>${esc(keys)}</kbd></td><td>${esc(what)}</td></tr>`
-        ).join('')}</table>
-      </section>
-
-      <footer class="set-about">Aion Books ${info ? esc(info.version) : ''}</footer>`;
+      <footer class="set-about">
+        <button class="ghost-btn" data-action="shortcuts">Keyboard shortcuts <kbd>?</kbd></button>
+        <span>Aion Books ${info ? esc(info.version) : ''}</span>
+      </footer>`;
     $('#libScroll').scrollTop = scroll;
-    refreshStats();
+  }
+
+  // Redraw whichever of the two pages is showing.
+  function rerender() {
+    if (!$('#settingsPanel').hidden) render();
+    if (!$('#statsPanel').hidden) renderStats();
   }
 
   async function change(patch) {
     await setSettings(patch);
-    if ('sort' in patch) $('#sort').value = patch.sort;
-    render();
+    rerender();
   }
 
   function bind() {
     Fonts.listeners.add(() => {
       if (!$('#settingsPanel').hidden) render();
     });
-    $('#settingsPanel').addEventListener('change', (e) => {
+    const panels = [$('#settingsPanel'), $('#statsPanel')];
+    const on = (type, fn) => panels.forEach((p) => p.addEventListener(type, fn));
+    on('change', (e) => {
       const sel = e.target.closest('[data-select]');
       if (sel) change({ [sel.dataset.select]: sel.value });
     });
@@ -423,7 +436,7 @@
       });
     }
     // Hover read-out for the reading chart.
-    $('#settingsPanel').addEventListener('mouseover', (e) => {
+    on('mouseover', (e) => {
       const tip = $('#chartTip');
       if (!tip) return;
       const col = e.target.closest('.bars .col');
@@ -450,7 +463,7 @@
       if (!$('#settingsPanel').hidden) render();
     });
 
-    $('#settingsPanel').addEventListener('click', async (e) => {
+    on('click', async (e) => {
       const set = e.target.closest('[data-set]');
       if (set) {
         const key = set.dataset.set;
@@ -501,6 +514,7 @@
         return;
       }
       if (act === 'tts-sample') return sample();
+      if (act === 'shortcuts') return showShortcuts();
       if (act === 'check-update') {
         update = { state: 'checking' };
         render();
@@ -584,18 +598,24 @@
       } else if (act === 'reset-all') {
         const ok = await confirmBox({
           title: 'Reset all settings?',
-          sub: 'Appearance, reading and library preferences go back to their defaults. Your books, highlights and notes stay as they are.',
+          sub: 'Reading, page, read-aloud and app preferences go back to their defaults. Your books, highlights and notes stay as they are.',
           okLabel: 'Reset',
         });
         if (!ok) return;
         State.settings = await window.aion.resetSettings('all');
         window.UI.applyRoot(State.settings);
-        $('#sort').value = State.settings.sort;
         render();
         toast('Settings reset', 1600);
       }
     });
   }
 
-  window.Settings = { render, bind };
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '?' || e.ctrlKey || e.altKey || !$('#modalBack').hidden) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+    e.preventDefault();
+    showShortcuts();
+  });
+
+  window.Settings = { render, renderStats, refreshStats, showShortcuts, bind };
 })();

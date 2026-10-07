@@ -67,10 +67,17 @@
       const p = pct(this.progress);
       if (this.atEnd()) return `The end · ${p}`;
       const loc = detail.location;
-      if (State.settings.timeLeft === false || !loc?.total) return p;
+      const show = State.settings.footerInfo || 'time';
+      if (show === 'percent' || !loc?.total) return p;
+      const end = this.chapterEndFraction(detail);
+      if (show === 'pages') {
+        const perBook = this.pagesPerBook(detail);
+        if (!perBook || end == null) return p;
+        const left = Math.max(0, Math.round((end - this.hereFraction(detail)) * perBook));
+        return left <= 1 ? `Last page in chapter · ${p}` : `${left} pages left in chapter · ${p}`;
+      }
       const speed = this.speed || DEFAULT_MS_PER_LOC;
       const parts = [];
-      const end = this.chapterEndFraction(detail);
       if (end != null) parts.push(`${fmtLeft(Math.max(0, end * loc.total - loc.current) * speed)} left in chapter`);
       parts.push(`${fmtLeft(Math.max(0, loc.total - loc.current) * speed)} in book`);
       return `${parts.join(' · ')} · ${p}`;
@@ -84,9 +91,19 @@
       const from = id != null ? this.flatToc.findIndex((t) => t.id === id) + 1 : 0;
       for (let i = Math.max(0, from); i < this.flatToc.length; i++) {
         const f = this.tocFraction(this.flatToc[i], detail);
-        if (f != null && f > (detail.fraction ?? 0) + 1e-6) return f;
+        if (f != null && f > this.hereFraction(detail) + 1e-6) return f;
       }
       return 1;
+    },
+
+    // Where we are, kept inside the file on screen: on a chapter's last spread
+    // the engine can report the very start of the next file, which would make
+    // the countdown skip ahead a chapter.
+    hereFraction(detail) {
+      const f = detail.fraction ?? 0;
+      const sf = this.view?.getSectionFractions?.();
+      const next = sf?.[(detail.section?.current ?? -2) + 1];
+      return next != null ? Math.min(f, next - 1e-5) : f;
     },
 
     // A contents entry's position in the book: its file's start, or for an
@@ -126,6 +143,18 @@
     // The paginator gives each column a head and a foot. Page numbers count
     // columns; whole-book numbers are estimated from this chapter's page count
     // and its share of the book's size (they shift if you resize the text).
+    // Roughly how many printed pages (columns) the whole book would fill,
+    // judged from the section on screen at the current size and layout.
+    pagesPerBook(detail) {
+      const r = this.renderer;
+      const idx = detail.section?.current ?? 0;
+      const sf = this.view?.getSectionFractions?.();
+      if (!r?.pages || !sf) return null;
+      const share = sf[idx + 1] - sf[idx];
+      const cols = r.heads?.length || 1;
+      return share > 0 ? (Math.max(1, r.pages - 2) * cols) / share : null;
+    },
+
     renderRunning(detail) {
       const r = this.renderer;
       const heads = r?.heads;
@@ -143,9 +172,8 @@
       try {
         const idx = detail.section?.current ?? 0;
         const sf = this.view.getSectionFractions();
-        const share = sf[idx + 1] - sf[idx];
-        const colsHere = Math.max(1, r.pages - 2) * cols;
-        if (share > 0) first = Math.round(sf[idx] * (colsHere / share)) + (r.page - 1) * cols + 1;
+        const perBook = this.pagesPerBook(detail);
+        if (perBook) first = Math.round(sf[idx] * perBook) + (r.page - 1) * cols + 1;
       } catch (_) {
         first = null;
       }

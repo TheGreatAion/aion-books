@@ -172,3 +172,30 @@ test('shows time left once the book is measured', async () => {
   await waitForMeasured(page);
   await expect.poll(async () => (await probe(page)).footer).toMatch(/left in chapter .* in book/);
 });
+
+test('the footer shows the reader’s choice: time, pages or just the percentage', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await waitForMeasured(page);
+  await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
+  await page.waitForTimeout(800);
+  try {
+    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'pages' }));
+    await turn(1);
+    await expect.poll(async () => (await probe(page)).footer).toMatch(/^(\d+ pages left in chapter|Last page in chapter) · \d+%$/);
+    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'percent' }));
+    await turn(1);
+    await expect.poll(async () => (await probe(page)).footer).toMatch(/^\d+%$/);
+  } finally {
+    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'time' }));
+  }
+});
+
+test('? inside the book shows the keyboard shortcuts', async () => {
+  await openBook(page, 'Along the Hedge Path');
+  const frame = await bookFrame(page, 'p');
+  await frame.locator('body').press('?');
+  await expect(page.locator('#modal .keys')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modalBack')).toBeHidden();
+  expect((await probe(page)).open).toBe(true);
+});
