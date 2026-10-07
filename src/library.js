@@ -12,24 +12,27 @@
     unread: { label: 'Not yet begun', icon: 'sprout', filter: (b) => !b.progress && !b.finished },
     favorites: { label: 'Favourites', icon: 'heart', filter: (b) => b.favorite },
     finished: { label: 'Finished', icon: 'check', filter: (b) => b.finished },
-    series: { label: 'Series', icon: 'stack', filter: (b) => !!b.series },
+    series: { label: 'Series', icon: 'stack', filter: (b) => !!b.seriesId },
   };
 
   // ---------- series ----------
-  const seriesBooks = (name) =>
+  // Books are grouped by seriesId, which treats different spellings of one
+  // series as the same (see series.js); seriesName is how the group is shown.
+  const seriesBooks = (id) =>
     State.books
-      .filter((b) => b.series === name)
-      .sort((a, b) => (a.seriesIndex ?? 1e9) - (b.seriesIndex ?? 1e9) || sortKey(a.title).localeCompare(sortKey(b.title)));
+      .filter((b) => b.seriesId === id)
+      .sort((a, b) => (a.seriesNo ?? 1e9) - (b.seriesNo ?? 1e9) || sortKey(a.title).localeCompare(sortKey(b.title)));
+  const seriesTitle = (id) => State.books.find((b) => b.seriesId === id)?.seriesName || '';
 
   function nextInSeries(book) {
-    if (!book?.series) return null;
-    const list = seriesBooks(book.series);
+    if (!book?.seriesId) return null;
+    const list = seriesBooks(book.seriesId);
     const i = list.findIndex((b) => b.id === book.id);
     return list.slice(i + 1).find((b) => !b.finished) || null;
   }
 
   const seriesLabel = (b) =>
-    b.series ? `${b.seriesIndex != null ? `Book ${String(b.seriesIndex).replace(/\.0+$/, '')} · ` : ''}${b.series}` : '';
+    b.seriesId ? `${b.seriesNo != null && !Number.isNaN(b.seriesNo) ? `Book ${String(b.seriesNo).replace(/\.0+$/, '')} · ` : ''}${b.seriesName}` : '';
 
   const EMPTY = {
     all: ['Your library awaits', 'Drop books anywhere on this page — EPUB, Kindle, PDF, comics or FB2 — or gather them from a folder.'],
@@ -125,7 +128,7 @@
   // ---------- rendering ----------
   function renderNav() {
     const counts = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [k, State.books.filter(v.filter).length]));
-    counts.series = new Set(State.books.filter((b) => b.series).map((b) => b.series)).size;
+    counts.series = new Set(State.books.filter((b) => b.seriesId).map((b) => b.seriesId)).size;
     $('#nav').innerHTML = Object.entries(VIEWS)
       .filter(([k]) => k !== 'series' || counts.series)
       .map(([k, v]) => {
@@ -181,7 +184,7 @@
       : '';
     $('#heroContent').innerHTML =
       `<div class="hero-main"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>` +
-      `<div class="hero-text"><div class="eyebrow">${upNext ? `Next in ${esc(upNext.series)}` : 'Continue reading'}</div>` +
+      `<div class="hero-text"><div class="eyebrow">${upNext ? `Next in ${esc(upNext.seriesName)}` : 'Continue reading'}</div>` +
       `<h2>${esc(last.title)}</h2><div class="by">${esc(last.author)}</div>${where}` +
       `<button class="solid-btn" data-open="${last.id}">${upNext && !last.progress ? 'Begin reading' : 'Return to the page'} ${icon('next')}</button></div></div>` +
       also;
@@ -189,8 +192,8 @@
 
   function renderSeriesGroups() {
     const groups = new Map();
-    for (const b of State.books) if (b.series) (groups.get(b.series) || groups.set(b.series, []).get(b.series)).push(b);
-    const names = [...groups.keys()].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+    for (const b of State.books) if (b.seriesId) (groups.get(b.seriesId) || groups.set(b.seriesId, []).get(b.seriesId)).push(b);
+    const names = [...groups.keys()].sort((a, b) => sortKey(seriesTitle(a)).localeCompare(sortKey(seriesTitle(b))));
     $('#viewTitle').textContent = 'Series';
     $('#viewCount').textContent = `${names.length} ${names.length === 1 ? 'series' : 'series'}`;
     $('#grid').innerHTML = names
@@ -204,7 +207,7 @@
           .join('');
         return (
           `<div class="card series-card enter" tabindex="0" data-series="${esc(name)}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:0">` +
-          `<div class="stack">${stack}</div><div class="t">${esc(name)}</div>` +
+          `<div class="stack">${stack}</div><div class="t">${esc(seriesTitle(name))}</div>` +
           `<div class="a">${list.length} ${list.length === 1 ? 'book' : 'books'}${read ? ` · ${read} read` : ''}</div></div>`
         );
       })
@@ -226,7 +229,7 @@
     gridKey = key;
     const isShelf = view.startsWith('shelf:');
     const shelf = isShelf && State.shelves.find((s) => s.id === view.slice(6));
-    $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? view.slice(7) : VIEWS[view].label;
+    $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? seriesTitle(view.slice(7)) : VIEWS[view].label;
     const n = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
     $('#viewCount').innerHTML = inSeries ? `<button class="crumb" data-goto="series">${icon('back')}All series</button> · ${n}` : n;
 
@@ -242,7 +245,7 @@
           `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favourite">${icon('heart')}</button></div>` +
           `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
           `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
-          `${b.series ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
+          `${b.seriesId ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
         );
       })
       .join('');
@@ -262,8 +265,8 @@
 
   function render() {
     if (view.startsWith('shelf:') && !State.shelves.some((s) => `shelf:${s.id}` === view)) view = 'all';
-    if (view.startsWith('series:') && !State.books.some((b) => b.series === view.slice(7))) view = 'series';
-    if (view === 'series' && !State.books.some((b) => b.series)) view = 'all';
+    if (view.startsWith('series:') && !State.books.some((b) => b.seriesId === view.slice(7))) view = 'series';
+    if (view === 'series' && !State.books.some((b) => b.seriesId)) view = 'all';
     if (Date.now() - goalFetchedAt > 5000) refreshGoal();
     const page = PAGES[view];
     $('#libMain').classList.toggle('in-settings', !!page);

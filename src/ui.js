@@ -49,7 +49,7 @@
     settings: {},
     listeners: new Set(),
     set(snapshot) {
-      if (snapshot.books) this.books = snapshot.books;
+      if (snapshot.books) this.books = window.Series.group(snapshot.books);
       if (snapshot.shelves) this.shelves = snapshot.shelves;
       if (snapshot.settings) this.settings = snapshot.settings;
       if (snapshot.orders) this.orders = snapshot.orders;
@@ -64,6 +64,7 @@
       if (!updated) return;
       const i = this.books.findIndex((b) => b.id === updated.id);
       if (i >= 0) this.books[i] = updated;
+      window.Series.group(this.books);
       this.emit();
     },
     book(id) {
