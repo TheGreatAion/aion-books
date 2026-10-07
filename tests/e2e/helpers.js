@@ -13,7 +13,8 @@ async function launch({ books = ALL_BOOKS, dataDir } = {}) {
   dataDir = dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'aion-e2e-'));
   const app = await electron.launch({
     args: [ROOT, ...books.map(book)], // book paths on the command line are imported, like "Open with"
-    env: { ...process.env, AION_DATA_DIR: dataDir },
+    // Series lookups never go online in tests: they answer from a file (empty unless a test sets one).
+    env: { AION_WIKIDATA_FIXTURE: path.join(__dirname, '../fixtures/wikidata-none.json'), ...process.env, AION_DATA_DIR: dataDir },
   });
   const page = await app.firstWindow();
   await page.waitForFunction((n) => window.UI?.State?.books?.length >= n, books.length, { timeout: 30000 });

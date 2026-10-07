@@ -160,7 +160,7 @@ test('the window opens at the size and place you left it', async () => {
   await app.close();
   ({ app } = await launch({ books: [], dataDir }).catch(async () => {
     // (No books to import this time: wait for the window instead.)
-    const a = await electron.launch({ args: [path.join(__dirname, '../..')], env: { ...process.env, AION_DATA_DIR: dataDir } });
+    const a = await electron.launch({ args: [path.join(__dirname, '../..')], env: { AION_WIKIDATA_FIXTURE: path.join(__dirname, '../fixtures/wikidata-none.json'), ...process.env, AION_DATA_DIR: dataDir } });
     await a.firstWindow();
     return { app: a };
   }));

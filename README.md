@@ -33,8 +33,11 @@ next time you restart.
 ## Features
 
 ### Your library
-- **Shelves, favorites and series** — books from the same series are grouped together, and when you
-  finish one, the next is waiting for you.
+- **Shelves, favorites and series.** Books in a series are grouped and shown in reading order, with the ones you
+  don’t have yet marked where they fall, and when you finish one, the next is waiting for you.
+- **Series found for you:** books whose files don’t say which series they’re in are looked up on
+  [Wikidata](https://www.wikidata.org) (only the title and author are sent), and what’s found waits for your
+  review. You can also set, rename, renumber or remove a series yourself.
 - **Continue reading** — your current book up front, with every other book in progress beneath it.
 - **Star ratings**, search, and sorting — including your own order, arranged by dragging books around.
 - **Custom covers**, editable titles and authors.
@@ -82,7 +85,7 @@ reading goal that fills a small ring in the sidebar.
   progress, highlights, shelves and fonts — as a single file.
 - Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between PCs.
 - No accounts and no tracking. The only times Aion Books goes online are when you look up a word
-  (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, and when it checks GitHub for updates — which you can
+  (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, when it looks up a new book’s series on Wikidata, and when it checks GitHub for updates — which you can
   turn off in Settings.
 
 <p align="center">

@@ -1784,6 +1784,7 @@ input[type='range']:hover::-webkit-slider-thumb {
   margin-top: 24px;
 }
 .modal input[type='text'],
+.modal input[type='number'],
 .modal textarea {
   width: 100%;
   border: 0;
@@ -1804,6 +1805,7 @@ input[type='range']:hover::-webkit-slider-thumb {
   min-height: 110px;
 }
 .modal input[type='text']:focus,
+.modal input[type='number']:focus,
 .modal textarea:focus {
   border-color: var(--accent);
 }
@@ -3588,5 +3590,63 @@ body:has(#reader.is-active) .select-bar {
   color: var(--ink);
 }
 .tidy-to em {
+  color: var(--ink-3);
+}
+
+/* ================================================================
+   Series
+   ================================================================ */
+/* A book in the series you don't have: a dashed outline where it would stand. */
+.gap-card {
+  cursor: default;
+}
+.cover.gap {
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1.5px dashed var(--line-2);
+  box-shadow: none;
+}
+.cover.gap span {
+  font-style: italic;
+  color: var(--ink-3);
+  font-size: 15px;
+}
+.gap-card .t {
+  color: var(--ink-3);
+}
+.gap-card .a {
+  font-size: 13px;
+}
+.card:hover .cover.gap {
+  transform: none;
+}
+/* The next one to read. */
+.card.up-next .meta span {
+  color: var(--accent);
+  font-style: italic;
+}
+.series-card .series-meta {
+  margin-top: 6px;
+}
+.series-card .series-meta span {
+  white-space: nowrap;
+}
+.crumb.found {
+  color: var(--accent);
+}
+.crumb.found:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Edit details: series and its number side by side. */
+.series-fields {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 8px;
+}
+/* The book a found series is for (unlike a tidied title, it isn't changing). */
+.review-book {
+  font-size: 13.5px;
   color: var(--ink-3);
 }
