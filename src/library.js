@@ -181,27 +181,27 @@
               `<div class="ns-slot"><button class="ns-item" data-open="${b.id}" title="${esc(b.title)} — ${esc(b.author)}">` +
               `<span class="ns-cover">${coverHtml(b)}</span>` +
               `<span class="ns-text"><span class="ns-title">${esc(b.title)}</span><span class="ns-author">${esc(b.author)}</span>` +
-              `<span class="ns-prog"><span class="bar"><i style="width:${pct(b.progress)}"></i></span>${pct(b.progress)}</span></span></button>${asideX(b)}</div>`
+              `<span class="ns-prog"><span class="bar"><i style="width:${pct(b.progress)}"></i></span>${pct(b.progress)}</span></span></button>${asideX(b, 'the nightstand')}</div>`
           )
           .join('')}</div></div>`
       : '';
     $('#heroContent').innerHTML =
-      `<div class="hero-main"><div class="hero-cover-wrap"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>${asideX(last)}</div>` +
+      `<div class="hero-main"><div class="hero-cover-wrap"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>${asideX(last, 'Continue reading')}</div>` +
       `<div class="hero-text"><div class="eyebrow">${upNext ? `Next in ${esc(upNext.seriesName)}` : 'Continue reading'}</div>` +
       `<h2>${esc(last.title)}</h2><div class="by">${esc(last.author)}</div>${where}` +
       `<button class="solid-btn" data-open="${last.id}">${upNext && !last.progress ? 'Begin reading' : 'Return to the page'} ${icon('next')}</button></div></div>` +
       also;
   }
 
-  // The × that sets a book aside from Continue reading (shown on hover).
-  const asideX = (b) =>
-    `<button class="aside-x" data-aside="${b.id}" title="Remove from Continue reading" aria-label="Remove ${esc(b.title)} from Continue reading">${icon('close')}</button>`;
+  // The × that sets a book aside from Continue reading or the nightstand (shown on hover).
+  const asideX = (b, from) =>
+    `<button class="aside-x" data-aside="${b.id}" data-from="${from}" title="Remove from ${from}" aria-label="Remove ${esc(b.title)} from ${from}">${icon('close')}</button>`;
 
-  function setAside(id) {
+  function setAside(id, from = 'Continue reading') {
     const b = State.book(id);
     if (!b) return;
     updateBook(id, { setAside: Date.now() });
-    undoToast(`Removed <em>${esc(b.title)}</em> from Continue reading`, { undo: () => updateBook(id, { setAside: null }) });
+    undoToast(`Removed <em>${esc(b.title)}</em> from ${from}`, { undo: () => updateBook(id, { setAside: null }) });
   }
 
   // What's known of a series beyond the books you have: Wikidata's list of
@@ -929,7 +929,7 @@
       }
       if (e.target.closest('[data-review-series]')) return reviewSeries();
       const aside = e.target.closest('[data-aside]');
-      if (aside) return setAside(aside.dataset.aside);
+      if (aside) return setAside(aside.dataset.aside, aside.dataset.from);
       const crumb = e.target.closest('[data-goto]');
       if (crumb) {
         view = crumb.dataset.goto;
