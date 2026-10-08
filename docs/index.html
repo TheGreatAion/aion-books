@@ -23,6 +23,9 @@
 <meta property="og:image:alt" content="Aion Books: a quiet, paper-textured e-book reader and library for Windows">
 <meta name="twitter:card" content="summary_large_image">
 
+<script>
+  try { const p = localStorage.getItem('paper'); if (/^(linen|parchment|dusk)$/.test(p)) document.documentElement.dataset.paper = p; } catch (e) {}
+</script>
 <link rel="preload" href="fonts/eb-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/im-fell-english-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -130,8 +133,22 @@
   --display: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
   --serif: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
 }
+/* The three papers from the app. With none picked, the page follows the system's light or dark mode. */
+:root[data-paper='parchment'] {
+  --paper: #ead7b3;
+  --paper-raise: #f0e1c3;
+  --ink: #38271a;
+  --ink-2: #694c30;
+  --ink-3: #977a56;
+  --line: rgba(92, 60, 25, 0.17);
+  --accent: #994e29;
+  --stain: 140, 90, 35;
+  --shadow: rgba(80, 50, 15, 0.24);
+  --edge: #e4cfa8;
+  --edge-line: #c7aa78;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-paper]) {
     --paper: #27221d;
     --paper-raise: #302a24;
     --ink: #e7dac3;
@@ -145,6 +162,23 @@
     --edge-line: #1d1915;
   }
 }
+:root[data-paper='dusk'] {
+  --paper: #27221d;
+  --paper-raise: #302a24;
+  --ink: #e7dac3;
+  --ink-2: #c4b398;
+  --ink-3: #95856c;
+  --line: rgba(232, 215, 188, 0.12);
+  --accent: #d49c6f;
+  --stain: 0, 0, 0;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --edge: #2c2620;
+  --edge-line: #1d1915;
+}
+:root[data-paper='linen'], :root[data-paper='parchment'] { color-scheme: light; }
+:root[data-paper='dusk'] { color-scheme: dark; }
+/* A gentle change of paper (only while switching, so nothing else animates). */
+.paper-turning, .paper-turning * { transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 /* The botanicals may reach past the edge; the page never scrolls sideways. */
@@ -171,6 +205,24 @@ a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness:
 .top nav { display: flex; gap: 22px; font-size: 17px; }
 .top nav a { color: var(--ink-2); text-decoration: none; padding: 8px 0; }
 .top nav a:hover { color: var(--ink); }
+.top-right { display: flex; align-items: center; gap: 26px; }
+/* The paper picker: a swatch for each paper. */
+.papers { display: flex; gap: 6px; }
+.papers button {
+  -webkit-appearance: none; appearance: none; cursor: pointer; font: inherit; color: var(--ink-2);
+  display: inline-flex; align-items: center; gap: 9px; background: none; border: 1px solid transparent; border-radius: 999px; padding: 5px;
+}
+.papers i { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(60, 40, 20, 0.28); display: block; }
+.papers [data-paper='linen'] i { background: #f2eadb; }
+.papers [data-paper='parchment'] i { background: #ead7b3; }
+.papers [data-paper='dusk'] i { background: #27221d; box-shadow: inset 0 0 0 1px rgba(232, 215, 188, 0.3); }
+.papers button:hover { border-color: var(--line); }
+.papers button[aria-pressed='true'] { border-color: var(--accent); }
+.papers button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.papers.big { gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.papers.big button { padding: 6px 16px 6px 7px; border-color: var(--line); font-size: 17px; }
+.papers.big button[aria-pressed='true'] { border-color: var(--accent); color: var(--ink); }
+.papers.big i { width: 26px; height: 26px; }
 
 /* ---------- hero ---------- */
 .hero { position: relative; padding: 48px 0 30px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; }
@@ -284,6 +336,10 @@ footer p { margin: 4px 0; }
   .top { padding: 16px 0; }
   .top nav { gap: 16px; font-size: 16px; }
   .top nav .hide-sm { display: none; }
+  .top .papers { display: none; } /* the papers section below has its own */
+  .papers.big { gap: 8px; }
+  .papers.big button { padding: 5px 13px 5px 6px; font-size: 16px; gap: 7px; }
+  .papers.big i { width: 24px; height: 24px; }
   .hero h1 { padding-right: 70px; }
   .bough { width: 150px; top: -10px; right: -22px; }
   .leaf { padding-left: 58px; padding-right: 24px; }
@@ -331,12 +387,19 @@ footer p { margin: 4px 0; }
   </svg>
 <header class="wrap top">
   <a class="brand" href="./" aria-label="Aion Books, home"><img src="img/icon-32.png" alt="" width="30" height="30"><span>Aion<em>books</em></span></a>
+  <div class="top-right">
   <nav aria-label="On this page">
     <a href="#features">Features</a>
     <a href="#formats" class="hide-sm">Formats</a>
     <a href="#questions">Questions</a>
     <a href="https://github.com/TheGreatAion/aion-books" class="hide-sm">GitHub</a>
   </nav>
+  <div class="papers" role="group" aria-label="Paper for this page">
+    <button type="button" data-paper="linen" aria-label="Linen" title="Linen"><i></i></button>
+    <button type="button" data-paper="parchment" aria-label="Parchment" title="Parchment"><i></i></button>
+    <button type="button" data-paper="dusk" aria-label="Dusk" title="Dusk"><i></i></button>
+  </div>
+  </div>
 </header>
 
 <main>
@@ -412,10 +475,16 @@ footer p { margin: 4px 0; }
     </div>
     <div class="showcase flip">
       <div class="text">
-        <h3>Dusk, for evening reading</h3>
-        <p>A dark paper that's easy on the eyes at night — and, if you like, it follows Windows' own light and dark mode.</p>
+        <h3>Three papers</h3>
+        <p>Linen, a soft off-white; Parchment, warmer and older; and Dusk, a dark paper that's easy on the eyes at night — which can follow Windows' own light and dark mode.</p>
+        <p>Try them on this page:</p>
+        <div class="papers big" role="group" aria-label="Paper">
+          <button type="button" data-paper="linen"><i></i>Linen</button>
+          <button type="button" data-paper="parchment"><i></i>Parchment</button>
+          <button type="button" data-paper="dusk"><i></i>Dusk</button>
+        </div>
       </div>
-      <figure><img src="img/library-dusk-1280.jpg" srcset="img/library-dusk-640.jpg 640w, img/library-dusk-1280.jpg 1280w" sizes="(max-width: 860px) 100vw, 600px" width="1280" height="820" loading="lazy" alt="The Aion Books library in the dark Dusk theme"></figure>
+      <figure><img id="paper-shot" src="img/paper-linen-1280.jpg" srcset="img/paper-linen-640.jpg 640w, img/paper-linen-1280.jpg 1280w" sizes="(max-width: 860px) 100vw, 600px" width="1280" height="820" loading="lazy" alt="Reading in Aion Books on the Linen paper"></figure>
     </div>
   </div>
 
@@ -464,6 +533,34 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
+  // The paper picker: re-papers the whole page, shows the reader on that paper, and remembers it.
+  (() => {
+    const root = document.documentElement;
+    const dark = matchMedia('(prefers-color-scheme: dark)');
+    const shot = document.getElementById('paper-shot');
+    const names = { linen: 'Linen', parchment: 'Parchment', dusk: 'Dusk' };
+    const current = () => root.dataset.paper || (dark.matches ? 'dusk' : 'linen');
+    const show = () => {
+      const p = current();
+      document.querySelectorAll('.papers button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.paper === p)));
+      shot.src = `img/paper-${p}-1280.jpg`;
+      shot.srcset = `img/paper-${p}-640.jpg 640w, img/paper-${p}-1280.jpg 1280w`;
+      shot.alt = `Reading in Aion Books on the ${names[p]} paper`;
+      document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = getComputedStyle(root).getPropertyValue('--paper').trim()));
+    };
+    document.querySelectorAll('.papers button').forEach((b) =>
+      b.addEventListener('click', () => {
+        root.classList.add('paper-turning');
+        root.dataset.paper = b.dataset.paper;
+        try { localStorage.setItem('paper', b.dataset.paper); } catch (e) {}
+        show();
+        setTimeout(() => root.classList.remove('paper-turning'), 450);
+      })
+    );
+    dark.addEventListener('change', show);
+    show();
+  })();
+
   // Point the download buttons straight at the newest installer.
   fetch('https://api.github.com/repos/TheGreatAion/aion-books/releases/latest')
     .then((r) => (r.ok ? r.json() : null))
