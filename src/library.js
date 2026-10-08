@@ -172,7 +172,7 @@
     const MAX_ALSO = 8;
     const others = onTheGo.filter((b) => b.id !== last.id);
     const also = others.length
-      ? `<div class="nightstand"><div class="ns-head"><span class="eyebrow">Also reading</span>${
+      ? `<div class="nightstand"><div class="ns-head"><span class="eyebrow">Nightstand</span>${
           others.length > MAX_ALSO ? `<button class="crumb" data-goto="reading">See all ${others.length + 1}</button>` : ''
         }</div><div class="ns-row">${others
           .slice(0, MAX_ALSO)
