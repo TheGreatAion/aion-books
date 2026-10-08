@@ -8,7 +8,7 @@
 
   const VIEWS = {
     all: { label: 'All books', icon: 'books', filter: () => true },
-    reading: { label: 'Reading now', icon: 'reading', filter: (b) => b.progress > 0 && !b.finished },
+    reading: { label: 'Reading now', icon: 'reading', filter: (b) => b.progress > 0 && !b.finished && !b.setAside },
     unread: { label: 'Not yet begun', icon: 'sprout', filter: (b) => !b.progress && !b.finished },
     favorites: { label: 'Favorites', icon: 'heart', filter: (b) => b.favorite },
     finished: { label: 'Finished', icon: 'check', filter: (b) => b.finished },
@@ -153,8 +153,11 @@
     const hero = $('#hero');
     const recent = State.books.filter((b) => b.lastOpenedAt).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
     // Just finished a book in a series? Suggest the next one.
-    const upNext = recent[0]?.finished ? nextInSeries(recent[0]) : null;
-    const last = upNext || recent.find((b) => !b.finished);
+    let upNext = recent[0]?.finished ? nextInSeries(recent[0]) : null;
+    if (upNext?.setAside) upNext = null;
+    // Books you've set aside (the × on hover) leave the nightstand until you open them again.
+    const onTheGo = recent.filter((b) => !b.finished && !b.setAside);
+    const last = upNext || onTheGo[0];
     if (view !== 'all' || query || !last) {
       hero.hidden = true;
       return;
@@ -166,8 +169,8 @@
       : `<div class="where">${last.chapter ? `<span>${esc(last.chapter)}</span>` : ''}` +
         `<div class="bar"><i style="width:${pct(last.progress)}"></i></div><span>${pct(last.progress)}</span></div>`;
     // Everything else currently on the go, most recently read first.
-    const MAX_ALSO = 5;
-    const others = recent.filter((b) => !b.finished && b.id !== last.id);
+    const MAX_ALSO = 8;
+    const others = onTheGo.filter((b) => b.id !== last.id);
     const also = others.length
       ? `<div class="nightstand"><div class="ns-head"><span class="eyebrow">Also reading</span>${
           others.length > MAX_ALSO ? `<button class="crumb" data-goto="reading">See all ${others.length + 1}</button>` : ''
@@ -175,19 +178,30 @@
           .slice(0, MAX_ALSO)
           .map(
             (b) =>
-              `<button class="ns-item" data-open="${b.id}" title="${esc(b.title)} — ${esc(b.author)}">` +
+              `<div class="ns-slot"><button class="ns-item" data-open="${b.id}" title="${esc(b.title)} — ${esc(b.author)}">` +
               `<span class="ns-cover">${coverHtml(b)}</span>` +
               `<span class="ns-text"><span class="ns-title">${esc(b.title)}</span><span class="ns-author">${esc(b.author)}</span>` +
-              `<span class="ns-prog"><span class="bar"><i style="width:${pct(b.progress)}"></i></span>${pct(b.progress)}</span></span></button>`
+              `<span class="ns-prog"><span class="bar"><i style="width:${pct(b.progress)}"></i></span>${pct(b.progress)}</span></span></button>${asideX(b)}</div>`
           )
           .join('')}</div></div>`
       : '';
     $('#heroContent').innerHTML =
-      `<div class="hero-main"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>` +
+      `<div class="hero-main"><div class="hero-cover-wrap"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>${asideX(last)}</div>` +
       `<div class="hero-text"><div class="eyebrow">${upNext ? `Next in ${esc(upNext.seriesName)}` : 'Continue reading'}</div>` +
       `<h2>${esc(last.title)}</h2><div class="by">${esc(last.author)}</div>${where}` +
       `<button class="solid-btn" data-open="${last.id}">${upNext && !last.progress ? 'Begin reading' : 'Return to the page'} ${icon('next')}</button></div></div>` +
       also;
+  }
+
+  // The × that sets a book aside from Continue reading (shown on hover).
+  const asideX = (b) =>
+    `<button class="aside-x" data-aside="${b.id}" title="Remove from Continue reading" aria-label="Remove ${esc(b.title)} from Continue reading">${icon('close')}</button>`;
+
+  function setAside(id) {
+    const b = State.book(id);
+    if (!b) return;
+    updateBook(id, { setAside: Date.now() });
+    undoToast(`Removed <em>${esc(b.title)}</em> from Continue reading`, { undo: () => updateBook(id, { setAside: null }) });
   }
 
   // What's known of a series beyond the books you have: Wikidata's list of
@@ -914,6 +928,8 @@
         return;
       }
       if (e.target.closest('[data-review-series]')) return reviewSeries();
+      const aside = e.target.closest('[data-aside]');
+      if (aside) return setAside(aside.dataset.aside);
       const crumb = e.target.closest('[data-goto]');
       if (crumb) {
         view = crumb.dataset.goto;
