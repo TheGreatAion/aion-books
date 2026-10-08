@@ -654,7 +654,8 @@ button {
 }
 .ns-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  /* Up to four to a row (two rows of four at most), fewer when the window is narrow. */
+  grid-template-columns: repeat(auto-fill, minmax(max(210px, calc((100% - 54px) / 4)), 1fr));
   gap: 10px 18px;
 }
 .ns-item {
@@ -669,6 +670,60 @@ button {
 }
 .ns-item:hover {
   background: var(--wash);
+}
+.ns-slot,
+.hero-cover-wrap {
+  position: relative;
+  min-width: 0;
+}
+.ns-slot .ns-item {
+  width: 100%;
+  padding-right: 28px; /* room for the × */
+}
+.ns-slot:hover .ns-item {
+  background: var(--wash);
+}
+.hero-cover-wrap {
+  flex: none;
+}
+/* Set a book aside from Continue reading: only there while you're over it. */
+.aside-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.aside-x .icon {
+  width: 14px;
+  height: 14px;
+}
+.ns-slot:hover .aside-x,
+.hero-cover-wrap:hover .aside-x,
+.aside-x:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.aside-x:hover {
+  color: var(--ink);
+  background: var(--paper-raise);
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+/* On the featured cover, a small paper disc just inside its corner. */
+.hero-cover-wrap .aside-x {
+  top: 6px;
+  right: 6px;
+  color: var(--ink-2);
+  z-index: 2;
+  background: var(--paper-raise);
+  box-shadow: 0 0 0 1px var(--line-2), 0 3px 8px -3px var(--shadow);
 }
 .ns-cover {
   flex: none;

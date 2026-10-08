@@ -605,7 +605,7 @@ function registerIpc() {
 
   const EDITABLE = new Set([
     'title', 'author', 'progress', 'location', 'finished', 'favorite',
-    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex',
+    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex', 'setAside',
   ]);
   ipcMain.handle('book:update', (_e, id, patch) => {
     const book = findBook(id);
@@ -627,6 +627,8 @@ function registerIpc() {
     }
     // The first time a book is opened is when you began it (for the reading timeline).
     if (patch?.lastOpenedAt && !book.startedAt) book.startedAt = patch.lastOpenedAt;
+    // A book set aside from Continue reading comes back when you open it again.
+    if (patch?.lastOpenedAt) delete book.setAside;
     for (const [k, v] of Object.entries(patch || {})) if (EDITABLE.has(k)) book[k] = v;
     store.save();
     return bookView(book);
