@@ -1,4 +1,4 @@
-// Continue reading and Also reading: setting a book aside with the × on hover,
+// Continue reading and the nightstand: setting a book aside with the × on hover,
 // Undo, the next book taking its place, and coming back when it's opened again.
 const { test, expect } = require('@playwright/test');
 const { launch, toLibrary, openBook } = require('./helpers');
@@ -12,7 +12,7 @@ const alsoTitles = () => page.locator('#hero .ns-title').allTextContents();
 
 test('the × sets a book aside, and the next one takes its place', async () => {
   const titles = await page.evaluate(() => window.UI.State.books.map((b) => b.title));
-  // Open every book, so the last opened is featured and the rest are "also reading".
+  // Open every book, so the last opened is featured and the rest go on the nightstand.
   for (const t of titles) {
     await openBook(page, t);
     await toLibrary(page);
@@ -53,7 +53,7 @@ test('the × sets a book aside, and the next one takes its place', async () => {
   await expect.poll(featured).toBe(last);
 });
 
-test('Also reading holds eight, four to a row', async () => {
+test('The nightstand holds eight, four to a row', async () => {
   // Pretend there are twelve books on the go (the test library has four).
   const cols = await page.evaluate(() => {
     const row = document.querySelector('#hero .ns-row');
