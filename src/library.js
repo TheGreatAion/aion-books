@@ -317,7 +317,13 @@
     const shelf = isShelf && State.shelves.find((s) => s.id === view.slice(6));
     $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? seriesTitle(view.slice(7)) : VIEWS[view].label;
     const n = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
-    $('#viewCount').innerHTML = inSeries ? `<button class="crumb" data-goto="series">${icon('back')}All series</button> · ${n}` : n;
+    // A way back from the series and Reading now pages (Reading now is where "See all" on the nightstand leads).
+    const back = inSeries
+      ? `<button class="crumb" data-goto="series">${icon('back')}All series</button> · `
+      : view === 'reading' && !query
+        ? `<button class="crumb" data-goto="all">${icon('back')}All books</button> · `
+        : '';
+    $('#viewCount').innerHTML = back + n;
 
     $('#grid').innerHTML = books.map((b, i) => cardHtml(b, i, enter, { draggable: !query })).join('');
 
@@ -1043,6 +1049,11 @@
       if (!$('#library').classList.contains('is-active') || !$('#modalBack').hidden) return;
       if ((e.ctrlKey && e.key === 'f') || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) {
         e.preventDefault();
+        // Search lives on the book pages; from Settings and the like, go back to your books first.
+        if (PAGES[view]) {
+          view = 'all';
+          render();
+        }
         $('#search').focus();
       } else if (e.ctrlKey && e.key === 'o') {
         e.preventDefault();

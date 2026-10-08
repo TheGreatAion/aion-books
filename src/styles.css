@@ -838,6 +838,16 @@ button {
   align-items: baseline;
   gap: 14px;
 }
+/* Search sits at the right of the heading, beside the count. */
+.lib-heading .search {
+  margin-left: auto;
+  align-self: center;
+  flex: 0 1 280px;
+  min-width: 150px;
+}
+.in-settings .lib-heading .search {
+  display: none;
+}
 .lib-heading h1 {
   font-family: var(--display);
   font-weight: 400;

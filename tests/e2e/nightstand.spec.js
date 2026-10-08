@@ -67,3 +67,21 @@ test('The nightstand holds eight, four to a row', async () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/library.js'), 'utf8');
   expect(src).toMatch(/const MAX_ALSO = 8;/);
 });
+
+test('Reading now has a way back to All books', async () => {
+  await page.locator('#nav [data-view="reading"]').click();
+  await expect(page.locator('#viewTitle')).toHaveText('Reading now');
+  await page.locator('#viewCount [data-goto="all"]').click();
+  await expect(page.locator('#viewTitle')).toHaveText('All books');
+});
+
+test('search sits beside the heading, and Ctrl+F finds it from Settings', async () => {
+  const inHeading = await page.evaluate(() => !!document.querySelector('.lib-heading #search'));
+  expect(inHeading).toBe(true);
+  await page.keyboard.press('Control+,');
+  await expect(page.locator('#viewTitle')).toHaveText('Settings');
+  await page.keyboard.press('Control+f');
+  await expect(page.locator('#search')).toBeFocused();
+  await expect(page.locator('#viewTitle')).toHaveText('All books');
+  await page.keyboard.press('Escape');
+});
