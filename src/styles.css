@@ -838,6 +838,57 @@ button {
   align-items: baseline;
   gap: 14px;
 }
+/* Home: short rows of books, each one a reason to pick something up. */
+.rooms:empty {
+  display: none;
+}
+.room {
+  margin: 26px 0 8px;
+}
+.room-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.room-head h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 25px;
+  margin: 0;
+}
+.room-head .eyebrow {
+  margin-right: -4px;
+}
+.room-note {
+  font-style: italic;
+  color: var(--ink-3);
+  font-size: 14.5px;
+}
+.room-head .crumb {
+  margin-left: auto;
+  font-size: 15px;
+}
+/* One row of covers, as many as fit; the rest are a "See all" away. */
+.room-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  column-gap: 30px;
+}
+.room-end {
+  display: flex;
+  justify-content: center;
+  margin: 40px 0 10px;
+}
+.room-end .ghost-btn,
+.crumb .icon {
+  gap: 4px;
+}
+.room-end .ghost-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
 /* Search sits at the right of the heading, beside the count. */
 .lib-heading .search {
   margin-left: auto;
