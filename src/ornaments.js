@@ -117,6 +117,7 @@
     play: '<path d="M8 5.5v13l10.5-6.5z"/>',
     pause: '<path d="M8.5 5.5v13M15.5 5.5v13"/>',
     stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/>',
+    home: '<path d="M4.5 11 12 5l7.5 6"/><path d="M6.5 9.5v9.5h4v-5h3v5h4V9.5"/>',
     stack: '<rect x="7.5" y="3.5" width="10" height="13" rx="1"/><path d="M5 6.5v12c0 .6.4 1 1 1h9"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     image: '<rect x="4" y="5" width="16" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="M5 17l4.5-4.5 3 3 2.5-2.5 4 4"/>',

@@ -4,11 +4,30 @@ const { test, expect } = require('@playwright/test');
 const { launch, toLibrary, openBook } = require('./helpers');
 
 let app, page;
-test.beforeAll(async () => ({ app, page } = await launch()));
+test.beforeAll(async () => {
+  ({ app, page } = await launch());
+  await page.locator('#nav [data-view="home"]').click();
+});
 test.afterAll(async () => app?.close());
 
 const featured = () => page.locator('#hero .hero-main h2').textContent();
 const alsoTitles = () => page.locator('#hero .ns-title').allTextContents();
+
+test('Home: rows of books, and the whole library a click away', async () => {
+  await expect(page.locator('#viewTitle')).toHaveText('Your library');
+  const rows = await page.locator('#rooms .room h3').allTextContents();
+  expect(rows).toEqual(expect.arrayContaining(['Waiting on the shelf', 'Recently added']));
+  // Each row is one line of covers.
+  const oneLine = await page.evaluate(() => [...document.querySelectorAll('#rooms .room-row')].every((r) => {
+    const tops = [...r.children].filter((c) => c.style.display !== 'none').map((c) => c.offsetTop);
+    return new Set(tops).size === 1;
+  }));
+  expect(oneLine).toBe(true);
+  await page.locator('#rooms .room-end [data-goto="all"]').click();
+  await expect(page.locator('#viewTitle')).toHaveText('All books');
+  await expect(page.locator('#grid .card')).toHaveCount(4);
+  await page.locator('#nav [data-view="home"]').click();
+});
 
 test('the × sets a book aside, and the next one takes its place', async () => {
   const titles = await page.evaluate(() => window.UI.State.books.map((b) => b.title));
@@ -68,11 +87,11 @@ test('The nightstand holds eight, four to a row', async () => {
   expect(src).toMatch(/const MAX_ALSO = 8;/);
 });
 
-test('Reading now has a way back to All books', async () => {
+test('Reading now has a way back Home', async () => {
   await page.locator('#nav [data-view="reading"]').click();
   await expect(page.locator('#viewTitle')).toHaveText('Reading now');
-  await page.locator('#viewCount [data-goto="all"]').click();
-  await expect(page.locator('#viewTitle')).toHaveText('All books');
+  await page.locator('#viewCount [data-goto="home"]').click();
+  await expect(page.locator('#viewTitle')).toHaveText('Your library');
 });
 
 test('search sits beside the heading, and Ctrl+F finds it from Settings', async () => {
@@ -82,6 +101,6 @@ test('search sits beside the heading, and Ctrl+F finds it from Settings', async 
   await expect(page.locator('#viewTitle')).toHaveText('Settings');
   await page.keyboard.press('Control+f');
   await expect(page.locator('#search')).toBeFocused();
-  await expect(page.locator('#viewTitle')).toHaveText('All books');
+  await expect(page.locator('#viewTitle')).not.toHaveText('Settings');
   await page.keyboard.press('Escape');
 });

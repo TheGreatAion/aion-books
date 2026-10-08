@@ -21,6 +21,8 @@ async function launch({ books = ALL_BOOKS, dataDir } = {}) {
   // Opening books from the command line opens the last one; start from the library.
   await page.waitForTimeout(500);
   await toLibrary(page);
+  // Most tests work with the whole shelf (the app opens on Home).
+  await page.locator('#nav [data-view="all"]').click();
   return { app, page, dataDir };
 }
 

@@ -7,6 +7,7 @@
   const Reader = window.Reader;
 
   const VIEWS = {
+    home: { label: 'Home', icon: 'home', filter: () => true },
     all: { label: 'All books', icon: 'books', filter: () => true },
     reading: { label: 'Reading now', icon: 'reading', filter: (b) => b.progress > 0 && !b.finished && !b.setAside },
     unread: { label: 'Not yet begun', icon: 'sprout', filter: (b) => !b.progress && !b.finished },
@@ -44,7 +45,7 @@
     search: ['Nothing by that name', 'Try a different title or author.'],
   };
 
-  let view = 'all';
+  let view = 'home';
   let query = '';
 
   // Shelves keep their own arrangement; every other view shares the library-wide one.
@@ -128,6 +129,7 @@
   // ---------- rendering ----------
   function renderNav() {
     const counts = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [k, State.books.filter(v.filter).length]));
+    counts.home = 0;
     counts.series = new Set(State.books.filter((b) => b.seriesId).map((b) => b.seriesId)).size;
     $('#nav').innerHTML = Object.entries(VIEWS)
       .filter(([k]) => k !== 'series' || counts.series)
@@ -149,8 +151,9 @@
       : `<div class="shelf-empty">Make a shelf for a season, a mood, a someday.</div>`;
   }
 
-  function renderHero() {
-    const hero = $('#hero');
+  // The featured book and the nightstand beneath it.
+  const MAX_ALSO = 8;
+  function nightstand() {
     const recent = State.books.filter((b) => b.lastOpenedAt).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
     // Just finished a book in a series? Suggest the next one.
     let upNext = recent[0]?.finished ? nextInSeries(recent[0]) : null;
@@ -158,7 +161,14 @@
     // Books you've set aside (the × on hover) leave the nightstand until you open them again.
     const onTheGo = recent.filter((b) => !b.finished && !b.setAside);
     const last = upNext || onTheGo[0];
-    if (view !== 'all' || query || !last) {
+    const others = last ? onTheGo.filter((b) => b.id !== last.id) : [];
+    return { last, upNext, others };
+  }
+
+  function renderHero() {
+    const hero = $('#hero');
+    const { last, upNext, others } = nightstand();
+    if (view !== 'home' || query || !last) {
       hero.hidden = true;
       return;
     }
@@ -169,8 +179,6 @@
       : `<div class="where">${last.chapter ? `<span>${esc(last.chapter)}</span>` : ''}` +
         `<div class="bar"><i style="width:${pct(last.progress)}"></i></div><span>${pct(last.progress)}</span></div>`;
     // Everything else currently on the go, most recently read first.
-    const MAX_ALSO = 8;
-    const others = onTheGo.filter((b) => b.id !== last.id);
     const also = others.length
       ? `<div class="nightstand"><div class="ns-head"><span class="eyebrow">Nightstand</span>${
           others.length > MAX_ALSO ? `<button class="crumb" data-goto="reading">See all ${others.length + 1}</button>` : ''
@@ -192,6 +200,117 @@
       `<button class="solid-btn" data-open="${last.id}">${upNext && !last.progress ? 'Begin reading' : 'Return to the page'} ${icon('next')}</button></div></div>` +
       also;
   }
+
+  // ---------- home ----------
+  // A shuffle that stays put for this session, so "Waiting on the shelf" shows
+  // a different few each time you open Aion, but doesn't jump about as you use it.
+  const sessionSeed = Math.floor(Math.random() * 1e9);
+  const shuffled = (list) =>
+    list
+      .map((b) => {
+        let h = sessionSeed;
+        for (const ch of b.id) h = (Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0) % 4294967291;
+        return [h, b];
+      })
+      .sort((a, b) => a[0] - b[0])
+      .map(([, b]) => b);
+
+  const ROW_MAX = 12;
+  function homeRows() {
+    const { last, others } = nightstand();
+    const shown = new Set([last, ...others.slice(0, MAX_ALSO)].filter(Boolean).map((b) => b.id));
+    const fresh = (b) => !shown.has(b.id);
+    const rows = [];
+
+    // The next book in every series you've started (finished one, not begun the next).
+    const series = new Map();
+    for (const b of State.books) if (b.seriesId) series.set(b.seriesId, true);
+    const upNext = [];
+    for (const id of series.keys()) {
+      const list = seriesBooks(id);
+      const lastDone = list.map((b) => b.finished).lastIndexOf(true);
+      if (lastDone < 0) continue;
+      const next = list.slice(lastDone + 1).find((b) => !b.finished);
+      if (!next || next.progress > 0 || !fresh(next)) continue;
+      const when = Math.max(...list.map((b) => b.finishedAt || b.lastOpenedAt || 0));
+      upNext.push([when, next]);
+    }
+    upNext.sort((a, b) => b[0] - a[0]);
+    const upNextBooks = upNext.map(([, b]) => b);
+    rows.push({ title: 'Up next in your series', books: upNextBooks, upNext: true, goto: 'series' });
+    upNextBooks.forEach((b) => shown.add(b.id));
+
+    // Unread books, a different few each visit, so forgotten ones come back up.
+    // Only the first unread book of a series, so the row isn't one series six times.
+    const seen = new Set();
+    const waiting = shuffled(State.books.filter((b) => !b.progress && !b.finished && fresh(b))).filter((b) => {
+      if (!b.seriesId) return true;
+      const first = seriesBooks(b.seriesId).find((x) => !x.finished && !x.progress);
+      if (first?.id !== b.id || seen.has(b.seriesId)) return false;
+      seen.add(b.seriesId);
+      return true;
+    });
+    rows.push({ title: 'Waiting on the shelf', note: 'A different few each time', books: waiting, goto: 'unread' });
+
+    rows.push({
+      title: 'Recently added',
+      books: [...State.books].filter(fresh).sort((a, b) => b.addedAt - a.addedAt),
+      goto: 'all',
+      sort: 'added',
+    });
+
+    for (const s of State.shelves) {
+      const books = sortBooks(State.books.filter((b) => (b.shelves || []).includes(s.id)), 'custom', `shelf:${s.id}`);
+      rows.push({ title: s.name, eyebrow: 'Shelf', books, goto: `shelf:${s.id}` });
+    }
+
+    const year = new Date().getFullYear();
+    const finished = State.books
+      .filter((b) => b.finished && b.finishedAt && new Date(b.finishedAt).getFullYear() === year)
+      .sort((a, b) => b.finishedAt - a.finishedAt);
+    rows.push({ title: `Finished in ${year}`, books: finished, goto: 'finished' });
+
+    rows.push({ title: 'Favorites', books: State.books.filter((b) => b.favorite), goto: 'favorites' });
+    return rows.filter((r) => r.books.length);
+  }
+
+  let homeKey = '';
+  function renderHome() {
+    const n = State.books.length;
+    $('#viewTitle').textContent = 'Your library';
+    $('#viewCount').innerHTML = `${n} ${n === 1 ? 'book' : 'books'} · <button class="crumb" data-goto="all">Browse them all${icon('next')}</button>`;
+    $('#grid').innerHTML = '';
+    $('#empty').hidden = true;
+    $('.lib-heading').hidden = false;
+    $('.heading-ornament').hidden = false;
+    const key = `home|${$('#library').dataset.visit || 0}`;
+    const enter = key !== homeKey;
+    homeKey = key;
+    $('#rooms').innerHTML =
+      homeRows()
+        .map(
+          (r) =>
+            `<section class="room"><div class="room-head">${r.eyebrow ? `<span class="eyebrow">${r.eyebrow}</span>` : ''}<h3>${esc(r.title)}</h3>` +
+            `${r.note ? `<span class="room-note">${r.note}</span>` : ''}` +
+            `<button class="crumb" data-goto="${r.goto}"${r.sort ? ` data-sort="${r.sort}"` : ''}>See all ${r.books.length}${icon('next')}</button></div>` +
+            `<div class="room-row">${r.books
+              .slice(0, ROW_MAX)
+              .map((b, i) => cardHtml(b, i, enter, { draggable: false, upNext: r.upNext }))
+              .join('')}</div></section>`
+        )
+        .join('') +
+      `<div class="room-end"><button class="ghost-btn" data-goto="all">Browse all ${n} books${icon('next')}</button></div>`;
+    fitRooms();
+  }
+
+  // Each row shows as many covers as fit on one line; the rest are a "See all" away.
+  function fitRooms() {
+    for (const row of document.querySelectorAll('#rooms .room-row')) {
+      const cols = getComputedStyle(row).gridTemplateColumns.split(' ').length;
+      [...row.children].forEach((card, i) => (card.style.display = i >= cols ? 'none' : ''));
+    }
+  }
+  new ResizeObserver(() => fitRooms()).observe(document.querySelector('#rooms'));
 
   // The × that sets a book aside from Continue reading or the nightstand (shown on hover).
   const asideX = (b, from) =>
@@ -315,13 +434,13 @@
     if (inSeries && !query) return renderSeriesBooks(view.slice(7), enter);
     const isShelf = view.startsWith('shelf:');
     const shelf = isShelf && State.shelves.find((s) => s.id === view.slice(6));
-    $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? seriesTitle(view.slice(7)) : VIEWS[view].label;
+    $('#viewTitle').textContent = query ? `“${query}”` : isShelf ? shelf?.name || 'Shelf' : inSeries ? seriesTitle(view.slice(7)) : (VIEWS[view] || VIEWS.all).label;
     const n = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
     // A way back from the series and Reading now pages (Reading now is where "See all" on the nightstand leads).
     const back = inSeries
       ? `<button class="crumb" data-goto="series">${icon('back')}All series</button> · `
       : view === 'reading' && !query
-        ? `<button class="crumb" data-goto="all">${icon('back')}All books</button> · `
+        ? `<button class="crumb" data-goto="home">${icon('back')}Home</button> · `
         : '';
     $('#viewCount').innerHTML = back + n;
 
@@ -357,6 +476,7 @@
     if (page) {
       $('#hero').hidden = true;
       $('#grid').innerHTML = '';
+      $('#rooms').innerHTML = '';
       $('#empty').hidden = true;
       $('.lib-heading').hidden = false;
       $('.heading-ornament').hidden = false;
@@ -366,7 +486,12 @@
       return;
     }
     renderHero();
-    renderGrid();
+    if (view === 'home' && !query && State.books.length) {
+      renderHome();
+    } else {
+      $('#rooms').innerHTML = '';
+      renderGrid();
+    }
     paintSelection();
   }
 
@@ -939,6 +1064,13 @@
       const crumb = e.target.closest('[data-goto]');
       if (crumb) {
         view = crumb.dataset.goto;
+        if (crumb.dataset.sort && crumb.dataset.sort !== State.settings.sort) {
+          setSettings({ sort: crumb.dataset.sort }).then(() => {
+            $('#sort').value = crumb.dataset.sort;
+            render();
+          });
+        }
+        $('#libScroll').scrollTop = 0;
         return render();
       }
       const ser = e.target.closest('[data-series]');

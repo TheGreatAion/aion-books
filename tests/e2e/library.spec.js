@@ -46,6 +46,7 @@ test('drag-and-drop gives the shelf your own order', async () => {
   // The order is saved: it survives a reload.
   await page.reload();
   await page.waitForFunction(() => window.UI?.State?.books?.length);
+  await page.locator('#nav [data-view="all"]').click();
   await expect(page.locator('#grid .card .t').first()).toHaveText(last);
 });
 
