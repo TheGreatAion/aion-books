@@ -44,7 +44,7 @@ next time you restart.
 | Kindle | `.mobi`, `.azw3`, `.azw`, `.prc` | Books without DRM |
 | PDF | `.pdf` | Pages shown as they were printed |
 | Comics | `.cbz` | A page at a time, or two side by side |
-| FictionBook | `.fb2`, `.fbz` | |
+| FictionBook | `.fb2`, `.fbz` | Common for Russian-language books; plain or zipped |
 
 Books bought from a store with DRM (copy protection) can't be opened — the same as with any reader
 that isn't the store's own.
