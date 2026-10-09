@@ -194,11 +194,25 @@
           .join('')}</div></div>`
       : '';
     $('#heroContent').innerHTML =
-      `<div class="hero-main"><div class="hero-cover-wrap"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>${asideX(last, 'Continue reading')}</div>` +
+      `<div class="hero-main">${quoteHtml()}<div class="hero-cover-wrap"><button class="hero-cover" data-open="${last.id}">${coverHtml(last)}</button>${asideX(last, 'Continue reading')}</div>` +
       `<div class="hero-text"><div class="eyebrow">${upNext ? `Next in ${esc(upNext.seriesName)}` : 'Continue reading'}</div>` +
       `<h2>${esc(last.title)}</h2><div class="by">${esc(last.author)}</div>${where}` +
       `<button class="solid-btn" data-open="${last.id}">${upNext && !last.progress ? 'Begin reading' : 'Return to the page'} ${icon('next')}</button></div></div>` +
       also;
+  }
+
+  // A quote beside Continue reading: from a book worth reading, or one of your own highlights.
+  function quoteHtml() {
+    if (State.settings.openingQuote === false) return '';
+    const q = window.Quotes?.today(State.books);
+    if (!q) return '';
+    const lines = esc(q.text).replace(/\n/g, '<br>');
+    const who = `${esc(q.author || '')}${q.source ? ` · <i>${esc(q.source)}</i>` : ''}`;
+    return (
+      `<figure class="hero-quote${q.mine ? ' mine' : ''}"${q.mine ? ` data-quote-book="${esc(q.book)}" data-quote-cfi="${esc(q.cfi || '')}" title="Open it there"` : ''}>` +
+      `${q.mine ? '<span class="hq-mine">From your commonplace book</span>' : ''}` +
+      `<blockquote>“${lines}”</blockquote><figcaption>${who}</figcaption></figure>`
+    );
   }
 
   // ---------- home ----------
@@ -1097,6 +1111,10 @@
         return;
       }
       if (e.target.closest('[data-review-series]')) return reviewSeries();
+      const mine = e.target.closest('[data-quote-book]');
+      if (mine) {
+        return window.Reader.open(mine.dataset.quoteBook).then(() => mine.dataset.quoteCfi && window.Reader.view && window.Reader.goTo(mine.dataset.quoteCfi));
+      }
       const aside = e.target.closest('[data-aside]');
       if (aside) return setAside(aside.dataset.aside, aside.dataset.from);
       const crumb = e.target.closest('[data-goto]');
