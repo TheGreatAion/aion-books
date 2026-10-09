@@ -835,8 +835,14 @@ button {
 
 .lib-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 14px;
+  gap: 8px 14px;
+}
+/* A long title keeps its line; the search moves below it when there isn't room. */
+.lib-heading h1 {
+  flex: none;
+  max-width: 100%;
 }
 /* Home: short rows of books, each one a reason to pick something up. */
 .rooms:empty {
