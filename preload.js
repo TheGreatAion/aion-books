@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('aion', {
   tidyPlan: () => ipcRenderer.invoke('titles:plan'),
   seriesLookupAll: () => ipcRenderer.invoke('series:lookup-all'),
   seriesReview: (accept, dismiss) => ipcRenderer.invoke('series:review', accept, dismiss),
+  seriesUndo: (ids) => ipcRenderer.invoke('series:undo', ids),
+  onSeriesPlaced: (fn) => ipcRenderer.on('series:placed', (_e, p) => fn(p)),
   seriesRename: (ids, name) => ipcRenderer.invoke('series:rename', ids, name),
   seriesOrder: (ids) => ipcRenderer.invoke('series:order', ids),
   onSeriesProgress: (fn) => ipcRenderer.on('series:progress', (_e, p) => fn(p)),

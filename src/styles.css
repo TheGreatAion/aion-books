@@ -3725,6 +3725,11 @@ body:has(#reader.is-active) .select-bar {
 .tidy-to em {
   color: var(--ink-3);
 }
+/* How a series was found: "on the series' list", "found on Wikidata". */
+.tidy-to .tidy-how {
+  display: block;
+  font-size: 13px;
+}
 
 /* ================================================================
    Series

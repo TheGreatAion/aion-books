@@ -54,9 +54,11 @@ that isn't the store's own.
 ### Your library
 - **Shelves, favorites and series.** Books in a series are grouped and shown in reading order, with the ones you
   don’t have yet marked where they fall, and when you finish one, the next is waiting for you.
-- **Series found for you:** books whose files don’t say which series they’re in are looked up on
-  [Wikidata](https://www.wikidata.org) (only the title and author are sent), and what’s found waits for your
-  review. You can also set, rename, renumber or remove a series yourself.
+- **Series found for you:** books whose files don’t say which series they’re in are put into it by
+  themselves — from titles that name it, from the series you already have, and by looking each book up once on
+  [Wikidata](https://www.wikidata.org) (only the title and author are sent). Anything unsure waits for your
+  review, and anything placed for you can be taken back out. You can also set, rename, renumber or remove a
+  series yourself, and a series you set is never changed.
 - **Continue reading** — your current book up front, with every other book in progress beneath it.
 - **Star ratings**, search, and sorting — including your own order, arranged by dragging books around.
 - **Custom covers**, editable titles and authors.
