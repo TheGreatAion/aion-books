@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, other books in progress beneath it, and the shelf of EPUB and Kindle books below" width="860">
+  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860">
 </p>
 
 Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
@@ -112,7 +112,7 @@ reading goal that fills a small ring in the sidebar.
   turn off in Settings.
 
 <p align="center">
-  <img src="docs/screenshots/library-dusk.png" alt="The Aion Books library in the dark Dusk theme" width="860">
+  <img src="docs/screenshots/library-dusk.png" alt="The Aion Books home page in the dark Dusk theme" width="860">
 </p>
 
 ## Questions
