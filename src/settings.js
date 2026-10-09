@@ -422,6 +422,11 @@
         )}
         ${row('Botanical decorations', 'The painted vines, lemon bough and olive sprigs.', toggle('flora', s.flora !== false))}
         ${row(
+          'A quote when Aion opens',
+          'A line from a book worth reading beside Continue reading, different each time. Now and then it’s one of your own highlights.',
+          toggle('openingQuote', s.openingQuote !== false)
+        )}
+        ${row(
           'Updates',
           updateText(),
           update.state === 'ready'

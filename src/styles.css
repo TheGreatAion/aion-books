@@ -686,6 +686,62 @@ button {
 .hero-cover-wrap {
   flex: none;
 }
+/* The quote beside Continue reading: set like a note in the margin, under the
+   branch. The hero's title wraps before it reaches it; in a narrow window it
+   steps aside altogether. */
+.hero-main {
+  container-type: inline-size;
+}
+.hero-quote {
+  order: 3;
+  flex: 0 1 300px;
+  align-self: flex-end;
+  margin: 0 0 6px auto;
+  text-align: right;
+}
+.hero-quote blockquote {
+  margin: 0;
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-wrap: balance;
+}
+.hero-quote figcaption {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hero-quote figcaption i {
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hq-mine {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hero-quote.mine {
+  cursor: pointer;
+}
+.hero-quote.mine:hover blockquote {
+  color: var(--ink);
+}
+.hero-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+@container (max-width: 860px) {
+  .hero-quote {
+    display: none;
+  }
+}
 /* Set a book aside from Continue reading: only there while you're over it. */
 .aside-x {
   position: absolute;

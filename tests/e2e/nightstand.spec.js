@@ -104,3 +104,25 @@ test('search sits beside the heading, and Ctrl+F finds it from Settings', async 
   await expect(page.locator('#viewTitle')).not.toHaveText('Settings');
   await page.keyboard.press('Escape');
 });
+
+test('a quote sits beside Continue reading, clear of the title, and can be turned off', async () => {
+  await page.locator('#nav [data-view="home"]').click();
+  const quote = page.locator('#hero .hero-quote');
+  await expect(quote).toBeVisible();
+  const text = (await quote.locator('blockquote').textContent()).replace(/[“”]/g, '');
+  const known = await page.evaluate(() => window.QUOTE_LIST.map((q) => q.text.replace(/\n/g, '')));
+  expect(known).toContain(text);
+  // Beside the title, never over it.
+  const [a, b] = await Promise.all([quote.boundingBox(), page.locator('#hero .hero-text').boundingBox()]);
+  expect(a.x).toBeGreaterThanOrEqual(b.x + b.width);
+  // The same quote all session long.
+  await page.locator('#nav [data-view="all"]').click();
+  await page.locator('#nav [data-view="home"]').click();
+  expect((await quote.locator('blockquote').textContent()).replace(/[“”]/g, '')).toBe(text);
+  // Settings → App → off.
+  await page.evaluate(() => window.UI.setSettings({ openingQuote: false }));
+  await page.locator('#nav [data-view="all"]').click();
+  await page.locator('#nav [data-view="home"]').click();
+  await expect(quote).toHaveCount(0);
+  await page.evaluate(() => window.UI.setSettings({ openingQuote: true }));
+});
