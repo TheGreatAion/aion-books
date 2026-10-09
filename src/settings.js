@@ -45,7 +45,7 @@
     ['Reader', 'T', 'Contents & notes'],
     ['Reader', 'B', 'Bookmark this page'],
     ['Reader', 'Ctrl F', 'Search this book'],
-    ['Reader', 'R', 'Read aloud — play / pause'],
+    ['Reader', 'R', 'Read aloud: play or pause'],
     ['Reader', 'Ctrl +  Ctrl −', 'Text size'],
     ['Reader', 'F11', 'Full screen'],
     ['Reader', 'Esc', 'Close panel, then back to library'],
@@ -104,11 +104,11 @@
       case 'current':
         return 'You have the latest version.';
       case 'downloading':
-        return `Downloading version ${esc(update.version || '')}${update.percent ? ` — ${update.percent}%` : '…'}`;
+        return `Downloading version ${esc(update.version || '')}${update.percent ? `: ${update.percent}%` : '…'}`;
       case 'ready':
         return `Version ${esc(update.version)} is downloaded and ready to install.`;
       case 'error':
-        return `Couldn’t check for updates — ${esc(update.message || 'unknown error')}`;
+        return `Couldn’t check for updates: ${esc(update.message || 'unknown error')}`;
       case 'unsupported':
         return 'This copy can’t update itself. Install Aion Books with the setup program from GitHub and it will keep itself up to date.';
       default:
@@ -121,7 +121,7 @@
     const voices = window.speechSynthesis?.getVoices() || [];
     if (!voices.length) return `<span class="set-desc">No voices found on this computer.</span>`;
     const opts = [`<option value="">System default</option>`]
-      .concat(voices.map((v) => `<option value="${esc(v.name)}" ${v.name === current ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} — ${esc(v.lang)}</option>`))
+      .concat(voices.map((v) => `<option value="${esc(v.name)}" ${v.name === current ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} (${esc(v.lang)})</option>`))
       .join('');
     return `<select class="set-select" data-select="ttsVoice">${opts}</select>`;
   }
@@ -299,7 +299,7 @@
           'Follows Windows’ light and dark mode: Dusk in dark mode, the paper you chose in light mode.',
           toggle('followSystem', !!s.followSystem)
         )}
-        ${row('Typeface', 'Add your own .ttf, .otf, .woff or .woff2 files — add each weight and italic of a family and they’re grouped together.', fontChips(s.fontFamily), 'wide')}
+        ${row('Typeface', 'Add your own .ttf, .otf, .woff or .woff2 files. Add each weight and italic of a family and they’re grouped together.', fontChips(s.fontFamily), 'wide')}
         ${row(
           'Text size',
           '',
@@ -354,7 +354,7 @@
         )}
         ${row(
           'Look up series online',
-          'Aion puts books into their series by itself — from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
+          'Aion puts books into their series by itself, from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
           toggle('seriesLookup', s.seriesLookup !== false)
         )}
         ${(() => {
@@ -394,7 +394,7 @@
         )}
         ${row(
           'Back up',
-          'Save your whole library — books, covers, progress, highlights, shelves and fonts — into one file.',
+          'Save your whole library (books, covers, progress, highlights, shelves and fonts) into one file.',
           `<button class="ghost-btn bordered" data-action="backup">${icon('export')}<span>Back up…</span></button>`
         )}
         ${row(
@@ -647,7 +647,7 @@
         if (!ok) return;
         const res = await window.aion.restore();
         if (res?.error) toast(esc(res.error), 3200);
-        else if (res?.ok) toast('Restored — restarting…', 0);
+        else if (res?.ok) toast('Restored. Restarting…', 0);
         return;
       }
       if (act === 'move-library') {
@@ -657,7 +657,7 @@
           pick.hasLibrary
             ? {
                 title: 'Use the library in that folder?',
-                sub: `There’s already an Aion Books library in <em>${esc(pick.folder)}</em> — perhaps from another PC. Aion Books will restart and open it. Your current library stays where it is.`,
+                sub: `There’s already an Aion Books library in <em>${esc(pick.folder)}</em>, perhaps from another PC. Aion Books will restart and open it. Your current library stays where it is.`,
                 okLabel: 'Use it',
               }
             : {

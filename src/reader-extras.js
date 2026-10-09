@@ -258,7 +258,7 @@
       this.todayMs = before + ms;
       window.Library?.refreshGoal(this.todayMs);
       if (goal && before < goal && this.todayMs >= goal) {
-        toast(`Today’s goal reached — ${State.settings.dailyGoal} minutes of reading`, 3400);
+        toast(`Today’s goal reached: ${State.settings.dailyGoal} minutes of reading`, 3400);
         window.UI.burst(innerWidth / 2, innerHeight - 60);
       }
     },
@@ -421,7 +421,7 @@
       if (this.defineWord !== word || $('#notePop').hidden) return;
       const web = `<div class="np-actions"><button data-np="web">More on Wiktionary</button></div>`;
       let body;
-      if (res.error) body = `<p class="np-muted">${esc(res.error)} — the dictionary needs an internet connection.</p>`;
+      if (res.error) body = `<p class="np-muted">${esc(res.error)}. The dictionary needs an internet connection.</p>`;
       else if (!res.entries.length) body = `<p class="np-muted">No definition found for “${esc(word)}”.</p>`;
       else {
         const e = res.entries[0];

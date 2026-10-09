@@ -36,11 +36,11 @@
     b.seriesId ? `${b.seriesNo != null && !Number.isNaN(b.seriesNo) ? `Book ${String(b.seriesNo).replace(/\.0+$/, '')} · ` : ''}${b.seriesName}` : '';
 
   const EMPTY = {
-    all: ['Your library awaits', 'Drop books anywhere on this page — EPUB, Kindle, PDF, comics or FB2 — or gather them from a folder.'],
+    all: ['Your library awaits', 'Drop books anywhere on this page (EPUB, Kindle, PDF, comics or FB2), or gather them from a folder.'],
     reading: ['Nothing open on the nightstand', 'Books you begin will rest here until you finish them.'],
     unread: ['Every book has been begun', 'A fine habit. Add something new to keep the shelves full.'],
     favorites: ['No favorites yet', 'Tap the little heart on a cover to keep it close.'],
-    finished: ['No finished books — yet', 'Each book you complete will be pressed here like a flower.'],
+    finished: ['No finished books yet', 'Each book you complete will be pressed here like a flower.'],
     shelf: ['An empty shelf', 'Right-click any book and choose “Shelves…” to place it here.'],
     search: ['Nothing by that name', 'Try a different title or author.'],
   };
@@ -111,7 +111,7 @@
     if (prevSort !== 'custom') {
       await setSettings({ sort: 'custom' });
       $('#sort').value = 'custom';
-      toast('Sorted by your own order — drag books to rearrange', 2600);
+      toast('Sorted by your own order. Drag books to rearrange them.', 2600);
     }
     render();
     if (settleId) $(`#grid .card[data-id="${settleId}"]`)?.classList.add('settle');
@@ -186,7 +186,7 @@
           .slice(0, MAX_ALSO)
           .map(
             (b) =>
-              `<div class="ns-slot"><button class="ns-item" data-open="${b.id}" title="${esc(b.title)} — ${esc(b.author)}">` +
+              `<div class="ns-slot"><button class="ns-item" data-open="${b.id}" title="${esc(b.title)}, ${esc(b.author)}">` +
               `<span class="ns-cover">${coverHtml(b)}</span>` +
               `<span class="ns-text"><span class="ns-title">${esc(b.title)}</span><span class="ns-author">${esc(b.author)}</span>` +
               `<span class="ns-prog"><span class="bar"><i style="width:${pct(b.progress)}"></i></span>${pct(b.progress)}</span></span></button>${asideX(b, 'the nightstand')}</div>`
@@ -358,7 +358,7 @@
     const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
     $('#viewCount').innerHTML =
       `${names.length} ${names.length === 1 ? 'series' : 'series'}` +
-      (waiting ? ` · <button class="crumb found" data-review-series>Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'} — review</button>` : '');
+      (waiting ? ` · <button class="crumb found" data-review-series>Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'}: review</button>` : '');
     $('#grid').innerHTML = names
       .map((name, i) => {
         const { books, read, total, next } = seriesShelf(name);
@@ -530,8 +530,8 @@
     row.innerHTML =
       `<svg class="ring" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10" class="track"/>` +
       `<circle cx="13" cy="13" r="10" class="fill" stroke-dasharray="${(C * frac).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 13 13)"/></svg>` +
-      `<span>${frac >= 1 ? `Today’s ${goal} minutes — done` : `${min} of ${goal} min read today`}</span>`;
-    row.title = 'Daily reading goal — see your reading';
+      `<span>${frac >= 1 ? `Today’s ${goal} minutes: done` : `${min} of ${goal} min read today`}</span>`;
+    row.title = 'Daily reading goal. Click to see your reading.';
   }
 
   // ---------- actions ----------
@@ -699,7 +699,7 @@
     const label = (n) => (n ? `Add ${n} to ${n === 1 ? 'its series' : 'their series'}` : 'Put these aside');
     await openModal(
       `<h3>Series found online</h3>` +
-        `<div class="sub">Wikidata knows which series these books belong to. Untick any that look wrong — they won’t be suggested again.</div>` +
+        `<div class="sub">Wikidata knows which series these books belong to. Untick any that look wrong, and they won’t be suggested again.</div>` +
         `<div class="tidy-list">${found
           .map(
             (b) =>
@@ -738,7 +738,7 @@
     const label = (n) => (n ? `Take ${n} out` : 'Done');
     await openModal(
       `<h3>Series found for you</h3>` +
-        `<div class="sub">These books were put into their series automatically. Untick any that are wrong — they’ll be taken out and not put back.</div>` +
+        `<div class="sub">These books were put into their series automatically. Untick any that are wrong, and they’ll be taken out and not put back.</div>` +
         `<div class="tidy-list">${placed
           .map(
             (b) =>
@@ -956,7 +956,7 @@
 
   function showDetails(id) {
     const b = State.book(id);
-    const fmt = (t) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+    const fmt = (t) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Unknown');
     const rows = [
       ['Series', b.seriesName ? `${b.seriesName}${b.seriesNo != null ? `, book ${b.seriesNo}` : ''}` : ''],
       ['Publisher', b.publisher],
@@ -965,8 +965,8 @@
       ['Added', fmt(b.addedAt)],
       ['Last read', b.lastOpenedAt ? fmt(b.lastOpenedAt) : 'Not yet'],
       ['Progress', b.finished ? 'Finished' : pct(b.progress)],
-      ['Highlights', (b.highlights || []).length || '—'],
-      ['Shelves', (b.shelves || []).map((s) => State.shelves.find((x) => x.id === s)?.name).filter(Boolean).join(', ') || '—'],
+      ['Highlights', (b.highlights || []).length || 'None'],
+      ['Shelves', (b.shelves || []).map((s) => State.shelves.find((x) => x.id === s)?.name).filter(Boolean).join(', ') || 'None'],
     ].filter(([, v]) => v);
     openModal(
       `<button class="icon-btn close" data-x>${icon('close')}</button>` +

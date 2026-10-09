@@ -116,7 +116,7 @@
     return (
       `<figure class="cp-featured" data-book="${esc(p.book.id)}" data-cfi="${esc(p.cfi)}">` +
       `<blockquote>${esc(p.text.length > 420 ? `${p.text.slice(0, 400).replace(/\s+\S*$/, '')}…` : p.text)}</blockquote>` +
-      `<figcaption>— ${esc(p.book.author ? `${p.book.author}, ` : '')}<i>${esc(p.book.title)}</i>` +
+      `<figcaption>${esc(p.book.author ? `${p.book.author}, ` : '')}<i>${esc(p.book.title)}</i>` +
       `<button class="ghost-btn" data-cp="another" title="Another passage">${icon('reset')}<span>Another</span></button></figcaption></figure>`
     );
   }
@@ -127,7 +127,7 @@
     if (!all.length) {
       panel.innerHTML =
         `<div class="cp-empty">${window.Painted.divider()}<h3>Nothing copied out yet</h3>` +
-        `<p>Highlight a passage while you read and it’s gathered here, with any note you write beside it — a commonplace book that keeps itself.</p></div>`;
+        `<p>Highlight a passage while you read and it’s gathered here, with any note you write beside it: a commonplace book that keeps itself.</p></div>`;
       return;
     }
     const colorBtns = [['', 'All']].concat(COLORS).map(
@@ -320,7 +320,7 @@
       if (act === 'copy' && entry) {
         const p = passages().find((x) => x.book.id === entry.dataset.book && x.cfi === entry.dataset.cfi);
         if (p) {
-          await navigator.clipboard.writeText(`${p.text}\n— ${p.book.author ? `${p.book.author}, ` : ''}${p.book.title}`);
+          await navigator.clipboard.writeText(`${p.text}\n${p.book.author ? `${p.book.author}, ` : ''}${p.book.title}`);
           toast('Copied', 1200);
         }
         return;
