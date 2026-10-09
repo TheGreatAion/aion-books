@@ -170,7 +170,7 @@
     const name = esc(s.name);
     let body = '';
     if (s.notName) {
-      body = `<p class="np-muted">Select a name — a word or two — to see where you’ve met them before.</p>`;
+      body = `<p class="np-muted">Select a name (a word or two) to see where you’ve met them before.</p>`;
     } else if (s.fixed) {
       body = `<p class="np-muted">This only works in books with text to search, not page images like PDFs and comics.</p>`;
     } else {
@@ -205,7 +205,7 @@
       }
       if (s.status) body += `<p class="np-muted who-status">${esc(s.status)}</p>`;
       if (!s.searching && !first) {
-        body += `<p class="np-muted">“${name}” hasn’t come up before this page${s.seriesSearched ? ', or in the earlier books' : ''}. They may be new — or known by another name.</p>`;
+        body += `<p class="np-muted">“${name}” hasn’t come up before this page${s.seriesSearched ? ', or in the earlier books' : ''}. They may be new, or known by another name.</p>`;
       }
     }
     const web = s.notName

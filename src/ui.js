@@ -298,7 +298,7 @@
         : `<span class="star ${n <= r ? 'on' : ''}">${svg}</span>`;
     }
     const label = r ? `Rated ${r} out of 5` : 'Not rated';
-    return `<span class="stars ${interactive ? 'rate' : ''} ${cls}" data-rate-id="${id}" role="${interactive ? 'group' : 'img'}" aria-label="${label}" title="${interactive ? (r ? `${label} — click the same star to clear` : 'Rate this book') : label}">${out}</span>`;
+    return `<span class="stars ${interactive ? 'rate' : ''} ${cls}" data-rate-id="${id}" role="${interactive ? 'group' : 'img'}" aria-label="${label}" title="${interactive ? (r ? `${label}. Click the same star to clear it.` : 'Rate this book') : label}">${out}</span>`;
   }
 
   function paintStars(group, r) {

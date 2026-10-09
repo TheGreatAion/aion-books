@@ -202,7 +202,7 @@
       $('#rPercent').textContent = '';
       this.setSlider(this.progress);
       this.closePanels();
-      document.title = `${rec.title} — Aion Books`;
+      document.title = `${rec.title} · Aion Books`;
       $('#vineBR').innerHTML = '';
 
       try {
@@ -248,7 +248,7 @@
         this.poke();
       } catch (err) {
         console.error(err);
-        toast(`Couldn’t open this book — ${esc(err.message || err)}`, 4200);
+        toast(`Couldn’t open this book: ${esc(err.message || err)}`, 4200);
         this.close({ silent: true });
       }
     },
@@ -584,7 +584,7 @@
         patch.finished = true;
         const next = window.Library?.nextInSeries(rec);
         toast(
-          `Finished <em>${esc(rec.title)}</em> — how was it? ${window.UI.stars(rec.rating, { id: rec.id, interactive: true, cls: 'on-ink' })}` +
+          `Finished <em>${esc(rec.title)}</em>. How was it? ${window.UI.stars(rec.rating, { id: rec.id, interactive: true, cls: 'on-ink' })}` +
             (next ? ` <button class="toast-btn" data-open="${next.id}">Next: ${esc(next.title)}</button>` : ''),
           9000
         );

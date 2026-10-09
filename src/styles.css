@@ -3225,10 +3225,6 @@ foliate-view {
   font-style: italic;
   font-size: 15.5px;
 }
-.cp-note::before {
-  content: '— ';
-  color: var(--ink-3);
-}
 .cp-entry footer {
   display: flex;
   align-items: center;

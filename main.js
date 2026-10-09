@@ -1064,7 +1064,7 @@ function registerIpc() {
     if (!books.length) return { written: false, empty: true };
     const res = await dialog.showSaveDialog(win, {
       title: 'Export highlights & notes',
-      defaultPath: path.join(app.getPath('documents'), 'Aion Books — highlights & notes.md'),
+      defaultPath: path.join(app.getPath('documents'), 'Aion Books highlights & notes.md'),
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (res.canceled || !res.filePath) return { written: false };
@@ -1090,7 +1090,7 @@ function notesMarkdown(books) {
     for (const h of b.highlights || []) {
       out.push(`> ${h.text.replace(/\n+/g, ' ')}`);
       if (h.note) out.push('', h.note);
-      if (h.chapter) out.push('', `— ${h.chapter}`);
+      if (h.chapter) out.push('', `*${h.chapter}*`);
       out.push('');
     }
     const bms = b.bookmarks || [];
