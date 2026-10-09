@@ -1,6 +1,6 @@
-// Series: found on Wikidata (from a recorded answer file, never the network),
-// reviewed before they're used, shown with the books you're missing, and set,
-// renamed, numbered or undone by hand.
+// Series: found by themselves (from Wikidata, here a recorded answer file,
+// never the network), unsure ones reviewed first, shown with the books you're
+// missing, set, renamed, numbered or undone by hand, and taken back out.
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const os = require('os');
@@ -28,23 +28,24 @@ test.afterEach(async () => {
 
 const book = (title) => page.evaluate((t) => window.UI.State.books.find((b) => b.title.startsWith(t)), title);
 
-test('new books are looked up, and what’s found waits for review', async () => {
-  // Late Roses has no series in its file; Wikidata (the recorded answers) says it's Orchard Years #3.
-  await expect.poll(async () => (await book('Late Roses')).seriesSuggestion?.series, { timeout: 15000 }).toBe('The Orchard Years');
-  expect((await book('Late Roses')).series || '').toBe(''); // not used until you say so
+test('books go into their series by themselves; an unsure one waits for review', async () => {
+  // Late Roses has no series in its file; Wikidata (the recorded answers) is sure it's Orchard Years #3.
+  await expect.poll(async () => (await book('Late Roses')).series, { timeout: 15000 }).toBe('The Orchard Years');
+  expect((await book('Late Roses')).seriesIndex).toBe(3);
+  expect((await book('Late Roses')).seriesAuto.from).toBe('online');
 
+  // One Long Afternoon fits two series equally well: it waits for a look.
+  await expect.poll(async () => (await book('One Long Afternoon')).seriesSuggestion?.series, { timeout: 15000 }).toBe('Orchard Classics');
+  expect((await book('One Long Afternoon')).series || '').toBe('');
   await page.click('.nav-item[data-view="series"]');
   await page.click('[data-review-series]');
-  await expect(page.locator('.tidy-row')).toHaveCount(2); // Late Roses, and One Long Afternoon
-  await expect(page.locator('.tidy-row', { hasText: 'Late Roses' }).locator('.tidy-to')).toHaveText('The Orchard Years · book 3');
-  // Untick One Long Afternoon: it's put aside, not offered again.
+  await expect(page.locator('.tidy-row')).toHaveCount(1);
+  // Untick it: it's put aside, not offered again.
   await page.locator('.tidy-row', { hasText: 'One Long Afternoon' }).locator('input').uncheck();
-  await expect(page.locator('#modal [data-ok]')).toHaveText('Add 1 to its series');
+  await expect(page.locator('#modal [data-ok]')).toHaveText('Put these aside');
   await page.click('#modal [data-ok]');
-
-  await expect.poll(async () => (await book('Late Roses')).series).toBe('The Orchard Years');
-  expect((await book('Late Roses')).seriesIndex).toBe(3);
-  expect((await book('One Long Afternoon')).seriesSuggestion).toBeUndefined();
+  await expect.poll(async () => (await book('One Long Afternoon')).seriesSuggestion).toBeUndefined();
+  expect((await book('One Long Afternoon')).seriesDismissed).toContain('orchard classics');
   await expect(page.locator('[data-review-series]')).toHaveCount(0);
 });
 
@@ -59,6 +60,22 @@ test('a series page shows your books in order, and the ones you’re missing', a
   await expect(page.locator('#grid .gap-card')).toHaveCount(2);
   await expect(page.locator('#grid .gap-card').first()).toContainText('Not in your library');
   await expect(page.locator('#grid .card.up-next .t')).toHaveText('The Pear Tree Letters');
+});
+
+test('a book put into a series for you can be taken back out, for good', async () => {
+  await page.keyboard.press('Control+,');
+  await page.click('[data-action="series-changes"]');
+  const row = page.locator('.tidy-row', { hasText: 'Late Roses' });
+  await expect(row.locator('.tidy-how')).toHaveText('found on Wikidata');
+  await row.locator('input').uncheck();
+  await expect(page.locator('#modal [data-ok]')).toHaveText('Take 1 out');
+  await page.click('#modal [data-ok]');
+  await expect.poll(async () => (await book('Late Roses')).series).toBe('');
+  expect((await book('Late Roses')).seriesDismissed).toContain('orchard years');
+  // Looking again doesn't put it back.
+  await page.evaluate(() => window.aion.seriesLookupAll());
+  await page.waitForTimeout(1500);
+  expect((await book('Late Roses')).series || '').toBe('');
 });
 
 test('set a book’s series yourself in Edit details', async () => {

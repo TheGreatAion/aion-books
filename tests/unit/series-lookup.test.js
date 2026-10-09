@@ -23,7 +23,11 @@ test('finds a series from Wikidata’s answer (recorded), and prefers one alread
   process.env.AION_WIKIDATA_FIXTURE = path.join(__dirname, '../fixtures/wikidata.json');
   const { findSeries, seriesParts, titleVariants } = require('../../lib/series-lookup');
   const found = await findSeries({ title: 'Late Roses', author: 'Thomas Wren' }, ['The Orchard Years']);
-  assert.deepEqual(found, { qid: 'Q900001', series: 'The Orchard Years', number: 3 });
+  assert.deepEqual(found, { qid: 'Q900001', series: 'The Orchard Years', number: 3, sure: true });
+  // Two series fit as well as each other: not sure, so it waits for a look.
+  assert.equal((await findSeries({ title: 'One Long Afternoon', author: 'Ada Fenwick' })).sure, false);
+  // No author to check against: never sure.
+  assert.equal((await findSeries({ title: 'Late Roses', author: '' })).sure, false);
   assert.equal(await findSeries({ title: 'Nothing Known', author: 'Nobody' }), null);
   const parts = await seriesParts('Q900001');
   assert.deepEqual(parts.map((p) => p.number), [1, 2, 3, 4, 5]);

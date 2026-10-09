@@ -353,21 +353,27 @@
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`
         )}
         ${row(
-          'Find series online',
-          'Books you add without a series are looked up on Wikidata — only the title and author are sent. Whatever’s found waits for you to review.',
+          'Look up series online',
+          'Aion puts books into their series by itself — from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
           toggle('seriesLookup', s.seriesLookup !== false)
         )}
         ${(() => {
-          const loose = State.books.filter((b) => !b.series && !b.seriesLookedUp && b.seriesSource !== 'you').length;
+          const placed = State.books.filter((b) => b.seriesAuto && b.series).length;
           const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
-          if (!loose && !waiting) return '';
+          const pending = State.books.filter((b) => b.seriesLookupPending && !b.series).length;
+          const notes = [
+            placed ? `${placed} ${placed === 1 ? 'book was' : 'books were'} put into ${placed === 1 ? 'its series' : 'their series'} for you.` : '',
+            waiting ? `${waiting} found online ${waiting === 1 ? 'is' : 'are'} waiting for a look.` : '',
+            pending ? `Still looking up ${pending}…` : '',
+          ].filter(Boolean);
+          if (!notes.length) return '';
           return row(
-            'Series for your other books',
-            [loose ? `${loose} ${loose === 1 ? 'book hasn’t' : 'books haven’t'} been looked up yet.` : '', waiting ? `Series found for ${waiting}, waiting for you.` : '']
-              .filter(Boolean)
-              .join(' '),
+            'Series found for you',
+            notes.join(' '),
             `<div class="btn-row">${waiting ? `<button class="ghost-btn bordered" data-action="series-review">Review…</button>` : ''}${
-              loose ? `<button class="ghost-btn bordered" data-action="series-lookup">Look them up</button>` : ''
+              placed ? `<button class="ghost-btn bordered" data-action="series-changes">See what changed…</button>` : ''
+            }${
+              !pending && s.seriesLookup !== false ? `<button class="ghost-btn bordered" data-action="series-lookup">Look again</button>` : ''
             }</div>`
           );
         })()}
@@ -598,9 +604,10 @@
       if (act === 'tts-sample') return sample();
       if (act === 'tidy-titles') return reviewTidy();
       if (act === 'series-review') return window.Library.reviewSeries();
+      if (act === 'series-changes') return window.Library.seriesChanges();
       if (act === 'series-lookup') {
         const n = await window.aion.seriesLookupAll();
-        toast(n ? `Looking up ${n} ${n === 1 ? 'book' : 'books'} on Wikidata…` : 'Nothing left to look up', n ? 0 : 1800);
+        toast(n ? `Looking again for the series of ${n} ${n === 1 ? 'book' : 'books'}…` : 'Every book has its series', 2200);
         return;
       }
       if (act === 'shortcuts') return showShortcuts();
@@ -706,5 +713,6 @@
     showShortcuts();
   });
 
-  window.Settings = { render, renderStats, refreshStats, showShortcuts, bind };
+  const isOpen = () => !$('#settingsPanel').hidden;
+  window.Settings = { render, renderStats, refreshStats, showShortcuts, bind, isOpen };
 })();

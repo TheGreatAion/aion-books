@@ -728,6 +728,44 @@
     );
   }
 
+  // Books put into a series automatically: untick any that are wrong.
+  async function seriesChanges() {
+    const placed = State.books
+      .filter((b) => b.seriesAuto && b.series)
+      .sort((a, b) => b.seriesAuto.at - a.seriesAuto.at || (a.seriesName || '').localeCompare(b.seriesName || '') || (a.seriesNo ?? 0) - (b.seriesNo ?? 0));
+    if (!placed.length) return toast('No books have been put into a series automatically', 2200);
+    const how = { title: 'its title says so', list: 'on the series’ list', family: 'named like the others', online: 'found on Wikidata' };
+    const label = (n) => (n ? `Take ${n} out` : 'Done');
+    await openModal(
+      `<h3>Series found for you</h3>` +
+        `<div class="sub">These books were put into their series automatically. Untick any that are wrong — they’ll be taken out and not put back.</div>` +
+        `<div class="tidy-list">${placed
+          .map(
+            (b) =>
+              `<label class="tidy-row"><input type="checkbox" data-id="${esc(b.id)}" checked>` +
+              `<span class="review-book">${esc(b.title)}${b.author ? ` · ${esc(b.author)}` : ''}</span>` +
+              `<span class="tidy-to">${esc(b.seriesName || b.series)}${b.seriesNo != null ? ` <em>· book ${esc(b.seriesNo)}</em>` : ''}` +
+              `<em class="tidy-how">${how[b.seriesAuto.from] || ''}</em></span></label>`
+          )
+          .join('')}</div>` +
+        `<div class="actions"><button class="solid-btn" data-ok>Done</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          const ok = $('[data-ok]', m);
+          const unticked = () => [...m.querySelectorAll('.tidy-row input')].filter((i) => !i.checked).map((i) => i.dataset.id);
+          m.addEventListener('change', () => (ok.textContent = label(unticked().length)));
+          ok.onclick = async () => {
+            const out = unticked();
+            if (out.length) State.set(await window.aion.seriesUndo(out));
+            close(true);
+            if (out.length) toast(`Took ${out.length} ${out.length === 1 ? 'book' : 'books'} out of ${out.length === 1 ? 'its series' : 'their series'}`, 2200);
+          };
+        },
+      }
+    );
+  }
+
   // ---------- choosing several books ----------
   // Ctrl-click adds or takes away a book, Shift-click takes in a run of them;
   // then shelve, finish, favorite or remove them together.
@@ -1231,12 +1269,16 @@
 
     // Library changed outside this window: watched folder, a synced copy, series backfill.
     window.aion.onLibraryChanged((snap) => State.set(snap));
-    // Looking up series on Wikidata (when you asked for your other books).
+    // Series are found in the background; say so when books are placed, and
+    // when some found online are waiting for a look.
+    window.aion.onSeriesPlaced(({ count }) =>
+      toast(`Put ${count} ${count === 1 ? 'book' : 'books'} into ${count === 1 ? 'its series' : 'their series'} <button class="toast-btn" data-series-changes>See what changed</button>`, 8000)
+    );
     window.aion.onSeriesProgress((p) => {
-      if (!p) return;
-      if (!p.finished) return toast(`Looking up series on Wikidata… ${p.done} of ${p.total}${p.found ? ` · ${p.found} found` : ''}`, 0);
-      if (p.found) toast(`Found the series of ${p.found} ${p.found === 1 ? 'book' : 'books'} <button class="toast-btn" data-review-series>Review</button>`, 10000);
-      else toast('No new series found', 2400);
+      if (window.Settings?.isOpen?.()) window.Settings.render();
+      if (!p?.finished) return;
+      const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
+      if (waiting) toast(`Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'}, waiting for a look <button class="toast-btn" data-review-series>Review</button>`, 10000);
     });
     window.aion.onAutoImport(({ added }) => toast(`${added} new ${added === 1 ? 'book' : 'books'} from your watched folder`, 3000));
     window.aion.onUpdateStatus((s) => {
@@ -1245,6 +1287,10 @@
       }
     });
     $('#toast').addEventListener('click', (e) => {
+      if (e.target.closest('[data-series-changes]')) {
+        $('#toast').hidden = true;
+        return seriesChanges();
+      }
       if (e.target.closest('[data-review-series]')) {
         $('#toast').hidden = true;
         return reviewSeries();
@@ -1282,6 +1328,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries, reviewSeries };
+  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries, reviewSeries, seriesChanges };
   boot();
 })();
