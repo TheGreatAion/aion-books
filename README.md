@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/library-dusk.png"><img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860"></picture>
 </p>
 
 Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
@@ -67,7 +67,7 @@ that isn't the store's own.
 - **A watched folder:** save a book into it and it appears in your library on its own.
 
 <p align="center">
-  <img src="docs/screenshots/series.png" alt="A book series in Aion Books: the books you have in reading order, with the ones you're missing marked where they fall" width="860">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/series-dusk.png"><img src="docs/screenshots/series.png" alt="A book series in Aion Books: the books you have in reading order, with the ones you're missing marked where they fall" width="860"></picture>
 </p>
 
 ### Reading
@@ -88,7 +88,7 @@ that isn't the store's own.
 - **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
-  <img src="docs/screenshots/reader.png" alt="Reading an EPUB in Aion Books: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reader-dusk.png"><img src="docs/screenshots/reader.png" alt="Reading an EPUB in Aion Books: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860"></picture>
 </p>
 
 ### Your commonplace book
@@ -102,7 +102,7 @@ how you rated it), plus time spent reading, streaks, pages turned, a fourteen-da
 reading goal that fills a small ring in the sidebar.
 
 <p align="center">
-  <img src="docs/screenshots/stats.png" alt="Your reading: time spent reading, current streak, books finished, pages turned, a 14-day chart and the books you spent the most time with" width="860">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/stats-dusk.png"><img src="docs/screenshots/stats.png" alt="Your reading: time spent reading, current streak, books finished, pages turned, a 14-day chart and the books you spent the most time with" width="860"></picture>
 </p>
 
 ### Your data stays yours
@@ -114,7 +114,7 @@ reading goal that fills a small ring in the sidebar.
   turn off in Settings.
 
 <p align="center">
-  <img src="docs/screenshots/library-dusk.png" alt="The Aion Books home page in the dark Dusk theme" width="860">
+  <img src="docs/screenshots/library-parchment.png" alt="The Aion Books home page on the Parchment paper" width="860">
 </p>
 
 ## Questions
