@@ -1,5 +1,5 @@
 # Builds the Windows installer and publishes it as a GitHub release.
-# Installed copies of Aion Books pick the new version up automatically.
+# Installed copies of AionBooks pick the new version up automatically.
 #
 # Before running: bump "version" in package.json (e.g. 1.2.0 -> 1.3.0),
 # commit and push, and make sure you're signed in with `gh auth login`.
@@ -43,11 +43,11 @@ $ErrorActionPreference = 'Continue'
 $exists = $LASTEXITCODE -eq 0
 $ErrorActionPreference = 'Stop'
 if (-not $exists) {
-  & $ghPath release create $tag --repo TheGreatAion/aion-books --title "Aion Books $version" --notes "Aion Books $version"
+  & $ghPath release create $tag --repo TheGreatAion/aion-books --title "AionBooks $version" --notes "AionBooks $version"
   if ($LASTEXITCODE -ne 0) { throw "Couldn't create release $tag" }
 }
 
-Write-Host "Publishing Aion Books $tag ..."
+Write-Host "Publishing AionBooks $tag ..."
 npx electron-builder --win nsis --publish always
 if ($LASTEXITCODE -ne 0) { throw "Build or upload failed (exit $LASTEXITCODE)" }
 Write-Host "Done: https://github.com/TheGreatAion/aion-books/releases/tag/v$version"

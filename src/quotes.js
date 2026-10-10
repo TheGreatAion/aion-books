@@ -1,9 +1,9 @@
-// The quote beside Continue reading: a different one each time Aion opens.
+// The quote beside Continue reading: a different one each time AionBooks opens.
 //
 // Quotes come from public-domain books (src/quote-list.js), and now and then
 // from the passages you've highlighted yourself. They're dealt like a shuffled
 // deck, so none comes round again until you've seen them all. The quote stays
-// the same until Aion is closed.
+// the same until AionBooks is closed.
 (function () {
   const BAG = 'aion.quoteBag';
   const MINE_EVERY = 4; // about one open in four shows one of your highlights

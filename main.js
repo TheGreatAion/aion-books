@@ -29,6 +29,24 @@ const TITLEBAR = {
 };
 
 if (process.env.AION_DATA_DIR) app.setPath('userData', process.env.AION_DATA_DIR);
+else moveLibraryFolder();
+
+// Until 1.7 the app was called "Aion Books", and its library folder was named
+// after it. The first time the app starts under its new name, the folder moves
+// to the new one; if it can't be moved (something has a file in it open), the
+// app simply carries on using the old one, so a library is never left behind.
+function moveLibraryFolder() {
+  const appData = app.getPath('appData');
+  const before = path.join(appData, 'Aion Books');
+  const now = path.join(appData, 'AionBooks');
+  if (!fs.existsSync(before) || fs.existsSync(path.join(now, 'library.json')) || fs.existsSync(path.join(now, 'config.json'))) return;
+  try {
+    if (fs.existsSync(now)) throw new Error('a folder by the new name is already there');
+    fs.renameSync(before, now);
+  } catch {
+    app.setPath('userData', before);
+  }
+}
 
 // ---------- single instance + "Open with" ----------
 if (!app.requestSingleInstanceLock()) {
@@ -367,7 +385,7 @@ async function createBackup(file) {
   const JSZip = require('jszip');
   const zip = new JSZip();
   zip.file('library.json', fs.readFileSync(store.file));
-  zip.file('aion-backup.json', JSON.stringify({ app: 'Aion Books', version: app.getVersion(), createdAt: Date.now() }));
+  zip.file('aion-backup.json', JSON.stringify({ app: 'AionBooks', version: app.getVersion(), createdAt: Date.now() }));
   for (const d of DATA_DIRS) {
     const dir = path.join(dirs.root, d);
     if (!fs.existsSync(dir)) continue;
@@ -389,7 +407,7 @@ async function createBackup(file) {
 async function restoreBackup(file) {
   const JSZip = require('jszip');
   const zip = await JSZip.loadAsync(fs.readFileSync(file));
-  if (!zip.file('library.json') || !zip.file('aion-backup.json')) throw new Error('This isn’t an Aion Books backup');
+  if (!zip.file('library.json') || !zip.file('aion-backup.json')) throw new Error('This isn’t an AionBooks backup');
   JSON.parse(await zip.file('library.json').async('string')); // validate before touching anything
   stopWatching();
   store.flush();
@@ -712,8 +730,8 @@ function registerIpc() {
   ipcMain.handle('backup:create', async () => {
     const res = await dialog.showSaveDialog(win, {
       title: 'Back up your library',
-      defaultPath: path.join(app.getPath('documents'), `Aion Books backup ${dayKey()}.aionbackup`),
-      filters: [{ name: 'Aion Books backup', extensions: ['aionbackup'] }],
+      defaultPath: path.join(app.getPath('documents'), `AionBooks backup ${dayKey()}.aionbackup`),
+      filters: [{ name: 'AionBooks backup', extensions: ['aionbackup'] }],
     });
     if (res.canceled || !res.filePath) return null;
     const info = await createBackup(res.filePath);
@@ -724,7 +742,7 @@ function registerIpc() {
     const res = await dialog.showOpenDialog(win, {
       title: 'Restore a backup',
       properties: ['openFile'],
-      filters: [{ name: 'Aion Books backup', extensions: ['aionbackup', 'zip'] }],
+      filters: [{ name: 'AionBooks backup', extensions: ['aionbackup', 'zip'] }],
     });
     if (res.canceled) return null;
     try {
@@ -1064,7 +1082,7 @@ function registerIpc() {
     if (!books.length) return { written: false, empty: true };
     const res = await dialog.showSaveDialog(win, {
       title: 'Export highlights & notes',
-      defaultPath: path.join(app.getPath('documents'), 'Aion Books highlights & notes.md'),
+      defaultPath: path.join(app.getPath('documents'), 'AionBooks highlights & notes.md'),
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (res.canceled || !res.filePath) return { written: false };
@@ -1084,7 +1102,7 @@ function registerIpc() {
 }
 
 function notesMarkdown(books) {
-  const out = ['# Highlights & notes', '', `_Exported from Aion Books on ${new Date().toLocaleDateString()}_`, ''];
+  const out = ['# Highlights & notes', '', `_Exported from AionBooks on ${new Date().toLocaleDateString()}_`, ''];
   for (const b of books) {
     out.push(`## ${b.title}`, `*${b.author}*`, '');
     for (const h of b.highlights || []) {
@@ -1104,7 +1122,7 @@ function notesMarkdown(books) {
 }
 
 // ---------- following Windows' light / dark mode ----------
-// Aion keeps its own paper colors, so it reads Windows' "app mode" setting
+// AionBooks keeps its own paper colors, so it reads Windows' "app mode" setting
 // directly rather than letting Chromium switch to dark controls.
 let systemDark = false;
 function readSystemDark() {
@@ -1295,7 +1313,7 @@ async function runLookups() {
           continue;
         }
         // A hiccup: try this one again twice, a little later; then skip it
-        // (it's looked up again next time Aion starts) and carry on.
+        // (it's looked up again next time AionBooks starts) and carry on.
         const tries = (lookupTries.get(item) || 0) + 1;
         lookupTries.set(item, tries);
         if (tries <= 2) {
@@ -1379,7 +1397,7 @@ function createWindow() {
     ...(saved?.x != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 760,
     minHeight: 560,
-    title: 'Aion Books',
+    title: 'AionBooks',
     backgroundColor: theme === 'dusk' ? '#2b2620' : '#efe6d3',
     titleBarStyle: 'hidden',
     titleBarOverlay: { ...(TITLEBAR[theme] || TITLEBAR.linen), height: 44 },

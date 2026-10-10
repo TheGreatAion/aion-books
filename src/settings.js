@@ -110,7 +110,7 @@
       case 'error':
         return `Couldn’t check for updates: ${esc(update.message || 'unknown error')}`;
       case 'unsupported':
-        return 'This copy can’t update itself. Install Aion Books with the setup program from GitHub and it will keep itself up to date.';
+        return 'This copy can’t update itself. Install AionBooks with the setup program from GitHub and it will keep itself up to date.';
       default:
         return 'Updates come from github.com/TheGreatAion/aion-books.';
     }
@@ -354,7 +354,7 @@
         )}
         ${row(
           'Look up series online',
-          'Aion puts books into their series by itself, from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
+          'AionBooks puts books into their series by itself, from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
           toggle('seriesLookup', s.seriesLookup !== false)
         )}
         ${(() => {
@@ -422,7 +422,7 @@
         )}
         ${row('Botanical decorations', 'The painted vines, lemon bough and olive sprigs.', toggle('flora', s.flora !== false))}
         ${row(
-          'A quote when Aion opens',
+          'A quote when AionBooks opens',
           'A line from a book worth reading beside Continue reading, different each time. Now and then it’s one of your own highlights.',
           toggle('openingQuote', s.openingQuote !== false)
         )}
@@ -447,7 +447,7 @@
 
       <footer class="set-about">
         <button class="ghost-btn" data-action="shortcuts">Keyboard shortcuts <kbd>?</kbd></button>
-        <span>Aion Books ${info ? esc(info.version) : ''}</span>
+        <span>AionBooks ${info ? esc(info.version) : ''}</span>
       </footer>`;
     $('#libScroll').scrollTop = scroll;
   }
@@ -471,7 +471,7 @@
     const label = (n) => `Tidy ${n} ${n === 1 ? 'title' : 'titles'}`;
     await window.UI.openModal(
       `<h3>Tidy book titles</h3>` +
-        `<div class="sub">Only clutter Aion can be sure of. Each original title is kept: “Restore original title” on a book’s menu puts it back.</div>` +
+        `<div class="sub">Only clutter AionBooks can be sure of. Each original title is kept: “Restore original title” on a book’s menu puts it back.</div>` +
         `<div class="tidy-list">${plans
           .map(
             (p) =>
@@ -586,7 +586,7 @@
         const family = removeBtn.dataset.removeFont;
         const ok = await confirmBox({
           title: 'Remove this font?',
-          sub: `<em>${esc(family)}</em> will be removed from Aion Books. If you’re reading in it, the book switches back to Garamond.`,
+          sub: `<em>${esc(family)}</em> will be removed from AionBooks. If you’re reading in it, the book switches back to Garamond.`,
           okLabel: 'Remove',
         });
         if (!ok) return;
@@ -646,7 +646,7 @@
       if (act === 'restore') {
         const ok = await confirmBox({
           title: 'Restore from a backup?',
-          sub: 'Your library will be replaced by the one in the backup, and Aion Books will restart. The current library is kept in a folder beside it, just in case.',
+          sub: 'Your library will be replaced by the one in the backup, and AionBooks will restart. The current library is kept in a folder beside it, just in case.',
           okLabel: 'Choose backup…',
         });
         if (!ok) return;
@@ -662,12 +662,12 @@
           pick.hasLibrary
             ? {
                 title: 'Use the library in that folder?',
-                sub: `There’s already an Aion Books library in <em>${esc(pick.folder)}</em>, perhaps from another PC. Aion Books will restart and open it. Your current library stays where it is.`,
+                sub: `There’s already an AionBooks library in <em>${esc(pick.folder)}</em>, perhaps from another PC. AionBooks will restart and open it. Your current library stays where it is.`,
                 okLabel: 'Use it',
               }
             : {
                 title: 'Move your library here?',
-                sub: `Your books, progress and notes will be copied to <em>${esc(pick.folder)}</em> and Aion Books will restart. The old copy stays where it is until you delete it.`,
+                sub: `Your books, progress and notes will be copied to <em>${esc(pick.folder)}</em> and AionBooks will restart. The old copy stays where it is until you delete it.`,
                 okLabel: 'Move',
               }
         );
@@ -680,7 +680,7 @@
       if (act === 'default-location') {
         const ok = await confirmBox({
           title: 'Go back to the default location?',
-          sub: 'Aion Books will restart and use the library in its own app folder. Nothing is copied or deleted.',
+          sub: 'AionBooks will restart and use the library in its own app folder. Nothing is copied or deleted.',
           okLabel: 'Restart',
         });
         if (ok) window.aion.resetLocation();
