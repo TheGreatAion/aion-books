@@ -1,6 +1,6 @@
 {
   "name": "aionbooks",
-  "productName": "Aion Books",
+  "productName": "AionBooks",
   "version": "1.6.1",
   "description": "A quiet e-book reader and library for Windows.",
   "main": "main.js",
@@ -47,7 +47,7 @@
   },
   "build": {
     "appId": "com.aionbooks.reader",
-    "productName": "Aion Books",
+    "productName": "AionBooks",
     "publish": [
       {
         "provider": "github",
@@ -107,10 +107,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Aion Books",
+      "shortcutName": "AionBooks",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "Aion-Books-Setup-${version}.${ext}"
+      "artifactName": "AionBooks-Setup-${version}.${ext}"
     }
   }
 }

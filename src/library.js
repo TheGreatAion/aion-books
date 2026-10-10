@@ -217,7 +217,7 @@
 
   // ---------- home ----------
   // A shuffle that stays put for this session, so "Waiting on the shelf" shows
-  // a different few each time you open Aion, but doesn't jump about as you use it.
+  // a different few each time you open AionBooks, but doesn't jump about as you use it.
   const sessionSeed = Math.floor(Math.random() * 1e9);
   const shuffled = (list) =>
     list
@@ -1301,7 +1301,7 @@
     window.aion.onAutoImport(({ added }) => toast(`${added} new ${added === 1 ? 'book' : 'books'} from your watched folder`, 3000));
     window.aion.onUpdateStatus((s) => {
       if (s.state === 'ready') {
-        toast(`Aion Books ${esc(s.version)} is ready <button class="toast-btn" data-update-install>Restart to update</button>`, 0);
+        toast(`AionBooks ${esc(s.version)} is ready <button class="toast-btn" data-update-install>Restart to update</button>`, 0);
       }
     });
     $('#toast').addEventListener('click', (e) => {

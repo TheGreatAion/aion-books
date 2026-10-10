@@ -202,7 +202,7 @@
       $('#rPercent').textContent = '';
       this.setSlider(this.progress);
       this.closePanels();
-      document.title = `${rec.title} · Aion Books`;
+      document.title = `${rec.title} · AionBooks`;
       $('#vineBR').innerHTML = '';
 
       try {
@@ -269,7 +269,7 @@
       this.book = null;
       this.loc = null;
       $('#viewer').innerHTML = '';
-      document.title = 'Aion Books';
+      document.title = 'AionBooks';
       const lib = $('#library');
       lib.dataset.visit = String(Number(lib.dataset.visit || 0) + 1);
       $('#reader').classList.remove('is-active');

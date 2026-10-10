@@ -1,5 +1,5 @@
 /* ================================================================
-   Aion Books — rustic floral, lightly weathered paper
+   AionBooks — rustic floral, lightly weathered paper
    ================================================================ */
 
 :root,
@@ -417,7 +417,7 @@ button {
   height: 96px;
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 0; /* AionBooks: one word, in two styles */
   padding: 40px 10px 0;
 }
 .brand-name {
@@ -427,6 +427,7 @@ button {
   letter-spacing: 0.01em;
 }
 .brand-sub {
+  margin-left: -1px;
   font-family: var(--display);
   font-style: italic;
   font-size: 19px;

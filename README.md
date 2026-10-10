@@ -1,4 +1,4 @@
-<h1 align="center">Aion Books</h1>
+<h1 align="center">AionBooks</h1>
 
 <p align="center">
   <em>A free, quiet, paper-textured e-book reader and library for Windows:<br>EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FB2.</em>
@@ -15,10 +15,10 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/library-dusk.png"><img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/library-dusk.png"><img src="docs/screenshots/library.png" alt="The AionBooks e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860"></picture>
 </p>
 
-Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
+AionBooks is a home for your book collection and a calm place to read it. Pages feel like lightly
 weathered paper, a few painted botanicals (ivy, lemons, olive) grow in the margins, and everything
 else stays out of the way of the words.
 
@@ -28,7 +28,7 @@ shelves, and works entirely offline: no account, no subscription, no tracking.
 
 ## Download
 
-1. Grab **`Aion-Books-Setup-x.y.z.exe`** from the [latest release](https://github.com/TheGreatAion/aion-books/releases/latest).
+1. Grab **`AionBooks-Setup-x.y.z.exe`** from the [latest release](https://github.com/TheGreatAion/aion-books/releases/latest).
 2. Run it. Windows may say the publisher is unknown (the installer isn't code-signed). Choose
    **More info → Run anyway**.
 3. Drop some books onto the window and start reading: EPUB, Kindle (MOBI, AZW3), PDF, comics (CBZ) or FictionBook (FB2).
@@ -67,7 +67,7 @@ that isn't the store's own.
 - **A watched folder:** save a book into it and it appears in your library on its own.
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/series-dusk.png"><img src="docs/screenshots/series.png" alt="A book series in Aion Books: the books you have in reading order, with the ones you're missing marked where they fall" width="860"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/series-dusk.png"><img src="docs/screenshots/series.png" alt="A book series in AionBooks: the books you have in reading order, with the ones you're missing marked where they fall" width="860"></picture>
 </p>
 
 ### Reading
@@ -88,7 +88,7 @@ that isn't the store's own.
 - **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reader-dusk.png"><img src="docs/screenshots/reader.png" alt="Reading an EPUB in Aion Books: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reader-dusk.png"><img src="docs/screenshots/reader.png" alt="Reading an EPUB in AionBooks: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860"></picture>
 </p>
 
 ### Your commonplace book
@@ -109,17 +109,17 @@ reading goal that fills a small ring in the sidebar.
 - Everything lives in one folder on your PC. **Back up and restore** the whole library (books,
   progress, highlights, shelves and fonts) as a single file.
 - Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between PCs.
-- No accounts and no tracking. The only times Aion Books goes online are when you look up a word
+- No accounts and no tracking. The only times AionBooks goes online are when you look up a word
   (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, when it looks up a new book’s series on Wikidata, and when it checks GitHub for updates, which you can
   turn off in Settings.
 
 <p align="center">
-  <img src="docs/screenshots/library-parchment.png" alt="The Aion Books home page on the Parchment paper" width="860">
+  <img src="docs/screenshots/library-parchment.png" alt="The AionBooks home page on the Parchment paper" width="860">
 </p>
 
 ## Questions
 
-**Is Aion Books free?** Yes: free and open source, under the MIT license. No ads, no account, no
+**Is AionBooks free?** Yes: free and open source, under the MIT license. No ads, no account, no
 in-app purchases.
 
 **Can it read Kindle books?** Kindle files (MOBI, AZW3) without DRM, yes. Books still locked to
@@ -128,10 +128,10 @@ Amazon's apps can't be opened.
 **Does it work offline?** Completely. It only goes online when you look up a word, a character or a
 book's series, and to check for updates, each of which you can turn off or simply not use.
 
-**Is there a Mac or Linux version?** Not yet: Aion Books is made for Windows 10 and 11. It's built on
+**Is there a Mac or Linux version?** Not yet: AionBooks is made for Windows 10 and 11. It's built on
 Electron, so other systems are possible later.
 
-**Where are my books kept?** In one folder on your PC (`%APPDATA%\Aion Books`), which you can move
+**Where are my books kept?** In one folder on your PC (`%APPDATA%\AionBooks`), which you can move
 (to a OneDrive or Dropbox folder, say) to share your library and reading progress between PCs.
 
 ## Keyboard shortcuts
@@ -166,8 +166,8 @@ npm start
 | ----------------- | ------------------------------------------------------------------- |
 | `npm start`       | Run the app from source                                             |
 | `npm test`        | Run the unit tests and the app tests                                |
-| `npm run pack`    | Build an unpacked copy → `release/win-unpacked/Aion Books.exe`      |
-| `npm run dist`    | Build the installer → `release/Aion-Books-Setup-x.y.z.exe`          |
+| `npm run pack`    | Build an unpacked copy → `release/win-unpacked/AionBooks.exe`      |
+| `npm run dist`    | Build the installer → `release/AionBooks-Setup-x.y.z.exe`          |
 | `npm run release` | Build the installer and publish it as a GitHub release (needs `gh auth login`) |
 
 Close any running copy before building, because it locks `release/win-unpacked`.
@@ -193,7 +193,7 @@ Installed copies pick it up automatically.
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |
 | `src/styles.css`         | Everything visual                                                         |
 
-By default your library is stored in `%APPDATA%\Aion Books`. **Settings → Your data → Library location**
+By default your library is stored in `%APPDATA%\AionBooks`. **Settings → Your data → Library location**
 can move it.
 
 ## Thanks
