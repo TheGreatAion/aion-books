@@ -106,6 +106,12 @@ test('search sits beside the heading, and Ctrl+F finds it from Settings', async 
 });
 
 test('a quote sits beside Continue reading, clear of the title, and can be turned off', async () => {
+  // Wide enough for it (in a narrow window it steps aside).
+  await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0];
+    w.unmaximize();
+    w.setContentSize(1400, 900);
+  });
   await page.locator('#nav [data-view="home"]').click();
   const quote = page.locator('#hero .hero-quote');
   await expect(quote).toBeVisible();
