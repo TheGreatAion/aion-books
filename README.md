@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top with a quote beside it, the other books on your nightstand beneath it, and rows of books below" width="860">
+  <img src="docs/screenshots/library.png" alt="The Aion Books e-book library on Windows: the book you're reading featured at the top, the other books on your nightstand beneath it, and rows of books below" width="860">
 </p>
 
 Aion Books is a home for your book collection and a calm place to read it. Pages feel like lightly
