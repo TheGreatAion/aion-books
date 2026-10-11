@@ -712,14 +712,15 @@
     if (!found.length) return toast('No series waiting for review', 1800);
     const label = (n) => (n ? `Add ${n} to ${n === 1 ? 'its series' : 'their series'}` : 'Put these aside');
     await openModal(
-      `<h3>Series found online</h3>` +
-        `<div class="sub">Wikidata knows which series these books belong to. Untick any that look wrong, and they won’t be suggested again.</div>` +
+      `<h3>Do these belong to a series?</h3>` +
+        `<div class="sub">These books look like they belong to these series. Untick any that are wrong, and they won’t be suggested again.</div>` +
         `<div class="tidy-list">${found
           .map(
             (b) =>
               `<label class="tidy-row"><input type="checkbox" data-id="${esc(b.id)}" checked>` +
               `<span class="review-book">${esc(b.title)}${b.author ? ` · ${esc(b.author)}` : ''}</span>` +
-              `<span class="tidy-to">${esc(b.seriesSuggestion.series)}${b.seriesSuggestion.number != null ? ` <em>· book ${esc(b.seriesSuggestion.number)}</em>` : ''}</span></label>`
+              `<span class="tidy-to">${esc(b.seriesSuggestion.series)}${b.seriesSuggestion.number != null ? ` <em>· book ${esc(b.seriesSuggestion.number)}</em>` : ''}` +
+              `<em class="tidy-how">${b.seriesSuggestion.why === 'author' ? `${esc(b.author || 'The author')}’s other books here are in it` : 'found on Wikidata'}</em></span></label>`
           )
           .join('')}</div>` +
         `<div class="actions"><button class="ghost-btn" data-x>Not now</button><button class="solid-btn" data-ok>${label(found.length)}</button></div>`,

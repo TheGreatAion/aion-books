@@ -1185,16 +1185,24 @@ function putInSeries(b, series, number, from, title) {
 // Everything the library can work out by itself. Returns how many books were placed.
 function placeSeries() {
   let placed = 0;
-  for (const p of seriesFinder.placeLocally(store.data.books, store.data.seriesInfo)) {
+  const lookupOff = store.data.settings.seriesLookup === false;
+  for (const p of seriesFinder.placeLocally(store.data.books, store.data.seriesInfo, { lookupOff })) {
     const b = findBook(p.id);
     if (!b || b.seriesSource === 'you') continue;
     if (p.from === 'renumber') {
       b.series = SeriesKey.split(b.series).name;
       b.seriesIndex = p.number;
-      continue;
+    } else if (p.from === 'merge') {
+      // One series by two names: the name its other books use.
+      b.series = p.series;
+      if (p.number != null) b.seriesIndex = p.number;
+    } else if (p.suggest) {
+      // Probably, not surely: asked, never done.
+      if (!b.seriesSuggestion) b.seriesSuggestion = { series: p.series, number: p.number ?? null, why: p.from };
+    } else {
+      putInSeries(b, p.series, p.number, p.from, p.title);
+      placed++;
     }
-    putInSeries(b, p.series, p.number, p.from, p.title);
-    placed++;
   }
   return placed;
 }
@@ -1212,13 +1220,30 @@ function announcePlaced(n) {
   }, 1500);
 }
 
+// Books an earlier version put into a series from Wikidata without knowing
+// their number (often a loose grouping, like the Iliad in the "Epic Cycle")
+// go back to being a question.
+function askAboutUnnumbered() {
+  for (const b of store.data.books) {
+    if (!['online', 'list'].includes(b.seriesAuto?.from) || b.seriesIndex != null || !b.series) continue;
+    const listed = (store.data.seriesInfo[SeriesKey.key(b.series)]?.parts || []).some((p) => p.number != null && seriesFinder.keysWithin(p.title, SeriesKey.key(b.series)).has(seriesFinder.titleKey(b.title)));
+    if (listed) continue; // the list knows its number: placeSeries fills it in
+    b.seriesSuggestion = { series: b.series, number: null };
+    b.series = '';
+    delete b.seriesAuto;
+    delete b.seriesSource;
+  }
+}
+
 function placeAndTell() {
+  const before = JSON.stringify(store.data.books.map((b) => [b.series, b.seriesIndex, b.seriesSuggestion?.series]));
   const n = placeSeries();
-  if (n) {
+  // Numbers put right, names merged and questions asked count too, not just books placed.
+  if (n || JSON.stringify(store.data.books.map((b) => [b.series, b.seriesIndex, b.seriesSuggestion?.series])) !== before) {
     store.save();
     notifyLater();
-    announcePlaced(n);
   }
+  announcePlaced(n);
   return n;
 }
 
@@ -1231,7 +1256,7 @@ function queueSeriesLookup(ids) {
     if (!b.series) continue;
     const key = SeriesKey.key(b.series);
     const info = store.data.seriesInfo[key];
-    if (info?.parts?.length || (info && Date.now() - (info.at || 0) < LEARN_AGAIN)) continue;
+    if (info?.parts?.length || (info && info.v === 2 && Date.now() - (info.at || 0) < LEARN_AGAIN)) continue;
     if (!learn.includes(`series:${key}`) && !lookupQueue.includes(`series:${key}`)) learn.push(`series:${key}`);
   }
   const firstBook = lookupQueue.findIndex((x) => !x.startsWith('series:'));
@@ -1250,7 +1275,7 @@ function queueSeriesLookup(ids) {
 async function learnSeries(key, found) {
   if (store.data.seriesInfo[key]?.parts?.length) return;
   const parts = await seriesLookup.seriesParts(found.qid);
-  store.data.seriesInfo[key] = { name: found.series, qid: found.qid, parts, at: Date.now() };
+  store.data.seriesInfo[key] = { name: found.series, qid: found.qid, parts, at: Date.now(), v: 2 };
 }
 
 const dismissedFor = (b, name) => (b.seriesDismissed || []).includes(SeriesKey.key(name));
@@ -1274,7 +1299,7 @@ async function runLookups() {
             let found = await seriesLookup.findSeries(b, [b.series]);
             if (!found || SeriesKey.key(found.series) !== key) found = await seriesLookup.findSeriesByName(b.series, b.author);
             if (found?.qid) await learnSeries(key, found);
-            else store.data.seriesInfo[key] = { name: b.series, qid: null, parts: [], at: Date.now() };
+            else store.data.seriesInfo[key] = { name: b.series, qid: null, parts: [], at: Date.now(), v: 2 };
             placeAndTell();
           }
         } else {
@@ -1288,7 +1313,9 @@ async function runLookups() {
             b.seriesLookedUp = Date.now();
             if (found && !dismissedFor(b, found.series)) {
               const key = SeriesKey.key(found.series);
-              if (found.sure) {
+              // Sure, and Wikidata knows where in the series it falls: used straight away.
+              // Without a number it's often a loose grouping ("Epic Cycle"), so it's asked.
+              if (found.sure && found.number != null) {
                 putInSeries(b, found.series, found.number, 'online');
                 announcePlaced(1);
               } else {
@@ -1500,6 +1527,7 @@ app.whenReady().then(() => {
     setTimeout(() => {
       backfillSeries();
       backfillThumbs();
+      askAboutUnnumbered();
       placeAndTell();
       queueSeriesLookup(store.data.books.map((b) => b.id));
       if (store.data.settings.watchFolder) startWatching(store.data.settings.watchFolder);

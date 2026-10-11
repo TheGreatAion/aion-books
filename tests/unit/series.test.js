@@ -54,3 +54,9 @@ test('books without a series are left alone', () => {
   Series.group([b]);
   assert.equal(b.seriesId, undefined);
 });
+
+test('a series of one, or an edition, isn’t shown as a series, unless you made it', () => {
+  assert.deepEqual(groups([book('Rama', 1, 'Arthur C. Clarke')]), {});
+  assert.deepEqual(groups([{ ...book('Rama', 1, 'Arthur C. Clarke'), seriesSource: 'you' }]), { Rama: [1] });
+  assert.deepEqual(groups([book('Middle Earth Illustrated Editions', 2, 'J.R.R. Tolkien'), book('Middle Earth Illustrated Editions', 3, 'J.R.R. Tolkien')]), {});
+});

@@ -77,3 +77,38 @@ test('two books with one number: the series’ list sorts them out', () => {
   const info = { 'wheel of time': { parts: [{ number: 13, title: 'Towers of Midnight' }, { number: 14, title: 'A Memory of Light' }] } };
   assert.deepEqual(placeLocally(books, info), [{ id: 'a', number: 13, from: 'renumber' }]);
 });
+
+test('a missing number comes from the series’ list', () => {
+  const books = [
+    book('a', 'The Way of Kings', 'Brandon Sanderson', { series: 'The Stormlight Archive', seriesIndex: 1 }),
+    book('b', 'Words of Radiance', 'Brandon Sanderson', { series: 'The Stormlight Archive', seriesIndex: null, seriesAuto: { from: 'title' } }),
+  ];
+  const info = { 'stormlight archive': { parts: [{ number: 1, title: 'The Way of Kings' }, { number: 2, title: 'Words of Radiance' }] } };
+  assert.deepEqual(placeLocally(books, info, { suggest: false }), [{ id: 'b', number: 2, from: 'renumber' }]);
+});
+
+test('one series by two names, by the same author, becomes one', () => {
+  const books = [
+    book('a', 'The Name of the Wind', 'Patrick Rothfuss', { series: 'The Kingkiller', seriesIndex: 1 }),
+    book('b', 'The Wise Man’s Fear', 'Patrick Rothfuss', { series: 'The Kingkiller Chronicle', seriesIndex: 2, seriesAuto: { from: 'online' } }),
+    book('c', 'Other', 'Someone Else', { series: 'The Kingkiller Saga', seriesIndex: 1 }),
+  ];
+  const merged = placeLocally(books, {}, { suggest: false }).filter((p) => p.from === 'merge');
+  assert.deepEqual(merged, [{ id: 'b', series: 'The Kingkiller', number: null, from: 'merge' }]);
+});
+
+test('an author’s only series is suggested for their other books, never applied', () => {
+  const books = [
+    book('a', 'Howling Dark', 'Christopher Ruocchio', { series: 'Sun Eater', seriesIndex: 2 }),
+    book('b', 'Empire of Silence', 'Christopher Ruocchio', { seriesLookedUp: 1 }),
+    book('c', 'Not Yet Looked Up', 'Christopher Ruocchio'),
+    // Two series by this author: no telling which, so nothing is suggested.
+    book('d', 'Malice', 'John Gwynne', { series: 'Faithful and the Fallen', seriesIndex: 1 }),
+    book('e', 'The Shadow of the Gods', 'John Gwynne', { series: 'Bloodsworn Saga', seriesIndex: 1 }),
+    book('f', 'Another', 'John Gwynne', { seriesLookedUp: 1 }),
+    // An edition, not a series: never suggested.
+    book('g', 'The Hobbit', 'J.R.R. Tolkien', { series: 'Middle Earth Illustrated Editions', seriesIndex: 2 }),
+    book('h', 'The Silmarillion', 'J.R.R. Tolkien', { seriesLookedUp: 1 }),
+  ];
+  assert.deepEqual(placeLocally(books), [{ id: 'b', series: 'Sun Eater', number: null, from: 'author', suggest: true }]);
+});

@@ -32,6 +32,11 @@
     return k;
   }
 
+  // Names that are a publisher's edition or imprint, not a series: "Middle
+  // Earth Illustrated Editions", "Penguin Classics", "Collector's Library".
+  const IMPRINT = /\b(editions?|illustrated|classics|collection|omnibus|library|penguin|vintage|everyman|deluxe|box(ed)? set|bundle|anniversary)\b/i;
+  const yours = (b) => b.seriesSource === 'you';
+
   // Surnames, to tell apart different authors' series that share a name.
   function surnames(author) {
     return String(author || '')
@@ -51,6 +56,7 @@
       delete b.seriesName;
       delete b.seriesNo;
       if (!b.series || !String(b.series).trim()) continue;
+      if (IMPRINT.test(split(b.series).name) && !yours(b)) continue;
       const k = key(b.series);
       if (!k) continue;
       if (!byKey.has(k)) byKey.set(k, []);
@@ -83,6 +89,9 @@
         s.names.forEach((n) => target.names.add(n));
       }
       clusters.forEach((c, i) => {
+        // A series of one isn't much of a series (and is often just the book's
+        // own title): it shows once a second book joins it, or if you made it.
+        if (c.books.length < 2 && !c.books.some(yours)) return;
         // Show the fullest spelling: one with "The" if any has it, then the most used, then the longest.
         const counts = new Map();
         for (const b of c.books) {
@@ -103,7 +112,8 @@
     return books;
   }
 
-  const Series = { split, key, group };
+  const isImprint = (name) => IMPRINT.test(split(name).name);
+  const Series = { split, key, group, isImprint };
   if (typeof module !== 'undefined' && module.exports) module.exports = Series;
   else root.Series = Series;
 })(typeof window !== 'undefined' ? window : globalThis);
