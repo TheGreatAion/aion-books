@@ -52,7 +52,7 @@ test('a series page shows your books in order, with a gap where a number is skip
   const card = page.locator('.series-card', { hasText: 'The Orchard Years' });
   await card.click();
   await expect(page.locator('#viewTitle')).toHaveText('The Orchard Years');
-  await expect(page.locator('#grid .card:not(.gap-card) .t')).toHaveText(['The Pear Tree Letters', 'Along the Hedge Path', 'Late Roses']);
+  await expect(page.locator('#grid .card[data-id] .t')).toHaveText(['The Pear Tree Letters', 'Along the Hedge Path', 'Late Roses']);
   await expect(page.locator('#grid .gap-card')).toHaveCount(1); // book 3
   await expect(page.locator('#grid .card.up-next .t')).toHaveText('The Pear Tree Letters');
 });
@@ -124,4 +124,30 @@ test('authors are written the way people write them', async () => {
     ['Robert Jordan, Brandon Sanderson', undefined], // two authors: left alone
   ]);
   await other.app.close();
+});
+
+test('the + on the Series page makes a series from the books you tick, in that order', async () => {
+  await page.click('.nav-item[data-view="series"]');
+  await page.click('[data-new-series]');
+  await expect(page.locator('#modal [data-ok]')).toBeDisabled(); // a name and a book first
+  await page.fill('#seName', 'Evening Reads');
+  await page.fill('#seFind', 'late');
+  await page.locator('.pick-row:has-text("Late Roses") input').check();
+  await page.fill('#seFind', '');
+  await page.locator('.pick-row:has-text("The Pear Tree Letters") input').check();
+  await expect(page.locator('.pick-row:has-text("Late Roses") .pick-no')).toHaveText('1');
+  await expect(page.locator('.pick-row:has-text("The Pear Tree Letters") .pick-no')).toHaveText('2');
+  await page.click('#modal [data-ok]');
+  await expect.poll(async () => (await book('Late Roses')).seriesName).toBe('Evening Reads');
+  expect((await book('Late Roses')).seriesNo).toBe(1);
+  expect((await book('The Pear Tree Letters')).seriesNo).toBe(2);
+
+  // On the series' page, the + changes it: here, taking a book out.
+  await page.click('.series-card:has-text("Evening Reads")');
+  await page.click('[data-add-to-series]');
+  await expect(page.locator('#seName')).toHaveValue('Evening Reads');
+  await page.locator('.pick-row:has-text("Late Roses") input').uncheck();
+  await page.click('#modal [data-ok]');
+  await expect.poll(async () => (await book('Late Roses')).series || '').toBe('');
+  expect((await book('The Pear Tree Letters')).seriesNo).toBe(1);
 });

@@ -132,7 +132,6 @@
     counts.home = 0;
     counts.series = new Set(State.books.filter((b) => b.seriesId).map((b) => b.seriesId)).size;
     $('#nav').innerHTML = Object.entries(VIEWS)
-      .filter(([k]) => k !== 'series' || counts.series)
       .map(([k, v]) => {
         const active = view === k || (k === 'series' && view.startsWith('series:'));
         return `<button class="nav-item ${active ? 'is-active' : ''}" data-view="${k}">${icon(v.icon)}<span class="label">${v.label}</span><span class="n">${counts[k] || ''}</span></button>`;
@@ -360,8 +359,11 @@
     for (const b of State.books) if (b.seriesId) (groups.get(b.seriesId) || groups.set(b.seriesId, []).get(b.seriesId)).push(b);
     const names = [...groups.keys()].sort((a, b) => sortKey(seriesTitle(a)).localeCompare(sortKey(seriesTitle(b))));
     $('#viewTitle').textContent = 'Series';
-    $('#viewCount').textContent = `${names.length} series`;
-    $('#grid').innerHTML = names
+    $('#viewCount').textContent = names.length ? `${names.length} series` : 'Group the books of a series to read them in order';
+    $('#grid').innerHTML =
+      `<button class="card add-card enter" data-new-series style="--delay:0ms;--tilt:0"><div class="cover add"><span>${icon('plus')}</span></div>` +
+      `<div class="t">New series</div><div class="a">Pick its books</div></button>` +
+      names
       .map((name, i) => {
         const { books, read, total, next } = seriesShelf(name);
         const stack = books
@@ -402,8 +404,10 @@
             `<div class="t">${esc(x.title || `Book ${x.number}`)}</div><div class="a">Not in your library</div></div>`
           : cardHtml(x, i, enter, { draggable: !query, upNext: next && x.id === next.id })
       )
-      .join('');
-    $('#empty').hidden = shelf.length > 0;
+      .join('') +
+      `<button class="card add-card${enter ? ' enter' : ''}" data-add-to-series="${esc(id)}" style="--delay:${Math.min(shelf.length, 24) * 70}ms;--tilt:0"><div class="cover add"><span>${icon('plus')}</span></div>` +
+      `<div class="t">Add books</div><div class="a">or change the order</div></button>`;
+    $('#empty').hidden = true;
   }
 
   function cardHtml(b, i, enter, { draggable = true, upNext = false } = {}) {
@@ -464,7 +468,6 @@
   function render() {
     if (view.startsWith('shelf:') && !State.shelves.some((s) => `shelf:${s.id}` === view)) view = 'all';
     if (view.startsWith('series:') && !State.books.some((b) => b.seriesId === view.slice(7))) view = 'series';
-    if (view === 'series' && !State.books.some((b) => b.seriesId)) view = 'all';
     if (Date.now() - goalFetchedAt > 5000) refreshGoal();
     const page = PAGES[view];
     $('#libMain').classList.toggle('in-settings', !!page);
@@ -665,6 +668,67 @@
     if (name.name && ids.length === 1 && name.no !== undefined) await updateBook(ids[0], { seriesIndex: name.no });
     clearSelection();
     toast(name.name ? `Added to <em>${esc(name.name)}</em>` : 'Taken out of their series', 2000);
+  }
+
+  // Make a series, or change one: its name, and its books in reading order.
+  // Tick books in the order they're read; each shows its number as you go.
+  async function editSeries(id) {
+    const current = id ? seriesBooks(id) : [];
+    const order = current.map((b) => b.id);
+    const books = [...State.books].sort((a, b) => sortKey(a.title).localeCompare(sortKey(b.title)));
+    const row = (b) =>
+      `<label class="pick-row" data-id="${esc(b.id)}" data-find="${esc(`${b.title} ${b.author}`.toLowerCase())}">` +
+      `<input type="checkbox" ${order.includes(b.id) ? 'checked' : ''}><span class="pick-no"></span>` +
+      `<span class="pick-cover">${coverHtml(b)}</span>` +
+      `<span class="pick-text"><span class="pick-title">${esc(b.title)}</span><span class="pick-author">${esc(b.author || '')}${
+        b.seriesId && b.seriesId !== id ? ` · in <i>${esc(b.seriesName)}</i>` : ''
+      }</span></span></label>`;
+    const result = await openModal(
+      `<h3>${id ? 'Edit series' : 'New series'}</h3>` +
+        `<input type="text" id="seName" value="${esc(id ? seriesTitle(id) : '')}" placeholder="Series name" spellcheck="false">` +
+        `<div class="sub">Tick its books in reading order: the first you tick is book 1.</div>` +
+        `<input type="search" id="seFind" placeholder="Find a book" spellcheck="false">` +
+        `<div class="pick-list">${books.map(row).join('')}</div>` +
+        `<div class="actions"><span class="pick-count"></span><button class="ghost-btn" data-x>Cancel</button><button class="solid-btn" data-ok>Save</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          const paint = () => {
+            for (const r of m.querySelectorAll('.pick-row')) {
+              const n = order.indexOf(r.dataset.id);
+              r.querySelector('.pick-no').textContent = n >= 0 ? n + 1 : '';
+              r.classList.toggle('is-on', n >= 0);
+            }
+            $('.pick-count', m).textContent = order.length ? `${order.length} ${order.length === 1 ? 'book' : 'books'}` : '';
+            $('[data-ok]', m).disabled = !$('#seName', m).value.trim() || !order.length;
+          };
+          m.addEventListener('change', (e) => {
+            const r = e.target.closest('.pick-row');
+            if (!r) return;
+            const at = order.indexOf(r.dataset.id);
+            if (e.target.checked && at < 0) order.push(r.dataset.id);
+            if (!e.target.checked && at >= 0) order.splice(at, 1);
+            paint();
+          });
+          $('#seName', m).addEventListener('input', paint);
+          $('#seFind', m).addEventListener('input', (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            for (const r of m.querySelectorAll('.pick-row')) r.hidden = !!q && !r.dataset.find.includes(q);
+          });
+          $('[data-x]', m).onclick = () => close(null);
+          $('[data-ok]', m).onclick = () => close({ name: $('#seName', m).value.trim(), ids: [...order] });
+          paint();
+          (id ? $('#seFind', m) : $('#seName', m)).focus();
+        },
+      }
+    );
+    if (!result?.name || !result.ids.length) return;
+    let snap = await window.aion.seriesRename(result.ids, result.name);
+    snap = await window.aion.seriesOrder(result.ids);
+    const dropped = current.map((b) => b.id).filter((x) => !result.ids.includes(x));
+    if (dropped.length) snap = await window.aion.seriesRename(dropped, '');
+    State.set(snap);
+    toast(id ? `Saved <em>${esc(result.name)}</em>` : `Made <em>${esc(result.name)}</em>, ${result.ids.length} ${result.ids.length === 1 ? 'book' : 'books'}`, 2200);
   }
 
   // Dragging books within a series puts them in that order, numbered 1, 2, 3…
@@ -1034,6 +1098,9 @@
       }
       const aside = e.target.closest('[data-aside]');
       if (aside) return setAside(aside.dataset.aside, aside.dataset.from);
+      if (e.target.closest('[data-new-series]')) return editSeries();
+      const addTo = e.target.closest('[data-add-to-series]');
+      if (addTo) return editSeries(addTo.dataset.addToSeries);
       const crumb = e.target.closest('[data-goto]');
       if (crumb) {
         view = crumb.dataset.goto;

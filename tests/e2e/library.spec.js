@@ -16,7 +16,7 @@ test('groups a series and lists it in order', async () => {
   await page.click('.nav-item[data-view="series"]');
   await page.click('.series-card');
   await expect(page.locator('#viewTitle')).toHaveText('The Orchard Years');
-  await expect(page.locator('#grid .card .t')).toHaveText(['The Pear Tree Letters', 'Along the Hedge Path']);
+  await expect(page.locator('#grid .card[data-id] .t')).toHaveText(['The Pear Tree Letters', 'Along the Hedge Path']);
   await page.click('.nav-item[data-view="all"]');
 });
 
