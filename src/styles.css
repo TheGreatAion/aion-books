@@ -1099,6 +1099,28 @@ button {
   object-fit: cover;
   display: block;
 }
+/* On the shelf and in Continue reading, a cover keeps its own shape, whole:
+   a tall one a little narrower, a wide one a little shorter, all standing on
+   the same line, like books on a shelf. */
+.cover-slot {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.cover-slot > .cover,
+.hero-cover > .cover {
+  aspect-ratio: var(--ar, 2 / 3);
+  width: min(100%, calc(100% * var(--ar, 0.6667) / 0.6667));
+  flex: none;
+}
+.hero-cover {
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
 .cover::after {
   /* spine shading + a whisper of grain so covers sit in the paper world */
   content: '';

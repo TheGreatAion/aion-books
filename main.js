@@ -94,27 +94,51 @@ function bookPath(book) {
   return path.join(dirs.books, `${book.id}.${book.format || 'epub'}`);
 }
 
+// Returns the cover's shape (width / height), so it can be shown whole.
 function makeThumb(cover) {
   try {
     const img = nativeImage.createFromPath(path.join(dirs.covers, cover));
     if (img.isEmpty()) return false;
-    const { width } = img.getSize();
+    const { width, height } = img.getSize();
     const small = width > 360 ? img.resize({ width: 360, quality: 'good' }) : img;
     fs.writeFileSync(path.join(dirs.thumbs, thumbName(cover)), small.toJPEG(84));
-    return true;
+    return height ? Math.round((width / height) * 1000) / 1000 : false;
   } catch {
     return false;
   }
 }
 
+// A cover's shape, from its thumbnail (or the cover itself).
+function coverAspect(cover) {
+  for (const file of [path.join(dirs.thumbs, thumbName(cover)), path.join(dirs.covers, cover)]) {
+    try {
+      const { width, height } = nativeImage.createFromPath(file).getSize();
+      if (width && height) return Math.round((width / height) * 1000) / 1000;
+    } catch {
+      /* try the next */
+    }
+  }
+  return null;
+}
+
 async function backfillThumbs() {
   let made = 0;
   for (const b of store.data.books) {
-    if (!b.cover || fs.existsSync(path.join(dirs.thumbs, thumbName(b.cover)))) continue;
-    if (makeThumb(b.cover)) made++;
+    if (!b.cover) continue;
+    if (!fs.existsSync(path.join(dirs.thumbs, thumbName(b.cover)))) {
+      const aspect = makeThumb(b.cover);
+      if (aspect) b.coverAspect = aspect;
+      made++;
+    } else if (!b.coverAspect) {
+      b.coverAspect = coverAspect(b.cover) || undefined;
+      made++;
+    } else continue;
     await new Promise((r) => setImmediate(r)); // keep the app responsive
   }
-  if (made) notify();
+  if (made) {
+    store.save();
+    notify();
+  }
 }
 
 function snapshot() {
@@ -246,10 +270,11 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
       fs.writeFileSync(bookPath({ id, format }), buf);
 
       let cover = null;
+      let coverShape;
       if (meta.cover) {
         cover = `${id}${meta.cover.ext}`;
         fs.writeFileSync(path.join(dirs.covers, cover), meta.cover.data);
-        makeThumb(cover);
+        coverShape = makeThumb(cover) || undefined;
       }
 
       const book = {
@@ -267,6 +292,7 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
         format,
         needsMeta: format !== 'epub',
         cover,
+        coverAspect: coverShape,
         sourcePath: file,
         size: buf.length,
         addedAt: Date.now(),
@@ -696,7 +722,7 @@ function registerIpc() {
     if (book.cover && book.cover !== name) fs.rmSync(path.join(dirs.covers, book.cover), { force: true });
     if (book.cover) fs.rmSync(path.join(dirs.thumbs, thumbName(book.cover)), { force: true });
     book.cover = name;
-    makeThumb(name);
+    book.coverAspect = makeThumb(name) || undefined;
     store.save();
     return snapshot();
   });
@@ -924,7 +950,7 @@ function registerIpc() {
       const ext = { 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/svg+xml': '.svg' }[cover.type] || '.jpg';
       book.cover = `${id}${ext}`;
       fs.writeFileSync(path.join(dirs.covers, book.cover), Buffer.from(cover.data));
-      makeThumb(book.cover);
+      book.coverAspect = makeThumb(book.cover) || undefined;
     }
     book.needsMeta = false;
     store.save();

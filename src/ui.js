@@ -119,7 +119,9 @@
 
   function coverHtml(book) {
     if (book.coverUrl) {
-      return `<div class="cover"><img src="${esc(book.coverUrl)}" alt="" loading="lazy" decoding="async" draggable="false"></div>`;
+      // Its own shape (width / height), so the whole cover shows wherever there's room for it.
+      const shape = book.coverAspect > 0.3 && book.coverAspect < 1.5 ? ` style="--ar:${book.coverAspect}"` : '';
+      return `<div class="cover"${shape}><img src="${esc(book.coverUrl)}" alt="" loading="lazy" decoding="async" draggable="false"></div>`;
     }
     const cloth = CLOTHS[hash(book.title + book.author) % CLOTHS.length];
     return (

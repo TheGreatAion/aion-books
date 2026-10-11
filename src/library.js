@@ -418,7 +418,7 @@
         : `<div class="meta"><span>${upNext ? 'Up next' : 'New'}</span></div>`;
     return (
       `<div class="card${enter ? ' enter' : ''}${selected.has(b.id) ? ' is-selected' : ''}${upNext ? ' up-next' : ''}" aria-selected="${selected.has(b.id)}" tabindex="0" draggable="${draggable}" data-id="${b.id}" style="--delay:${Math.min(i, 24) * 70}ms;--tilt:${((i * 37) % 7) - 3}">` +
-      `<div style="position:relative">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
+      `<div class="cover-slot">${coverHtml(b)}<button class="fav ${b.favorite ? 'is-on' : ''}" data-fav="${b.id}" title="Favorite">${icon('heart')}</button></div>` +
       `<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author)}</div>` +
       `${b.rating ? stars(b.rating, { id: b.id, cls: 'tiny' }) : ''}` +
       `${b.seriesId ? `<div class="ser">${esc(seriesLabel(b))}</div>` : ''}${meta}</div>`
