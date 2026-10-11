@@ -52,17 +52,14 @@ that isn't the store's own.
 ## Features
 
 ### Your library
-- **Shelves, favorites and series.** Books in a series are grouped and shown in reading order, with the ones you
-  don’t have yet marked where they fall, and when you finish one, the next is waiting for you.
-- **Series found for you:** books whose files don’t say which series they’re in are put into it by
-  themselves: from titles that name it, from the series you already have, and by looking each book up once on
-  [Wikidata](https://www.wikidata.org) (only the title and author are sent). Anything unsure waits for your
-  review, and anything placed for you can be taken back out. You can also set, rename, renumber or remove a
-  series yourself, and a series you set is never changed.
+- **Shelves, favorites and series.** Books in a series are shown in reading order, with any gaps marked where
+  they fall, and when you finish one, the next is waiting for you.
+- **Series, your way:** a series written into a book’s own file shows by itself. Put any other book in a series
+  from its menu, or choose several and set them at once, then rename, renumber or drag them into order.
 - **Continue reading:** your current book up front, with every other book in progress beneath it.
 - **Star ratings**, search, and sorting, including your own order, arranged by dragging books around.
 - **Custom covers**, editable titles and authors.
-- **Tidy titles:** ISBNs, Kindle tags and repeated series numbers come off titles, and a title that names its series puts the book in it. Older books can be reviewed in Settings, and every original title can be restored.
+- **Tidy titles:** ISBNs, Kindle tags and repeated series numbers come off titles. Older books can be reviewed in Settings, and every original title can be restored.
 - **Choose several books** with Ctrl- or Shift-click to shelve, finish, favorite or remove them together. Removing shows **Undo** instead of asking first. Arrow keys move around the shelf.
 - **A watched folder:** save a book into it and it appears in your library on its own.
 
@@ -110,7 +107,7 @@ reading goal that fills a small ring in the sidebar.
   progress, highlights, shelves and fonts) as a single file.
 - Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between PCs.
 - No accounts and no tracking. The only times AionBooks goes online are when you look up a word
-  (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, when it looks up a new book’s series on Wikidata, and when it checks GitHub for updates, which you can
+  (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, and when it checks GitHub for updates, which you can
   turn off in Settings.
 
 <p align="center">
@@ -125,8 +122,8 @@ in-app purchases.
 **Can it read Kindle books?** Kindle files (MOBI, AZW3) without DRM, yes. Books still locked to
 Amazon's apps can't be opened.
 
-**Does it work offline?** Completely. It only goes online when you look up a word, a character or a
-book's series, and to check for updates, each of which you can turn off or simply not use.
+**Does it work offline?** Completely. It only goes online when you look up a word or a character,
+and to check for updates, each of which you can turn off or simply not use.
 
 **Is there a Mac or Linux version?** Not yet: AionBooks is made for Windows 10 and 11. It's built on
 Electron, so other systems are possible later.

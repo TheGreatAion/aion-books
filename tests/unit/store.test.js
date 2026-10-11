@@ -64,3 +64,30 @@ test('turns the old time-left / pages-left switches into the footer choice', () 
     assert.equal(new Store(dir).data.settings.footerInfo, expected);
   }
 });
+
+test('series found for you automatically become yours; what waited to be found is let go', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aion-store-'));
+  fs.writeFileSync(
+    path.join(dir, 'library.json'),
+    JSON.stringify({
+      version: 4,
+      books: [
+        { id: 'a', series: 'Dune', seriesIndex: 2, seriesSource: 'auto', seriesAuto: { from: 'online' }, seriesLookedUp: 1 },
+        { id: 'b', series: '', seriesSuggestion: { series: 'Sun Eater' }, seriesDismissed: ['x'] },
+        { id: 'c', series: 'The Expanse', seriesIndex: 1 },
+      ],
+      seriesInfo: { dune: { qid: 'Q1' } },
+      settings: { seriesLookup: true },
+    })
+  );
+  const s = new Store(dir);
+  const [a, b, c] = s.data.books;
+  assert.equal(a.seriesSource, 'you');
+  assert.equal(a.seriesAuto, undefined);
+  assert.equal(a.seriesLookedUp, undefined);
+  assert.equal(b.seriesSuggestion, undefined);
+  assert.equal(b.seriesDismissed, undefined);
+  assert.equal(c.seriesSource, undefined); // a book's own file: left as it is
+  assert.equal(s.data.seriesInfo, undefined);
+  assert.equal(s.data.settings.seriesLookup, undefined);
+});

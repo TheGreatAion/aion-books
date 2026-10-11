@@ -353,33 +353,8 @@
           }<button class="ghost-btn bordered" data-action="watch">${icon('folder')}<span>${s.watchFolder ? 'Change…' : 'Choose…'}</span></button></div>`
         )}
         ${row(
-          'Look up series online',
-          'AionBooks puts books into their series by itself, from their titles and the series you already have. For the rest, it can ask Wikidata, sending only the title and author.',
-          toggle('seriesLookup', s.seriesLookup !== false)
-        )}
-        ${(() => {
-          const placed = State.books.filter((b) => b.seriesAuto && b.series).length;
-          const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
-          const pending = State.books.filter((b) => b.seriesLookupPending && !b.series).length;
-          const notes = [
-            placed ? `${placed} ${placed === 1 ? 'book was' : 'books were'} put into ${placed === 1 ? 'its series' : 'their series'} for you.` : '',
-            waiting ? `${waiting} found online ${waiting === 1 ? 'is' : 'are'} waiting for a look.` : '',
-            pending ? `Still looking up ${pending}…` : '',
-          ].filter(Boolean);
-          if (!notes.length) return '';
-          return row(
-            'Series found for you',
-            notes.join(' '),
-            `<div class="btn-row">${waiting ? `<button class="ghost-btn bordered" data-action="series-review">Review…</button>` : ''}${
-              placed ? `<button class="ghost-btn bordered" data-action="series-changes">See what changed…</button>` : ''
-            }${
-              !pending && s.seriesLookup !== false ? `<button class="ghost-btn bordered" data-action="series-lookup">Look again</button>` : ''
-            }</div>`
-          );
-        })()}
-        ${row(
           'Tidy book titles',
-          'Take ISBNs, Kindle tags and repeated series numbers off titles, and give a series to books whose titles name one. You’ll see every change first.',
+          'Take ISBNs, Kindle tags and repeated series numbers off titles. You’ll see every change first.',
           `<button class="ghost-btn bordered" data-action="tidy-titles">Review…</button>`
         )}
       </section>
@@ -608,13 +583,6 @@
       }
       if (act === 'tts-sample') return sample();
       if (act === 'tidy-titles') return reviewTidy();
-      if (act === 'series-review') return window.Library.reviewSeries();
-      if (act === 'series-changes') return window.Library.seriesChanges();
-      if (act === 'series-lookup') {
-        const n = await window.aion.seriesLookupAll();
-        toast(n ? `Looking again for the series of ${n} ${n === 1 ? 'book' : 'books'}…` : 'Every book has its series', 2200);
-        return;
-      }
       if (act === 'shortcuts') return showShortcuts();
       if (act === 'check-update') {
         update = { state: 'checking' };

@@ -337,25 +337,16 @@
     undoToast(`Removed <em>${esc(b.title)}</em> from ${from}`, { undo: () => updateBook(id, { setAside: null }) });
   }
 
-  // What's known of a series beyond the books you have: Wikidata's list of
-  // every book in it, when it's been looked up.
-  const seriesInfoFor = (id) => State.seriesInfo?.[window.Series.key(seriesTitle(id))] || null;
-
   // A series as you'd read it: your books in order, with the ones you don't
   // have yet marked where they fall.
   function seriesShelf(id) {
     const books = seriesBooks(id);
-    const parts = seriesInfoFor(id)?.parts || [];
     const whole = (n) => n != null && Number.isInteger(n) && n >= 1;
     const have = new Set(books.map((b) => b.seriesNo).filter(whole));
-    const last = Math.max(0, ...books.map((b) => b.seriesNo).filter(whole), ...parts.map((p) => p.number).filter(whole));
+    const last = Math.max(0, ...books.map((b) => b.seriesNo).filter(whole));
     const missing = [];
-    // Gaps only between books we know are there, or that Wikidata lists.
-    for (let n = 1; n <= last; n++) {
-      if (have.has(n)) continue;
-      const part = parts.find((p) => p.number === n);
-      if (part || n < Math.max(0, ...have)) missing.push({ gap: true, number: n, title: part?.title || '' });
-    }
+    // A gap where a number is skipped: book 2 when you have 1 and 3.
+    for (let n = 1; n <= last; n++) if (!have.has(n)) missing.push({ gap: true, number: n, title: '' });
     const order = (x) => (x.gap ? x.number : (x.seriesNo ?? 1e9));
     const shelf = [...books, ...missing].sort((a, b) => order(a) - order(b));
     const read = books.filter((b) => b.finished).length;
@@ -369,10 +360,7 @@
     for (const b of State.books) if (b.seriesId) (groups.get(b.seriesId) || groups.set(b.seriesId, []).get(b.seriesId)).push(b);
     const names = [...groups.keys()].sort((a, b) => sortKey(seriesTitle(a)).localeCompare(sortKey(seriesTitle(b))));
     $('#viewTitle').textContent = 'Series';
-    const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
-    $('#viewCount').innerHTML =
-      `${names.length} ${names.length === 1 ? 'series' : 'series'}` +
-      (waiting ? ` · <button class="crumb found" data-review-series>Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'}: review</button>` : '');
+    $('#viewCount').textContent = `${names.length} series`;
     $('#grid').innerHTML = names
       .map((name, i) => {
         const { books, read, total, next } = seriesShelf(name);
@@ -600,6 +588,7 @@
         run: () => updateBook(id, b.finished ? { finished: false, progress: 0, location: null, chapter: '' } : { finished: true }),
       },
       { label: 'Shelves…', icon: 'shelf', run: () => chooseShelves(id) },
+      { label: b.seriesName ? 'Series…' : 'Add to a series…', icon: 'stack', run: () => setSeriesOf([id]) },
       {
         label: 'Change cover…',
         icon: 'image',
@@ -653,14 +642,16 @@
     const first = State.book(ids[0]);
     const name = await openModal(
       `<h3>Set series</h3><div class="sub">For the ${ids.length} ${ids.length === 1 ? 'book' : 'books'} you chose. Leave it empty to take them out of any series.</div>` +
-        `<input type="text" id="sName" value="${esc(first?.series || '')}" placeholder="Series name" list="seriesNames" spellcheck="false">` +
+        `<input type="text" id="sName" value="${esc(first?.seriesName || first?.series || '')}" placeholder="Series name: pick one or type a new one" list="seriesNames" spellcheck="false">` +
         seriesDatalist() +
-        `<label class="check-row"><input type="checkbox" id="sNumber" ${ids.length > 1 ? 'checked' : ''}>Number them 1, 2, 3… in the order they’re shown</label>` +
+        (ids.length === 1
+          ? `<label class="field-row">Book number <input type="number" id="sNo" min="0" step="any" value="${first?.seriesNo ?? ''}"></label>`
+          : `<label class="check-row"><input type="checkbox" id="sNumber" checked>Number them 1, 2, 3… in the order they’re shown</label>`) +
         `<div class="actions"><button class="ghost-btn" data-x>Cancel</button><button class="solid-btn" data-ok>Save</button></div>`,
       {
         onMount(m, close) {
           $('#sName', m).focus();
-          const ok = () => close({ name: $('#sName', m).value.trim(), number: $('#sNumber', m).checked });
+          const ok = () => close({ name: $('#sName', m).value.trim(), number: $('#sNumber', m)?.checked, no: $('#sNo', m)?.value });
           $('[data-ok]', m).onclick = ok;
           $('[data-x]', m).onclick = () => close(null);
           m.addEventListener('keydown', (e) => e.key === 'Enter' && ok());
@@ -671,6 +662,7 @@
     let snap = await window.aion.seriesRename(ids, name.name);
     if (name.name && name.number) snap = await window.aion.seriesOrder(ids);
     State.set(snap);
+    if (name.name && ids.length === 1 && name.no !== undefined) await updateBook(ids[0], { seriesIndex: name.no });
     clearSelection();
     toast(name.name ? `Added to <em>${esc(name.name)}</em>` : 'Taken out of their series', 2000);
   }
@@ -704,81 +696,6 @@
         },
       },
     ]);
-  }
-
-  // ---------- series found online: review before they're used ----------
-  async function reviewSeries() {
-    const found = State.books.filter((b) => b.seriesSuggestion && !b.series).sort((a, b) => sortKey(a.title).localeCompare(sortKey(b.title)));
-    if (!found.length) return toast('No series waiting for review', 1800);
-    const label = (n) => (n ? `Add ${n} to ${n === 1 ? 'its series' : 'their series'}` : 'Put these aside');
-    await openModal(
-      `<h3>Do these belong to a series?</h3>` +
-        `<div class="sub">These books look like they belong to these series. Untick any that are wrong, and they won’t be suggested again.</div>` +
-        `<div class="tidy-list">${found
-          .map(
-            (b) =>
-              `<label class="tidy-row"><input type="checkbox" data-id="${esc(b.id)}" checked>` +
-              `<span class="review-book">${esc(b.title)}${b.author ? ` · ${esc(b.author)}` : ''}</span>` +
-              `<span class="tidy-to">${esc(b.seriesSuggestion.series)}${b.seriesSuggestion.number != null ? ` <em>· book ${esc(b.seriesSuggestion.number)}</em>` : ''}` +
-              `<em class="tidy-how">${b.seriesSuggestion.why === 'author' ? `${esc(b.author || 'The author')}’s other books here are in it` : 'found on Wikidata'}</em></span></label>`
-          )
-          .join('')}</div>` +
-        `<div class="actions"><button class="ghost-btn" data-x>Not now</button><button class="solid-btn" data-ok>${label(found.length)}</button></div>`,
-      {
-        wide: true,
-        onMount(m, close) {
-          const ok = $('[data-ok]', m);
-          const ticked = () => [...m.querySelectorAll('.tidy-row input')].filter((i) => i.checked).map((i) => i.dataset.id);
-          m.addEventListener('change', () => (ok.textContent = label(ticked().length)));
-          $('[data-x]', m).onclick = () => close(null);
-          ok.onclick = async () => {
-            const yes = ticked();
-            const no = found.map((b) => b.id).filter((id) => !yes.includes(id));
-            State.set(await window.aion.seriesReview(yes, no));
-            close(true);
-            if (yes.length) toast(`${yes.length} ${yes.length === 1 ? 'book' : 'books'} added to ${yes.length === 1 ? 'its series' : 'their series'}`, 2200);
-          };
-        },
-      }
-    );
-  }
-
-  // Books put into a series automatically: untick any that are wrong.
-  async function seriesChanges() {
-    const placed = State.books
-      .filter((b) => b.seriesAuto && b.series)
-      .sort((a, b) => b.seriesAuto.at - a.seriesAuto.at || (a.seriesName || '').localeCompare(b.seriesName || '') || (a.seriesNo ?? 0) - (b.seriesNo ?? 0));
-    if (!placed.length) return toast('No books have been put into a series automatically', 2200);
-    const how = { title: 'its title says so', list: 'on the series’ list', family: 'named like the others', online: 'found on Wikidata' };
-    const label = (n) => (n ? `Take ${n} out` : 'Done');
-    await openModal(
-      `<h3>Series found for you</h3>` +
-        `<div class="sub">These books were put into their series automatically. Untick any that are wrong, and they’ll be taken out and not put back.</div>` +
-        `<div class="tidy-list">${placed
-          .map(
-            (b) =>
-              `<label class="tidy-row"><input type="checkbox" data-id="${esc(b.id)}" checked>` +
-              `<span class="review-book">${esc(b.title)}${b.author ? ` · ${esc(b.author)}` : ''}</span>` +
-              `<span class="tidy-to">${esc(b.seriesName || b.series)}${b.seriesNo != null ? ` <em>· book ${esc(b.seriesNo)}</em>` : ''}` +
-              `<em class="tidy-how">${how[b.seriesAuto.from] || ''}</em></span></label>`
-          )
-          .join('')}</div>` +
-        `<div class="actions"><button class="solid-btn" data-ok>Done</button></div>`,
-      {
-        wide: true,
-        onMount(m, close) {
-          const ok = $('[data-ok]', m);
-          const unticked = () => [...m.querySelectorAll('.tidy-row input')].filter((i) => !i.checked).map((i) => i.dataset.id);
-          m.addEventListener('change', () => (ok.textContent = label(unticked().length)));
-          ok.onclick = async () => {
-            const out = unticked();
-            if (out.length) State.set(await window.aion.seriesUndo(out));
-            close(true);
-            if (out.length) toast(`Took ${out.length} ${out.length === 1 ? 'book' : 'books'} out of ${out.length === 1 ? 'its series' : 'their series'}`, 2200);
-          };
-        },
-      }
-    );
   }
 
   // ---------- choosing several books ----------
@@ -1111,7 +1028,6 @@
         updateBook(b.id, { favorite: !b.favorite });
         return;
       }
-      if (e.target.closest('[data-review-series]')) return reviewSeries();
       const mine = e.target.closest('[data-quote-book]');
       if (mine) {
         return window.Reader.open(mine.dataset.quoteBook).then(() => mine.dataset.quoteCfi && window.Reader.view && window.Reader.goTo(mine.dataset.quoteCfi));
@@ -1286,19 +1202,8 @@
       afterImport(res);
     });
 
-    // Library changed outside this window: watched folder, a synced copy, series backfill.
+    // Library changed outside this window: watched folder, a synced copy.
     window.aion.onLibraryChanged((snap) => State.set(snap));
-    // Series are found in the background; say so when books are placed, and
-    // when some found online are waiting for a look.
-    window.aion.onSeriesPlaced(({ count }) =>
-      toast(`Put ${count} ${count === 1 ? 'book' : 'books'} into ${count === 1 ? 'its series' : 'their series'} <button class="toast-btn" data-series-changes>See what changed</button>`, 8000)
-    );
-    window.aion.onSeriesProgress((p) => {
-      if (window.Settings?.isOpen?.()) window.Settings.render();
-      if (!p?.finished) return;
-      const waiting = State.books.filter((b) => b.seriesSuggestion && !b.series).length;
-      if (waiting) toast(`Series found for ${waiting} ${waiting === 1 ? 'book' : 'books'}, waiting for a look <button class="toast-btn" data-review-series>Review</button>`, 10000);
-    });
     window.aion.onAutoImport(({ added }) => toast(`${added} new ${added === 1 ? 'book' : 'books'} from your watched folder`, 3000));
     window.aion.onUpdateStatus((s) => {
       if (s.state === 'ready') {
@@ -1306,14 +1211,6 @@
       }
     });
     $('#toast').addEventListener('click', (e) => {
-      if (e.target.closest('[data-series-changes]')) {
-        $('#toast').hidden = true;
-        return seriesChanges();
-      }
-      if (e.target.closest('[data-review-series]')) {
-        $('#toast').hidden = true;
-        return reviewSeries();
-      }
       if (e.target.closest('[data-update-install]')) return window.aion.installUpdate();
       const b = e.target.closest('[data-open]');
       if (!b) return;
@@ -1347,6 +1244,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries, reviewSeries, seriesChanges };
+  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries };
   boot();
 })();

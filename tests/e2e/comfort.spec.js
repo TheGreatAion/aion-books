@@ -160,7 +160,7 @@ test('the window opens at the size and place you left it', async () => {
   await app.close();
   ({ app } = await launch({ books: [], dataDir }).catch(async () => {
     // (No books to import this time: wait for the window instead.)
-    const a = await electron.launch({ args: [path.join(__dirname, '../..')], env: { AION_WIKIDATA_FIXTURE: path.join(__dirname, '../fixtures/wikidata-none.json'), ...process.env, AION_DATA_DIR: dataDir } });
+    const a = await electron.launch({ args: [path.join(__dirname, '../..')], env: { ...process.env, AION_DATA_DIR: dataDir } });
     await a.firstWindow();
     return { app: a };
   }));
@@ -199,9 +199,10 @@ test('titles: tidied when added, reviewed for older books, and restorable', asyn
     })
   );
   const { app, page } = await launch({ books: ['pear-tree.epub', 'cluttered.epub'], dataDir });
-  // Added just now: "The Orchard Years 3 - Winter Pruning (9780000000002)" → "Winter Pruning", book 3 of The Orchard Years.
+  // Added just now: the ISBN comes off; a series named in the title doesn't make one (series are yours to make).
   const added = await page.evaluate(() => window.UI.State.books.find((b) => b.originalTitle?.startsWith('The Orchard Years 3')));
-  expect(added).toMatchObject({ title: 'Winter Pruning', series: 'The Orchard Years', seriesIndex: 3 });
+  expect(added).toMatchObject({ title: 'The Orchard Years 3 - Winter Pruning' });
+  expect(added.series || '').toBe('');
 
   // The older book is offered for review.
   await page.click('#openSettings');

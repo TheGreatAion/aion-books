@@ -2071,6 +2071,18 @@ input[type='range']:hover::-webkit-slider-thumb {
 .check-row:hover {
   background: var(--wash);
 }
+/* A labeled field on its own line: "Book number [ 3 ]". */
+.field-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 16.5px;
+  color: var(--ink-2);
+}
+.modal .field-row input[type='number'] {
+  width: 90px;
+}
 .check-row input {
   accent-color: var(--leaf-deep);
   width: 16px;
@@ -3777,11 +3789,6 @@ body:has(#reader.is-active) .select-bar {
 }
 .tidy-to em {
   color: var(--ink-3);
-}
-/* How a series was found: "on the series' list", "found on Wikidata". */
-.tidy-to .tidy-how {
-  display: block;
-  font-size: 13px;
 }
 
 /* ================================================================
