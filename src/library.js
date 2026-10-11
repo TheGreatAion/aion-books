@@ -176,7 +176,8 @@
     const where = upNext
       ? `<div class="where"><span>${esc(seriesLabel(upNext))}</span></div>`
       : `<div class="where">${last.chapter ? `<span>${esc(last.chapter)}</span>` : ''}` +
-        `<div class="bar"><i style="width:${pct(last.progress)}"></i></div><span>${pct(last.progress)}</span></div>`;
+        `<div class="bar"><i style="width:${pct(last.progress)}"></i></div><span>${pct(last.progress)}</span></div>` +
+        finishBy(last);
     // Everything else currently on the go, most recently read first.
     const also = others.length
       ? `<div class="nightstand"><div class="ns-head"><span class="eyebrow">Nightstand</span>${
@@ -212,6 +213,19 @@
       `${q.mine ? '<span class="hq-mine">From your commonplace book</span>' : ''}` +
       `<blockquote>“${lines}”</blockquote><figcaption>${who}</figcaption></figure>`
     );
+  }
+
+  // "At your pace, you'll finish it Thursday": the book's reading time left
+  // (worked out as you read it) over your daily reading time lately.
+  let pace = 0;
+  function finishBy(b) {
+    if (!b.msLeft || b.finished || pace < 5 * 60000) return '';
+    const days = Math.max(0, Math.ceil(b.msLeft / pace) - 1);
+    if (days > 120) return '';
+    const when = new Date(Date.now() + days * 864e5);
+    const label =
+      days === 0 ? 'today' : days === 1 ? 'tomorrow' : days < 7 ? when.toLocaleDateString(undefined, { weekday: 'long' }) : when.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+    return `<div class="finish-by">At your pace, you’ll finish it ${label}</div>`;
   }
 
   // ---------- home ----------
@@ -523,6 +537,13 @@
       goalFetchedAt = Date.now();
       const st = await window.aion.getStats();
       ms = st.days[st.today]?.ms || 0;
+      // Your pace: reading time a day, over the last two weeks.
+      const was = pace;
+      const today = new Date(`${st.today}T12:00:00`);
+      let total = 0;
+      for (let i = 0; i < 14; i++) total += st.days[new Date(today - i * 864e5).toISOString().slice(0, 10)]?.ms || 0;
+      pace = total / 14;
+      if (Math.abs(was - pace) > 60000 && view === 'home') renderHero();
     }
     const goal = State.settings.dailyGoal || 0;
     const row = $('#goalRow');
@@ -558,6 +579,39 @@
     else msg.push('No books found there');
     if (res.failed?.length) msg.push(`${res.failed.length} couldn’t be read`);
     toast(msg.join(' · '), 3200);
+    if (res.dupes?.length) askAboutCopies(res.dupes);
+  }
+
+  // A book just added that looks like one already here (another edition, a
+  // second download): keep both, or take the new copy out (with Undo).
+  async function askAboutCopies(dupes) {
+    const pairs = dupes.map((d) => ({ book: State.book(d.id), had: State.book(d.of) })).filter((p) => p.book && p.had);
+    if (!pairs.length) return;
+    const label = (n) => (n ? `Remove ${n} new ${n === 1 ? 'copy' : 'copies'}` : 'Keep them all');
+    const remove = await openModal(
+      `<h3>Already in your library?</h3>` +
+        `<div class="sub">${pairs.length === 1 ? 'This looks like a book' : 'These look like books'} you already have. Tick any new copy to take out again; the one you had stays.</div>` +
+        `<div class="tidy-list">${pairs
+          .map(
+            (p) =>
+              `<label class="tidy-row"><input type="checkbox" data-id="${esc(p.book.id)}" checked>` +
+              `<span class="review-book">${esc(p.book.title)}${p.book.author ? ` · ${esc(p.book.author)}` : ''}</span>` +
+              `<span class="tidy-to"><em>You already have </em>${esc(p.had.title)}${p.had.progress > 0 ? ` <em>· ${pct(p.had.progress)} read</em>` : ''}</span></label>`
+          )
+          .join('')}</div>` +
+        `<div class="actions"><button class="ghost-btn" data-x>Keep both</button><button class="solid-btn" data-ok>${label(pairs.length)}</button></div>`,
+      {
+        wide: true,
+        onMount(m, close) {
+          const ok = $('[data-ok]', m);
+          const ticked = () => [...m.querySelectorAll('.tidy-row input')].filter((i) => i.checked).map((i) => i.dataset.id);
+          m.addEventListener('change', () => (ok.textContent = label(ticked().length)));
+          $('[data-x]', m).onclick = () => close(null);
+          ok.onclick = () => close(ticked());
+        },
+      }
+    );
+    if (remove?.length) removeBooks(remove);
   }
 
   window.aion.onImportProgress((p) => {
@@ -804,6 +858,7 @@
       `<span class="sb-count">${selected.size} ${selected.size === 1 ? 'book' : 'books'} chosen</span>` +
       `<button class="ghost-btn" data-sel="shelf">${icon('shelf')}<span>Add to shelf</span></button>` +
       `<button class="ghost-btn" data-sel="series">${icon('stack')}<span>Set series</span></button>` +
+      `<button class="ghost-btn" data-sel="author">${icon('edit')}<span>Set author</span></button>` +
       `<button class="ghost-btn" data-sel="finish">${icon('check')}<span>${allFinished ? 'Mark as unread' : 'Mark as finished'}</span></button>` +
       `<button class="ghost-btn" data-sel="fav">${icon('heart')}<span>${allFav ? 'Remove from favorites' : 'Add to favorites'}</span></button>` +
       `<button class="ghost-btn danger" data-sel="remove">${icon('trash')}<span>Remove</span></button>` +
@@ -816,6 +871,20 @@
     if (act === 'clear') return clearSelection();
     if (act === 'remove') return removeBooks(ids);
     if (act === 'series') return setSeriesOf(gridCards().map((c) => c.dataset.id).filter((x) => selected.has(x)));
+    if (act === 'author') {
+      const same = books.every((b) => b.author === books[0]?.author) ? books[0]?.author || '' : '';
+      const author = await promptText({
+        title: `Author of ${books.length} ${books.length === 1 ? 'book' : 'books'}`,
+        sub: 'One name for all of them, written the way people write it.',
+        value: same,
+        placeholder: 'Author',
+      });
+      if (!author?.trim()) return;
+      for (const b of books) await updateBook(b.id, { author: author.trim() }, { quiet: true });
+      State.emit();
+      clearSelection();
+      return toast(`Author set for ${books.length} ${books.length === 1 ? 'book' : 'books'}`, 1800);
+    }
     if (act === 'finish') {
       const finish = !books.every((b) => b.finished);
       for (const b of books) await updateBook(b.id, finish ? { finished: true } : { finished: false, progress: 0, location: null, chapter: '' }, { quiet: true });

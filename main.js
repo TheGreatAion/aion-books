@@ -8,6 +8,7 @@ const { readEpubMeta } = require('./lib/epubMeta');
 const { lookupCharacter, isWikipediaUrl } = require('./lib/lookup');
 const bookFiles = require('./lib/book-files');
 const { planTidy, tidyOne } = require('./lib/titles');
+const { dupKey } = require('./lib/dupes');
 const { naturalAuthor } = require('./lib/authors');
 const { execFile } = require('child_process');
 const { BOOK_FILE, formatOf, detailsFromFilename, BOOK_EXTENSIONS } = require('./lib/formats');
@@ -251,6 +252,9 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
   const failed = [];
   let i = 0;
   const known = new Set(store.data.books.map((b) => b.sourcePath));
+  // Books already here, to notice a new one that's a copy of one of them.
+  const had = new Map(store.data.books.map((b) => [dupKey(b), b.id]).filter(([k]) => k));
+  const dupes = [];
 
   for (const file of files) {
     i += 1;
@@ -310,6 +314,7 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
       if (tidy) applyTidy(book, tidy);
       store.data.books.push(book);
       added.push(id);
+      if (!quiet && had.has(dupKey(book))) dupes.push({ id, of: had.get(dupKey(book)) });
     } catch (err) {
       failed.push({ name: path.basename(file), reason: err.message });
     }
@@ -319,7 +324,7 @@ async function importFiles(inputPaths, { quiet = false } = {}) {
     store.save();
   }
   if (!quiet) win?.webContents.send('import:progress', { done: files.length, total: files.length, finished: true });
-  return { added: added.length, found: files.length, ids, failed, library: snapshot() };
+  return { added: added.length, found: files.length, ids, failed, dupes, library: snapshot() };
 }
 
 function notify() {
@@ -645,7 +650,7 @@ function registerIpc() {
 
   const EDITABLE = new Set([
     'title', 'author', 'progress', 'location', 'finished', 'favorite',
-    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex', 'setAside',
+    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex', 'setAside', 'msLeft',
   ]);
   ipcMain.handle('book:update', (_e, id, patch) => {
     const book = findBook(id);
@@ -657,6 +662,8 @@ function registerIpc() {
       if ('seriesIndex' in patch) patch.seriesIndex = patch.seriesIndex === '' || patch.seriesIndex == null ? null : Number(patch.seriesIndex) || null;
       book.seriesSource = 'you';
     }
+    // An author written as people write it ("Brandon Sanderson").
+    if (typeof patch?.author === 'string') patch = { ...patch, author: naturalAuthor(patch.author.trim()) };
     // A title you change yourself is never tidied again.
     if (typeof patch?.title === 'string' && patch.title !== book.title) book.titleEdited = true;
     if (patch && 'finished' in patch) {

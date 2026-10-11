@@ -1,0 +1,80 @@
+// Small comforts: a copy of a book you already have, one author for several
+// books, going to a page or a percentage, read aloud's sleep timer, and the
+// reading time left that Home uses to say when you'll finish.
+const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { launch, toLibrary, openBook, probe } = require('./helpers');
+const { OUT } = require('../fixtures/make-fixtures');
+
+let app, page;
+test.beforeAll(async () => ({ app, page } = await launch()));
+test.afterAll(async () => app?.close());
+
+const book = (title) => page.evaluate((t) => window.UI.State.books.find((b) => b.title.startsWith(t)), title);
+
+test('adding a copy of a book you have asks whether to keep it', async () => {
+  // Another file of The Pear Tree Letters (a few bytes different, so not the same file).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aion-copy-'));
+  const copy = path.join(dir, 'pear-tree-again.epub');
+  fs.writeFileSync(copy, Buffer.concat([fs.readFileSync(path.join(OUT, 'pear-tree.epub')), Buffer.from('\n')]));
+  await app.evaluate(({ dialog }, file) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] });
+  }, copy);
+  const before = await page.evaluate(() => window.UI.State.books.length);
+  await page.click('#addBooks');
+  await expect(page.locator('#modal h3')).toHaveText('Already in your library?');
+  await expect(page.locator('#modal .tidy-row')).toHaveCount(1);
+  await page.click('#modal [data-ok]');
+  await expect.poll(() => page.evaluate(() => window.UI.State.books.length)).toBe(before);
+  await expect(page.locator('#toast')).toContainText('Undo');
+});
+
+test('choose several books and set their author at once', async () => {
+  await toLibrary(page);
+  await page.click('.nav-item[data-view="all"]');
+  await page.locator('.card:has-text("Along the Hedge Path")').click({ modifiers: ['Control'] });
+  await page.locator('.card:has-text("The Pear Tree Letters")').click({ modifiers: ['Control'] });
+  await page.click('#selectBar [data-sel="author"]');
+  await page.fill('#mInput', 'Vale, Eleanor');
+  await page.click('#modal [data-ok]');
+  await expect.poll(async () => (await book('The Pear Tree Letters')).author).toBe('Eleanor Vale');
+  expect((await book('Along the Hedge Path')).author).toBe('Eleanor Vale');
+});
+
+test('Ctrl+G goes to a percentage or a page, and remembers where you were', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.keyboard.press('Control+g');
+  await expect(page.locator('#modal .sub')).toContainText('of about');
+  await page.fill('#mInput', '50%');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await probe(page)).fraction, { timeout: 10000 }).toBeGreaterThan(0.4);
+  await expect(page.locator('#backPill')).toBeVisible();
+  await page.keyboard.press('Control+g');
+  await page.fill('#mInput', '1');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await probe(page)).fraction, { timeout: 10000 }).toBeLessThan(0.1);
+});
+
+test('reading time left is kept, for when you’ll finish', async () => {
+  await page.evaluate(() => window.Reader.view.goToFraction(0.3));
+  await expect.poll(async () => (await book('The Pear Tree Letters')).msLeft || 0, { timeout: 10000 }).toBeGreaterThan(0);
+});
+
+test('read aloud’s sleep timer counts down, and stops reading when it runs out', async () => {
+  await page.evaluate(() => window.Reader.ttsSleepNext());
+  await expect(page.locator('#ttsSleep')).toHaveClass(/is-on/);
+  await expect(page.locator('#ttsSleep span')).toHaveText('15 min');
+  // Reading, and the time is up: the next sentence doesn't come.
+  await page.evaluate(() => {
+    const R = window.Reader;
+    R.tts = { playing: true, paused: false, si: 0, sentences: [], blocks: [], bi: 0 };
+    R.sleep.until = Date.now() - 1;
+    R.ttsNext();
+  });
+  await expect(page.locator('#toast')).toContainText('sleep timer');
+  expect(await page.evaluate(() => window.Reader.tts.paused)).toBe(true);
+  await page.evaluate(() => window.Reader.ttsStop());
+  await expect(page.locator('#ttsSleep')).not.toHaveClass(/is-on/);
+});

@@ -43,6 +43,7 @@
     ['Anywhere', '?', 'These shortcuts'],
     ['Reader', '← →  PgUp PgDn  Space', 'Turn pages'],
     ['Reader', 'T', 'Contents & notes'],
+    ['Reader', 'Ctrl G', 'Go to a page or a percentage'],
     ['Reader', 'B', 'Bookmark this page'],
     ['Reader', 'Ctrl F', 'Search this book'],
     ['Reader', 'R', 'Read aloud: play or pause'],

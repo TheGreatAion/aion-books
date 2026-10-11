@@ -34,3 +34,12 @@ test('a series named in a title is left there: series are yours to make', () => 
 test('a title you edited yourself is left alone', () => {
   assert.deepEqual(plan(book('Rhythm of War (9781429952040)', '', null, { titleEdited: true })), []);
 });
+
+test('a copy of a book: same title (give or take an edition) by the same author', () => {
+  const { dupKey } = require('../../lib/dupes');
+  const k = (title, author) => dupKey({ title, author });
+  assert.equal(k('Harry Potter and the Philosopher’s Stone: Illustrated [Kindle in Motion]', 'J.K. Rowling'), k("Harry Potter and the Philosopher's Stone", 'Rowling, J.K.'));
+  assert.equal(k('The Hobbit', 'J.R.R. Tolkien'), k('Hobbit (Illustrated)', 'J. R. R. Tolkien'));
+  assert.notEqual(k('Dune', 'Frank Herbert'), k('Dune Messiah', 'Frank Herbert'));
+  assert.notEqual(k('Ruin', 'John Gwynne'), k('Ruin', 'Someone Else'));
+});

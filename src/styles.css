@@ -643,6 +643,13 @@ button {
   align-items: center;
 }
 
+.finish-by {
+  margin-top: 6px;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-3);
+}
+
 /* Other books in progress, beneath the featured one */
 .nightstand {
   margin-top: 30px;
@@ -1476,6 +1483,7 @@ foliate-view::part(foot) {
   text-overflow: ellipsis;
 }
 .r-percent {
+  cursor: pointer;
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
@@ -2862,6 +2870,29 @@ kbd {
   border: 1px solid var(--line);
   box-shadow: 0 14px 30px -16px var(--shadow);
   animation: toastIn 0.3s steps(1, end);
+}
+/* The sleep timer: a clock, and how long is left once it's on. */
+.tts-sleep {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  font-variant-numeric: oldstyle-nums;
+}
+.tts-sleep .icon {
+  width: 16px;
+  height: 16px;
+}
+.tts-sleep:hover,
+.tts-sleep.is-on {
+  color: var(--accent);
+}
+.tts-sleep span:empty {
+  display: none;
 }
 .tts-bar .icon-btn {
   width: 32px;

@@ -2,7 +2,7 @@
 // page numbers, daily goal, footnote pop-ups, dictionary look-up, tap-to-turn
 // and read-aloud. Built on the foliate-js view set up in reader.js.
 (function () {
-  const { $, esc, State, toast, pct, setSettings } = window.UI;
+  const { $, esc, State, toast, pct, setSettings, promptText } = window.UI;
   const { icon } = window.Ornaments;
   const R = window.Reader;
 
@@ -137,6 +137,35 @@
       // Remember exact positions; approximate ones are worked out again once that file is on screen.
       if (frac != null && exact) this.chapterEnds.set(item.id, frac);
       return frac;
+    },
+
+    // ---------- go to a page, or a percentage (Ctrl+G, or click the footer) ----------
+    async goToPrompt() {
+      if (!this.view || !this.loc) return;
+      const fixed = this.view.isFixedLayout;
+      const pages = fixed ? this.view.book?.sections?.length : Math.round(this.pagesPerBook(this.loc) || 0);
+      const here = fixed ? (this.loc.section?.current ?? 0) + 1 : Math.max(1, Math.round(this.hereFraction(this.loc) * (pages || 0)) + 1);
+      const value = await promptText({
+        title: 'Go to',
+        sub: pages ? `A page number (you’re on ${here} of ${fixed ? '' : 'about '}${pages}), or a percentage like 40%.` : 'A percentage, like 40%.',
+        placeholder: pages ? `Page, or %` : '%',
+        okLabel: 'Go',
+      });
+      const s = String(value || '').trim();
+      if (!s) return;
+      const percent = /^(\d+(?:\.\d+)?)\s*%$/.exec(s);
+      const page = /^(?:p(?:age)?\.?\s*)?(\d+)$/i.exec(s);
+      if (percent) {
+        this.markJump();
+        return this.view.goToFraction(clamp(Number(percent[1]) / 100, 0, 1));
+      }
+      if (page && pages) {
+        const n = clamp(Number(page[1]), 1, pages);
+        if (fixed) return this.goTo(n - 1);
+        this.markJump();
+        return this.view.goToFraction(clamp((n - 1) / pages, 0, 1));
+      }
+      toast(pages ? 'Type a page number, or a percentage like 40%' : 'Type a percentage, like 40%', 2400);
     },
 
     // ---------- running heads & page numbers ----------
@@ -520,6 +549,7 @@
     ttsNext() {
       const t = this.tts;
       if (!t || !t.playing || t.paused) return;
+      if (this.sleep?.until && Date.now() >= this.sleep.until) return this.sleepNow();
       while (t.si >= t.sentences.length) {
         if (t.bi >= t.blocks.length) {
           this.ttsNextSection();
@@ -549,6 +579,7 @@
     async ttsNextSection() {
       const t = this.tts;
       this.ttsMark(null);
+      if (this.sleep?.mode === 'chapter') return this.sleepNow();
       const before = t.index;
       await this.renderer.nextSection();
       if (t !== this.tts || !t.playing) return;
@@ -598,7 +629,22 @@
       this.ttsUi();
       this.ttsNext();
     },
+    // Off, 15, 30 or 60 minutes, or the end of the chapter: each click, the next.
+    ttsSleepNext() {
+      const modes = ['off', 15, 30, 60, 'chapter'];
+      const mode = modes[(modes.indexOf(this.sleep?.mode ?? 'off') + 1) % modes.length];
+      this.sleep = mode === 'off' ? null : { mode, until: typeof mode === 'number' ? Date.now() + mode * 60000 : null };
+      this.ttsUi();
+      toast(mode === 'off' ? 'Sleep timer off' : mode === 'chapter' ? 'Read aloud stops at the end of this chapter' : `Read aloud stops in ${mode} minutes`, 1800);
+    },
+    sleepNow() {
+      this.sleep = null;
+      this.ttsPause();
+      toast('Read aloud stopped: sleep timer', 3000);
+    },
+
     ttsStop(silent) {
+      this.sleep = null;
       const t = this.tts;
       if (!t) return;
       t.playing = false;
@@ -628,6 +674,10 @@
       $('#ttsPlay').innerHTML = icon(on && !t.paused ? 'pause' : 'play');
       $('#ttsPlay').title = on && !t.paused ? 'Pause (R)' : 'Resume (R)';
       $('#ttsRateVal').textContent = `${(State.settings.ttsRate || 1).toFixed(1)}×`;
+      const s = this.sleep;
+      const left = s?.until ? Math.max(1, Math.ceil((s.until - Date.now()) / 60000)) : 0;
+      $('#ttsSleep').innerHTML = `${icon('clock')}<span>${!s ? '' : s.mode === 'chapter' ? 'Chapter' : `${left} min`}</span>`;
+      $('#ttsSleep').classList.toggle('is-on', !!s);
     },
 
     bindExtras() {
@@ -640,6 +690,11 @@
       $('#rListen').onclick = () => this.ttsToggle();
       $('#ttsPlay').onclick = () => this.ttsToggle();
       $('#ttsStop').onclick = () => this.ttsStop();
+      $('#ttsSleep').onclick = () => this.ttsSleepNext();
+      $('#rPercent').onclick = () => this.goToPrompt();
+      $('#rPercent').title = 'Go to a page or a percentage (Ctrl+G)';
+      // Keep the sleep timer's minutes counting down while it's on.
+      setInterval(() => this.sleep?.until && this.tts?.playing && this.ttsUi(), 30000);
       $('#ttsSlower').onclick = () => this.ttsRate(-0.1);
       $('#ttsFaster').onclick = () => this.ttsRate(0.1);
       window.speechSynthesis?.getVoices(); // warm up the voice list

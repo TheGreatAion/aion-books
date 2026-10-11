@@ -580,6 +580,8 @@
         chapter: this.chapter,
         lastOpenedAt: Date.now(),
       };
+      const loc = this.loc.location;
+      if (loc?.total && this.speed) patch.msLeft = Math.round(Math.max(0, loc.total - loc.current) * this.speed);
       if (atEnd && rec && !rec.finished) {
         patch.finished = true;
         const next = window.Library?.nextInSeries(rec);
@@ -682,6 +684,9 @@
       } else if (e.ctrlKey && (k === 'f' || k === 'F')) {
         e.preventDefault();
         this.openSearch();
+      } else if (e.ctrlKey && (k === 'g' || k === 'G')) {
+        e.preventDefault();
+        this.goToPrompt();
       } else if ((k === 'r' || k === 'R') && !e.ctrlKey) {
         this.ttsToggle();
       } else if (k === 't' || k === 'T') {
