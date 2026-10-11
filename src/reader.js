@@ -584,13 +584,7 @@
       if (loc?.total && this.speed) patch.msLeft = Math.round(Math.max(0, loc.total - loc.current) * this.speed);
       if (atEnd && rec && !rec.finished) {
         patch.finished = true;
-        const next = window.Library?.nextInSeries(rec);
-        toast(
-          `Finished <em>${esc(rec.title)}</em>. How was it? ${window.UI.stars(rec.rating, { id: rec.id, interactive: true, cls: 'on-ink' })}` +
-            (next ? ` <button class="toast-btn" data-open="${next.id}">Next: ${esc(next.title)}</button>` : ''),
-          9000
-        );
-        window.UI.burst(innerWidth / 2, innerHeight - 50);
+        toast('The end. Turn the page once more to close the book.', 3200);
       }
       updateBook(this.id, patch, { quiet: true });
     },

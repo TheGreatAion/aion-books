@@ -650,6 +650,139 @@ button {
   color: var(--ink-3);
 }
 
+/* ================================================================
+   Finished: the page after the last page
+   ================================================================ */
+.finished {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  background: var(--paper);
+  background-image: radial-gradient(ellipse 120% 90% at 50% 30%, transparent 55%, var(--wash) 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.finished.is-open {
+  opacity: 1;
+}
+.fin-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 56px 24px 48px;
+  text-align: center;
+}
+.fin-wreath {
+  width: 120px;
+  margin: 0 auto -6px;
+}
+.fin-wreath svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.fin-cover {
+  width: 132px;
+  margin: 18px auto 22px;
+}
+.fin-page h1 {
+  font: 400 40px/1.12 var(--display);
+  margin: 0;
+  text-wrap: balance;
+}
+.fin-by {
+  margin-top: 6px;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink-2);
+}
+.fin-took {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--ink-3);
+  font-variant-numeric: oldstyle-nums;
+}
+.fin-rate {
+  margin: 26px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.fin-rate .stars.big {
+  gap: 6px;
+}
+.fin-rate .stars.big .star {
+  width: 40px;
+  height: 40px;
+}
+.fin-rate .stars.big .star svg {
+  width: 32px;
+  height: 32px;
+}
+/* Opened by turning the page, not by the keyboard: no focus ring until Tab. */
+.fin-book:focus:not(:focus-visible) {
+  outline: none;
+}
+.fin-next {
+  margin: 36px auto 0;
+  padding-top: 26px;
+  border-top: 1px solid var(--line);
+}
+.fin-book {
+  margin: 14px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px 14px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper-raise);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.fin-book:hover,
+.fin-book:focus-visible {
+  border-color: var(--accent);
+}
+.fin-book-cover {
+  flex: none;
+  width: 70px;
+}
+.fin-book-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.fin-book-ser {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.fin-book-title {
+  font: 400 24px/1.2 var(--display);
+}
+.fin-book .solid-btn {
+  margin-top: 8px;
+  pointer-events: none;
+}
+.fin-done {
+  margin: 8px 0 0;
+  font-style: italic;
+  color: var(--ink-2);
+}
+.fin-back {
+  margin-top: 30px;
+}
+
 /* Other books in progress, beneath the featured one */
 .nightstand {
   margin-top: 30px;

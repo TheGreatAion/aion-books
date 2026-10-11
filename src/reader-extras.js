@@ -48,8 +48,19 @@
     },
 
     next() {
+      // Turning on from the last page: the book is done.
+      if (this.loc && this.atEnd()) return this.finishBook();
       this.userTurn();
       return _next.call(this);
+    },
+    async finishBook() {
+      const id = this.id;
+      const rec = this.record;
+      this.flushSave();
+      if (rec && !rec.finished) await window.UI.updateBook(id, { finished: true }, { quiet: true });
+      await this.close();
+      window.Finished?.show(id);
+      window.UI.burst(innerWidth / 2, innerHeight * 0.3);
     },
     prev() {
       this.userTurn();
