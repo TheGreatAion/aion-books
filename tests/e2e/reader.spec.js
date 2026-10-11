@@ -140,6 +140,9 @@ test('highlights a selection and keeps it', async () => {
 
 test('bookmarks a page and finds it again', async () => {
   await openBook(page, 'Along the Hedge Path');
+  // From the start (turning on from the last page would close the book).
+  await page.evaluate(() => window.Reader.view.goToFraction(0));
+  await page.waitForTimeout(800);
   await turn(2);
   await page.keyboard.press('b');
   await expect(page.locator('#rBookmark')).toHaveClass(/is-on/);
