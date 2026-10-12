@@ -1,7 +1,7 @@
 {
   "name": "aionbooks",
   "productName": "AionBooks",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "A quiet e-book reader and library for Windows.",
   "main": "main.js",
   "scripts": {
