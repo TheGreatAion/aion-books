@@ -29,7 +29,7 @@ test.describe('in the reader and the library', () => {
     await page.click('.toc-item:has-text("Seed Heads")');
     await expect(page.locator('#backPill')).toBeVisible();
     await expect(page.locator('#backPill [data-back] span')).toContainText(/\d+%/);
-    expect((await probe(page)).fraction).toBeGreaterThan(reading + 0.2);
+    await expect.poll(async () => (await probe(page)).fraction).toBeGreaterThan(reading + 0.2);
 
     // A second jump still leads back to where you were reading, not to the first jump.
     await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[0].href));
