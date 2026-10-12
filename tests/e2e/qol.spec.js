@@ -78,3 +78,42 @@ test('read aloud’s sleep timer counts down, and stops reading when it runs out
   await page.evaluate(() => window.Reader.ttsStop());
   await expect(page.locator('#ttsSleep')).not.toHaveClass(/is-on/);
 });
+
+test('the progress bar marks where chapters begin', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await expect.poll(() => page.evaluate(() => (window.Reader.tickStops || []).length)).toBeGreaterThan(1);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('#rProgress')).backgroundImage)).toContain('linear-gradient');
+});
+
+test('the contents show each chapter’s minutes, and a check on the ones read', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.evaluate(() => window.Reader.view.goToFraction(0.6));
+  await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
+  await page.waitForTimeout(800);
+  await page.keyboard.press('t');
+  await expect.poll(() => page.locator('.toc-item.is-read').count()).toBeGreaterThan(0);
+  await expect(page.locator('.toc-item:not(.is-read) .toc-meta').first()).toContainText('min');
+  await page.keyboard.press('t');
+});
+
+test('text size is remembered per book; the default stays as it was', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  const before = await page.evaluate(() => window.UI.State.settings.fontSize);
+  await page.evaluate(() => window.Reader.change({ fontSize: 136 }));
+  await toLibrary(page);
+  expect(await page.evaluate(() => window.UI.State.settings.fontSize)).toBe(before);
+  await openBook(page, 'Along the Hedge Path');
+  expect(await page.evaluate(() => window.UI.State.settings.fontSize)).toBe(before);
+  await toLibrary(page);
+  await openBook(page, 'The Pear Tree Letters');
+  expect(await page.evaluate(() => window.UI.State.settings.fontSize)).toBe(136);
+  await toLibrary(page);
+});
+
+test('Dusk in the evening: Dusk during the chosen hours', async () => {
+  const h = new Date().getHours();
+  await page.evaluate((h) => window.UI.setSettings({ theme: 'linen', duskFrom: h, duskTo: (h + 1) % 24, duskEvening: true }), h);
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme), { timeout: 10000 }).toBe('dusk');
+  expect(await page.evaluate(() => window.UI.State.settings.followSystem)).toBe(false);
+  await page.evaluate(() => window.UI.setSettings({ duskEvening: false, theme: 'linen' }));
+});

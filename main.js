@@ -650,7 +650,7 @@ function registerIpc() {
 
   const EDITABLE = new Set([
     'title', 'author', 'progress', 'location', 'finished', 'favorite',
-    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex', 'setAside', 'msLeft',
+    'shelves', 'bookmarks', 'highlights', 'lastOpenedAt', 'chapter', 'rating', 'series', 'seriesIndex', 'setAside', 'msLeft', 'readerPrefs',
   ]);
   ipcMain.handle('book:update', (_e, id, patch) => {
     const book = findBook(id);
@@ -1012,11 +1012,18 @@ function registerIpc() {
       // one that goes against Windows' current mode stops following it.
       if ((patch.theme === 'dusk') !== systemDark) patch = { ...patch, followSystem: false };
     }
+    if (patch?.theme && s.duskEvening && !('duskEvening' in patch)) {
+      // The same for the evening hours.
+      if ((patch.theme === 'dusk') !== eveningNow(s)) patch = { ...patch, duskEvening: false };
+    }
+    // One or the other: following Windows, or the evening hours.
+    if (patch?.followSystem) patch = { ...patch, duskEvening: false };
+    if (patch?.duskEvening) patch = { ...patch, followSystem: false };
     for (const [k, v] of Object.entries(patch || {})) if (k in DEFAULT_SETTINGS) s[k] = v;
     if (patch?.theme && patch.theme !== 'dusk') s.lightTheme = patch.theme;
     store.save();
     if (patch && patch.theme) applyTitlebar(patch.theme);
-    if (patch?.followSystem) checkSystemTheme();
+    if (patch?.followSystem || patch?.duskEvening || 'duskFrom' in (patch || {}) || 'duskTo' in (patch || {})) checkSystemTheme();
     return s;
   });
 
@@ -1103,11 +1110,20 @@ function readSystemDark() {
     )
   );
 }
+// Is it evening, by the hours chosen for Dusk (which may run past midnight)?
+function eveningNow(s) {
+  const h = new Date().getHours();
+  const from = Number(s.duskFrom ?? 20);
+  const to = Number(s.duskTo ?? 7);
+  return from > to ? h >= from || h < to : h >= from && h < to;
+}
+
 async function checkSystemTheme() {
   systemDark = await readSystemDark();
   const s = store?.data.settings;
-  if (!s?.followSystem) return;
-  const want = systemDark ? 'dusk' : s.lightTheme && s.lightTheme !== 'dusk' ? s.lightTheme : 'linen';
+  if (!s?.followSystem && !s?.duskEvening) return;
+  const dark = s.followSystem ? systemDark : eveningNow(s);
+  const want = dark ? 'dusk' : s.lightTheme && s.lightTheme !== 'dusk' ? s.lightTheme : 'linen';
   if (s.theme === want) return;
   s.theme = want;
   store.save();

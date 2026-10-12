@@ -46,7 +46,17 @@
     shelves: [],
     orders: {},
     fonts: [],
-    settings: {},
+    // Settings from the library file, with the open book's own text size and
+    // layout laid over them (kept through every refresh while it's open).
+    _settings: {},
+    overlay: null,
+    get settings() {
+      return this._settings;
+    },
+    set settings(v) {
+      this._settings = v || {};
+      if (this.overlay) Object.assign(this._settings, this.overlay);
+    },
     listeners: new Set(),
     hidden: new Set(), // removed, but the Undo is still on offer
     set(snapshot) {

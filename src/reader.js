@@ -189,6 +189,7 @@
       if (this.view) await this.close({ silent: true });
       const token = ++this.openToken;
       this.id = id;
+      this.useBookPrefs(rec);
       this.whoReset?.();
       this.loc = null;
       this.progress = rec.progress || 0;
@@ -269,6 +270,8 @@
       this.book = null;
       this.loc = null;
       $('#viewer').innerHTML = '';
+      this.dropBookPrefs();
+      this.ticksFor = null;
       document.title = 'AionBooks';
       const lib = $('#library');
       lib.dataset.visit = String(Number(lib.dataset.visit || 0) + 1);
@@ -549,6 +552,8 @@
       $('#rChapter').textContent = this.chapter;
       const currentId = detail.tocItem?.aionId;
       $$('.toc-item').forEach((el) => el.classList.toggle('is-current', !!currentId && el.dataset.id === currentId));
+      this.paintTicks(detail);
+      if ($('#drawer').classList.contains('open')) this.paintTocProgress(detail);
 
       $('#rPercent').textContent = this.footerText(detail);
       $('#rChapter').textContent = this.chapterText(detail);
@@ -767,7 +772,10 @@
       $('#drawer').classList.toggle('open', open);
       $('#scrim').classList.toggle('on', open);
       $('#rToc').classList.toggle('is-on', open);
-      if (open) $('.toc-item.is-current')?.scrollIntoView({ block: 'center' });
+      if (open) {
+        this.paintTocProgress();
+        $('.toc-item.is-current')?.scrollIntoView({ block: 'center' });
+      }
     },
     showTab(tab) {
       this.activeTab = tab;
@@ -1051,8 +1059,30 @@
         .map(([k, t]) => `<button class="swatch ${s.theme === k ? 'is-on' : ''}" data-v="${k}"><i style="background:${t.swatch}"></i>${t.label}</button>`)
         .join('');
     },
+    // Text size and layout belong to the book on screen: changed while reading,
+    // they're kept with it (and the defaults in Settings stay as they were).
+    useBookPrefs(rec) {
+      this.defaults = { fontSize: State.settings.fontSize, layout: State.settings.layout };
+      this.prefs = { ...(rec.readerPrefs || {}) };
+      State.overlay = this.prefs;
+      Object.assign(State.settings, this.prefs);
+    },
+    dropBookPrefs() {
+      State.overlay = null;
+      if (this.defaults) Object.assign(State.settings, this.defaults);
+      this.defaults = null;
+      this.prefs = null;
+    },
     async change(patch) {
-      await setSettings(patch);
+      const PER_BOOK = ['fontSize', 'layout'];
+      const mine = this.id && this.prefs ? Object.fromEntries(Object.entries(patch).filter(([k]) => PER_BOOK.includes(k))) : {};
+      const rest = Object.fromEntries(Object.entries(patch).filter(([k]) => !(k in mine)));
+      if (Object.keys(mine).length) {
+        Object.assign(this.prefs, mine);
+        Object.assign(State.settings, mine);
+        updateBook(this.id, { readerPrefs: { ...this.prefs } }, { quiet: true });
+      }
+      if (Object.keys(rest).length) await setSettings(rest);
       this.renderTypePop();
       if (!this.view) return;
       if ('layout' in patch || 'margin' in patch || 'runningHeads' in patch) this.applyLayout();
@@ -1108,6 +1138,8 @@
 
       const range = $('#rProgress');
       range.addEventListener('input', () => {
+        const near = (this.tickStops || []).find((f) => Math.abs(f - range.value / 1000) < 0.006);
+        if (near != null) range.value = Math.round(near * 1000);
         range.style.setProperty('--p', `${range.value / 10}%`);
         $('#rPercent').textContent = `${Math.round(range.value / 10)}%`;
       });

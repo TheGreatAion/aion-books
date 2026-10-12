@@ -149,9 +149,11 @@
           const within = range.toString().length / Math.max(1, doc.body.textContent.length);
           frac = sf[index] + within * (sf[index + 1] - sf[index]);
           exact = true;
-        } else if (!doc) {
-          frac = sf[index]; // another file: its start (good enough for an estimate)
-          exact = !item.href.includes('#'); // exact when the entry is the start of that file
+        } else {
+          // Another file, or the start of this one: the file's start (good
+          // enough for an estimate, and exact when the entry is a file's start).
+          frac = sf[index];
+          exact = !item.href.includes('#');
         }
       } catch (_) {
         frac = null;
@@ -188,6 +190,72 @@
         return this.view.goToFraction(clamp((n - 1) / pages, 0, 1));
       }
       toast(pages ? 'Type a page number, or a percentage like 40%' : 'Type a percentage, like 40%', 2400);
+    },
+
+    // ---------- chapter marks on the progress bar ----------
+    // A small tick where each chapter begins (the top-level ones, or all of
+    // them when there are few), drawn on the bar's own background.
+    paintTicks(detail) {
+      if (this.ticksFor === this.id) return;
+      const r = $('#rProgress');
+      const items = (this.flatToc || []).filter((t) => t.depth === 0);
+      const use = items.length >= 3 ? items : this.flatToc || [];
+      const stops = [];
+      for (const t of use) {
+        let f = null;
+        try {
+          f = this.tocFraction(t, detail);
+        } catch (_) {}
+        if (f != null && f > 0.004 && f < 0.996) stops.push(f);
+      }
+      this.tickStops = stops.length <= 80 ? [...new Set(stops.map((f) => Math.round(f * 1000) / 1000))].sort((a, b) => a - b) : [];
+      r.style.setProperty(
+        '--ticks',
+        this.tickStops.length
+          ? this.tickStops.map((f) => `linear-gradient(var(--line-2), var(--line-2)) calc(6px + (100% - 13px) * ${f}) 50% / 1px 8px no-repeat`).join(', ')
+          : 'none'
+      );
+      this.ticksFor = this.id;
+    },
+
+    // ---------- contents with progress ----------
+    // Each chapter's length in minutes (at your pace), and a check on the ones read.
+    paintTocProgress(detail = this.loc) {
+      if (!detail) return;
+      const items = this.flatToc || [];
+      const fr = items.map((t) => {
+        try {
+          return this.tocFraction(t, detail);
+        } catch (_) {
+          return null;
+        }
+      });
+      // Read: every chapter before the one you're in (but not the one it's part of).
+      const cur = items.findIndex((t) => t.id === detail.tocItem?.aionId);
+      const before = (i) => {
+        if (cur < 0 || i >= cur) return false;
+        if (items[i].depth >= items[cur].depth) return true;
+        for (let j = i + 1; j < cur; j++) if (items[j].depth <= items[i].depth) return true;
+        return false; // it holds the chapter you're in
+      };
+      const total = detail.location?.total;
+      const speed = this.speed || DEFAULT_MS_PER_LOC;
+      items.forEach((t, i) => {
+        const btn = document.querySelector(`.toc-item[data-id="${t.id}"]`);
+        if (!btn || fr[i] == null) return;
+        let end = 1;
+        for (let j = i + 1; j < fr.length; j++) if (fr[j] != null && fr[j] > fr[i] + 1e-6) { end = fr[j]; break; }
+        const min = total ? Math.round(((end - fr[i]) * total * speed) / 60000) : 0;
+        const read = before(i);
+        btn.classList.toggle('is-read', read);
+        let meta = btn.querySelector('.toc-meta');
+        if (!meta) {
+          meta = document.createElement('span');
+          meta.className = 'toc-meta';
+          btn.appendChild(meta);
+        }
+        meta.innerHTML = read ? icon('check') : min >= 1 ? `${min} min` : '';
+      });
     },
 
     // ---------- running heads & page numbers ----------

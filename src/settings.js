@@ -29,6 +29,19 @@
       ['auto', 'Two pages'],
       ['scroll', 'Scroll'],
     ],
+    duskFrom: [
+      [18, '6 pm'],
+      [19, '7 pm'],
+      [20, '8 pm'],
+      [21, '9 pm'],
+      [22, '10 pm'],
+    ],
+    duskTo: [
+      [5, '5 am'],
+      [6, '6 am'],
+      [7, '7 am'],
+      [8, '8 am'],
+    ],
     footerInfo: [
       ['time', 'Time left'],
       ['pages', 'Pages left'],
@@ -300,6 +313,14 @@
           'Follows Windows’ light and dark mode: Dusk in dark mode, the paper you chose in light mode.',
           toggle('followSystem', !!s.followSystem)
         )}
+        ${row(
+          'Dusk in the evening',
+          s.duskEvening ? 'Dusk between these hours, the paper you chose the rest of the day.' : 'Dusk in the evening and overnight, the paper you chose by day.',
+          toggle('duskEvening', !!s.duskEvening)
+        )}
+        ${s.duskEvening
+          ? row('From', '', chips('duskFrom', CHOICES.duskFrom, s.duskFrom ?? 20)) + row('Until', '', chips('duskTo', CHOICES.duskTo, s.duskTo ?? 7))
+          : ''}
         ${row('Typeface', 'Add your own .ttf, .otf, .woff or .woff2 files. Add each weight and italic of a family and they’re grouped together.', fontChips(s.fontFamily), 'wide')}
         ${row(
           'Text size',
@@ -537,7 +558,7 @@
       if (set) {
         const key = set.dataset.set;
         let v = set.dataset.v;
-        if (key === 'lineHeight' || key === 'dailyGoal') v = Number(v);
+        if (key === 'lineHeight' || key === 'dailyGoal' || key === 'duskFrom' || key === 'duskTo') v = Number(v);
         await change({ [key]: v });
         if (key === 'dailyGoal') window.Library.refreshGoal();
         return;
