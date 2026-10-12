@@ -170,10 +170,11 @@ test('switching layouts keeps your place', async () => {
   expect(Math.abs((await probe(page)).fraction - before)).toBeLessThan(0.02);
 });
 
-test('shows time left once the book is measured', async () => {
+test('shows time left in the book, and pages left in the chapter beside its name', async () => {
   await openBook(page, 'The Pear Tree Letters');
   await waitForMeasured(page);
-  await expect.poll(async () => (await probe(page)).footer).toMatch(/left in chapter .* in book/);
+  await expect.poll(async () => (await probe(page)).footer).toMatch(/^.+ left · \d+%$/);
+  await expect.poll(() => page.locator('#rChapter').textContent()).toMatch(/ · (\d+ pages left|last page)$/);
 });
 
 test('the footer shows the reader’s choice: time, pages or just the percentage', async () => {
@@ -184,7 +185,7 @@ test('the footer shows the reader’s choice: time, pages or just the percentage
   try {
     await page.evaluate(() => window.UI.setSettings({ footerInfo: 'pages' }));
     await turn(1);
-    await expect.poll(async () => (await probe(page)).footer).toMatch(/^(\d+ pages left in chapter|Last page in chapter) · \d+%$/);
+    await expect.poll(async () => (await probe(page)).footer).toMatch(/^\d+ pages? left · \d+%$/);
     await page.evaluate(() => window.UI.setSettings({ footerInfo: 'percent' }));
     await turn(1);
     await expect.poll(async () => (await probe(page)).footer).toMatch(/^\d+%$/);
@@ -211,12 +212,13 @@ test('the chapter countdown reaches the last page before the chapter changes', a
   await page.evaluate(() => window.Reader.goTo(window.Reader.flatToc[1].href));
   await page.waitForTimeout(800);
   try {
-    await page.evaluate(() => window.UI.setSettings({ footerInfo: 'pages' }));
     const seen = [];
     for (let i = 0; i < 8; i++) {
       await turn(1);
-      const { footer, chapter } = await probe(page);
-      seen.push({ left: /^Last page/.test(footer) ? 0 : Number(/^(\d+) pages/.exec(footer)?.[1]), chapter });
+      const { chapter } = await probe(page);
+      // The count sits beside the chapter's name: "Windfall · 9 pages left", or "· last page".
+      const foot = await page.locator('#rChapter').textContent();
+      seen.push({ left: /last page$/.test(foot) ? 0 : Number(/(\d+) pages left$/.exec(foot)?.[1]), chapter });
     }
     // Within a chapter the count only goes down, and every chapter we leave ends on "Last page".
     for (let i = 1; i < seen.length; i++) {

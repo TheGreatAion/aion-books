@@ -38,7 +38,10 @@
       this.speed = sp && sp.locs >= 15 ? clamp(sp.ms / sp.locs, 12000, 240000) : DEFAULT_MS_PER_LOC;
       this.todayKey = st.today;
       this.todayMs = st.days[st.today]?.ms || 0;
-      if (this.loc) $('#rPercent').textContent = this.footerText(this.loc);
+      if (this.loc) {
+        $('#rPercent').textContent = this.footerText(this.loc);
+        $('#rChapter').textContent = this.chapterText(this.loc);
+      }
     },
 
     beforeClose() {
@@ -74,24 +77,32 @@
     // ---------- time left ----------
     // foliate measures the book in "locations" of ~1,500 bytes, straight from
     // the file sizes — no need to lay the whole book out first.
+    // The foot of the page: the chapter and what's left of it on the left,
+    // the whole book on the right ("49 min left · 53%").
     footerText(detail) {
       const p = pct(this.progress);
       if (this.atEnd()) return `The end · ${p}`;
       const loc = detail.location;
       const show = State.settings.footerInfo || 'time';
       if (show === 'percent' || !loc?.total) return p;
-      const end = this.chapterEndFraction(detail);
       if (show === 'pages') {
         const perBook = this.pagesPerBook(detail);
-        if (!perBook || end == null) return p;
-        const left = Math.max(0, Math.round((end - this.hereFraction(detail)) * perBook));
-        return left <= 1 ? `Last page in chapter · ${p}` : `${left} pages left in chapter · ${p}`;
+        if (!perBook) return p;
+        const left = Math.max(0, Math.round((1 - this.hereFraction(detail)) * perBook));
+        return `${left} ${left === 1 ? 'page' : 'pages'} left · ${p}`;
       }
       const speed = this.speed || DEFAULT_MS_PER_LOC;
-      const parts = [];
-      if (end != null) parts.push(`${fmtLeft(Math.max(0, end * loc.total - loc.current) * speed)} left in chapter`);
-      parts.push(`${fmtLeft(Math.max(0, loc.total - loc.current) * speed)} in book`);
-      return `${parts.join(' · ')} · ${p}`;
+      return `${fmtLeft(Math.max(0, loc.total - loc.current) * speed)} left · ${p}`;
+    },
+    chapterText(detail) {
+      const name = this.chapter || '';
+      if (this.view?.isFixedLayout || this.atEnd()) return name;
+      const end = this.chapterEndFraction(detail);
+      const perBook = this.pagesPerBook(detail);
+      if (end == null || !perBook) return name;
+      const left = Math.max(0, Math.round((end - this.hereFraction(detail)) * perBook));
+      const pages = left <= 1 ? 'last page' : `${left} pages left`;
+      return name ? `${name} · ${pages}` : pages;
     },
 
     // Where the next contents entry begins, as a fraction of the whole book —

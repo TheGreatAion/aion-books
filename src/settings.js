@@ -314,7 +314,7 @@
 
       <section class="set-group" data-group="pages">
         <h2>Turning pages &amp; the page</h2>
-        ${row('At the foot of the page', 'Time left is learned from how fast you read.', chips('footerInfo', CHOICES.footerInfo, s.footerInfo || 'time'))}
+        ${row('At the foot of the page', 'The chapter shows how many pages are left in it. For the whole book, show the time left (learned from how fast you read), the pages left, or just how far through you are.', chips('footerInfo', CHOICES.footerInfo, s.footerInfo || 'time'))}
         ${row(
           'Page numbers & running heads',
           'The book’s title, the chapter and a page number around each page, like a printed book.',

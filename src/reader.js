@@ -551,6 +551,7 @@
       $$('.toc-item').forEach((el) => el.classList.toggle('is-current', !!currentId && el.dataset.id === currentId));
 
       $('#rPercent').textContent = this.footerText(detail);
+      $('#rChapter').textContent = this.chapterText(detail);
       this.updateSpread();
       this.updateBookmarkBtn();
       this.queueSave(this.atEnd());
