@@ -257,6 +257,12 @@ a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness:
   box-shadow: 0 14px 30px -18px var(--shadow);
 }
 .download:hover { filter: brightness(1.12); }
+.download.alt { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.download.alt:hover { filter: none; background: var(--wash, rgba(120, 88, 52, 0.075)); }
+.buttons { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+.buttons .download { padding: 12px 20px; font-size: 18px; }
+.cta small { width: 100%; }
+.final .buttons { justify-content: center; }
 .download svg { width: 20px; height: 20px; }
 .cta small { display: block; color: var(--ink-3); font-style: italic; font-size: 16px; line-height: 1.4; }
 .cta small a { color: var(--ink-2); }
@@ -320,7 +326,7 @@ td code { font: 15px ui-monospace, Consolas, monospace; color: var(--ink-2); }
 .faq details p { margin: 0 0 18px; color: var(--ink-2); }
 
 .final { text-align: center; padding: 64px 0 40px; }
-.final .download { margin-top: 18px; }
+.final .buttons { margin-top: 18px; }
 footer { padding: 34px 0 44px; text-align: center; color: var(--ink-3); font-size: 16px; border-top: 1px solid var(--line); margin-top: 30px; }
 footer a { color: var(--ink-2); display: inline-block; padding: 10px 2px; } /* easy to tap */
 footer p { margin: 4px 0; }
@@ -436,12 +442,18 @@ footer p { margin: 4px 0; }
         <li>EPUB</li><li>Kindle</li><li>PDF</li><li>Comics</li><li>FB2</li>
       </ul>
       <div class="cta">
-        <a class="download" id="download" href="https://github.com/TheGreatAion/aion-books/releases/latest">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
-          <span>Download for Windows</span>
-        </a>
-        <small id="version">Free and open source · Windows 10 and 11 · updates itself</small>
-        <small class="also" id="also">Also for <a href="https://github.com/TheGreatAion/aion-books/releases/latest" data-linux>Linux</a>: an AppImage, or a .deb for Ubuntu and Debian</small>
+        <div class="buttons">
+          <a class="download" data-os="windows" href="https://github.com/TheGreatAion/aion-books/releases/latest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+            <span>Download for Windows</span>
+          </a>
+          <a class="download alt" data-os="linux" href="https://github.com/TheGreatAion/aion-books/releases/latest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+            <span>Download for Linux</span>
+          </a>
+        </div>
+        <small id="version">Free and open source · Windows 10 and 11, and Linux · updates itself</small>
+        <small class="also">On Linux it's an AppImage that runs on most systems. Or get the <a href="https://github.com/TheGreatAion/aion-books/releases/latest" data-deb>.deb</a> for Ubuntu and Debian.</small>
       </div>
     </div>
     <div class="hero-shot">
@@ -543,10 +555,16 @@ footer p { margin: 4px 0; }
   <div class="wrap final">
     <h2>Make a home for your books</h2>
     <p class="sub">Free, open source and private. It keeps itself up to date.</p>
-    <a class="download" href="https://github.com/TheGreatAion/aion-books/releases/latest" data-download>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
-      <span>Download for Windows</span>
-    </a>
+    <div class="buttons">
+      <a class="download" data-os="windows" href="https://github.com/TheGreatAion/aion-books/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+        <span>Download for Windows</span>
+      </a>
+      <a class="download alt" data-os="linux" href="https://github.com/TheGreatAion/aion-books/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+        <span>Download for Linux</span>
+      </a>
+    </div>
   </div>
 </main>
 
@@ -589,34 +607,26 @@ footer p { margin: 4px 0; }
     show();
   })();
 
-  // Point the download buttons straight at the newest build for this computer:
-  // the installer on Windows, the AppImage on Linux (with the .deb and Windows a click away).
+  // Point each download button straight at the newest build for it: the installer
+  // for Windows, the AppImage for Linux (the .deb a click away). On Linux, Linux comes first.
   const onLinux = /linux/i.test(navigator.userAgentData?.platform || navigator.platform || '') && !/android/i.test(navigator.userAgent);
   const set = (sel, fn) => document.querySelectorAll(sel).forEach(fn);
-  const link = (a, text) => `<a href="${a ? a.browser_download_url : 'https://github.com/TheGreatAion/aion-books/releases/latest'}">${text}</a>`;
   if (onLinux) {
-    set('#download span, [data-download] span', (s) => (s.textContent = 'Download for Linux'));
-    document.getElementById('version').textContent = 'Free and open source · AppImage for most Linux systems · updates itself';
-    document.getElementById('also').innerHTML = `Or the ${link(null, '.deb')} for Ubuntu and Debian, or ${link(null, 'Windows')}`;
+    set('[data-os]', (a) => {
+      const linux = a.dataset.os === 'linux';
+      a.classList.toggle('alt', !linux);
+      a.style.order = linux ? -1 : 0;
+    });
   }
   fetch('https://api.github.com/repos/TheGreatAion/aion-books/releases/latest')
     .then((r) => (r.ok ? r.json() : null))
     .then((rel) => {
       const find = (re) => rel && (rel.assets || []).find((a) => re.test(a.name));
-      const exe = find(/\.exe$/i);
-      const appImage = find(/\.AppImage$/i);
-      const deb = find(/\.deb$/i);
-      const main = onLinux ? appImage : exe;
-      if (!main) return;
-      set('#download, [data-download]', (a) => (a.href = main.browser_download_url));
-      const size = (main.size / 1048576).toFixed(0);
-      const version = rel.tag_name.replace(/^v/, '');
-      document.getElementById('version').textContent = onLinux
-        ? `Version ${version} · ${size} MB · AppImage for most Linux systems · free and open source`
-        : `Version ${version} · ${size} MB · Windows 10 and 11 · free and open source`;
-      document.getElementById('also').innerHTML = onLinux
-        ? `Or the ${link(deb, '.deb')} for Ubuntu and Debian, or ${link(exe, 'Windows')}`
-        : `Also for Linux: ${link(appImage, 'AppImage')}, or a ${link(deb, '.deb')} for Ubuntu and Debian`;
+      const point = (sel, asset) => asset && set(sel, (a) => (a.href = asset.browser_download_url));
+      point('[data-os="windows"]', find(/\.exe$/i));
+      point('[data-os="linux"]', find(/\.AppImage$/i));
+      point('[data-deb]', find(/\.deb$/i));
+      if (rel?.tag_name) document.getElementById('version').textContent = `Version ${rel.tag_name.replace(/^v/, '')} · Windows 10 and 11, and Linux · free and open source`;
     })
     .catch(() => {});
 </script>
