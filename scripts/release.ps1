@@ -1,5 +1,7 @@
 # Builds the Windows installer and publishes it as a GitHub release.
 # Installed copies of AionBooks pick the new version up automatically.
+# Once the release is up, GitHub Actions adds the Linux builds to it
+# (.github/workflows/release-linux.yml).
 #
 # Before running: bump "version" in package.json (e.g. 1.2.0 -> 1.3.0),
 # commit and push, and make sure you're signed in with `gh auth login`.
