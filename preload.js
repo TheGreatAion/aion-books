@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('aion', {
+  platform: process.platform,
   getLibrary: () => ipcRenderer.invoke('library:get'),
   importDialog: () => ipcRenderer.invoke('library:import-dialog'),
   importFolderDialog: () => ipcRenderer.invoke('library:import-folder-dialog'),

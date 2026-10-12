@@ -2,6 +2,8 @@
 (function () {
   const { $, esc, State, setSettings, toast, confirmBox, Fonts, coverHtml } = window.UI;
   const { icon } = window.Ornaments;
+  // Windows is named where it applies; elsewhere the wording stays general.
+  const onWindows = window.aion.platform === 'win32';
 
   const THEMES = [
     ['linen', 'Linen', '#f2eadb', '#3b2f25'],
@@ -309,8 +311,8 @@
           'wide'
         )}
         ${row(
-          'Dusk when Windows is dark',
-          'Follows Windows’ light and dark mode: Dusk in dark mode, the paper you chose in light mode.',
+          onWindows ? 'Dusk when Windows is dark' : 'Dusk when the system is dark',
+          `Follows ${onWindows ? 'Windows’' : 'the system’s'} light and dark mode: Dusk in dark mode, the paper you chose in light mode.`,
           toggle('followSystem', !!s.followSystem)
         )}
         ${row(
@@ -350,7 +352,11 @@
 
       <section class="set-group" data-group="read-aloud">
         <h2>Read aloud</h2>
-        <p class="set-note">Press <b>R</b> or the speaker button while reading. Uses the voices installed in Windows, so it works offline.</p>
+        <p class="set-note">Press <b>R</b> or the speaker button while reading. ${
+          onWindows
+            ? 'Uses the voices installed in Windows, so it works offline.'
+            : 'Uses the voices installed on this computer (through speech-dispatcher), so it works offline.'
+        }</p>
         ${row(
           'Voice',
           '',
@@ -402,7 +408,7 @@
         ${row(
           'Library location',
           (info ? `<span class="path">${esc(info.dataDir)}</span><br>` : '') +
-            'Keep it in a OneDrive or Dropbox folder to have the same library and progress on every PC.',
+            'Keep it in a OneDrive or Dropbox folder to have the same library and progress on every computer.',
           `<div class="btn-row"><button class="ghost-btn bordered" data-action="open-data">${icon('folder')}<span>Open</span></button>` +
             `<button class="ghost-btn bordered" data-action="move-library">Move…</button>${
               info?.customLocation ? `<button class="ghost-btn bordered" data-action="default-location">Use default</button>` : ''
