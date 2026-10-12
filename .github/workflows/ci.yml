@@ -38,3 +38,70 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  test-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # A virtual display for the app, and Chromium's sandbox allowed to start
+      # (Ubuntu's AppArmor blocks it for unpacked Electron otherwise).
+      - name: Prepare display and sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: App tests
+        run: xvfb-run --auto-servernum npm run test:app
+        env:
+          CI: 'true'
+
+      - name: Keep the test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-linux
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  build-linux:
+    needs: test-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build AppImage and deb
+        run: npx electron-builder --linux AppImage deb --publish never
+
+      - name: Keep the Linux builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: aionbooks-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+          retention-days: 14
