@@ -412,6 +412,8 @@
         body p { hyphens: auto; -webkit-hyphens: auto; }
         /* A picture squeezed into a box of the wrong shape keeps its own. */
         body img { object-fit: contain; }
+        /* A click on a picture opens it full size (not in comics or PDFs: there it's the page). */
+        body img, body svg:has(image) { cursor: zoom-in; }
         body img, body svg image { mix-blend-mode: ${t.blend}; ${s.theme === 'dusk' ? 'filter: brightness(.85) sepia(.15);' : ''} }
         body hr { border-color: ${t.ink}33 !important; }
         ::selection { background: ${s.theme === 'dusk' ? 'rgba(205,120,110,.35)' : 'rgba(214,140,130,.35)'}; }
@@ -662,6 +664,7 @@
 
     onKey(e) {
       if (!$('#reader').classList.contains('is-active')) return;
+      if (window.Lightbox?.isOpen()) return;
       if (!$('#modalBack').hidden) return;
       if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.target.type !== 'range') return;
       const k = e.key;

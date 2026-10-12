@@ -306,3 +306,31 @@ test('a stretched cover page keeps the picture’s proportions', async () => {
     await other.app.close();
   }
 });
+
+// A picture in a book opens full size; zoom in, and Esc closes it (not the book).
+test('click a picture to see it full size and zoom in', async () => {
+  const other = await launch({ books: ['svg-cover.epub'] });
+  try {
+    await other.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 840));
+    await openBook(other.page, 'The Winter Orchard');
+    const frame = await bookFrame(other.page, 'svg image');
+    await frame.locator('svg').first().click();
+    const box = other.page.locator('#lightbox');
+    await expect(box).toBeVisible();
+    await expect(box.locator('img')).toHaveJSProperty('complete', true);
+    await expect(box.locator('.lb-zoom')).toHaveText('100%');
+    // Wheel up over the picture: bigger.
+    const img = box.locator('img');
+    const b = await img.boundingBox();
+    await other.page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await other.page.mouse.wheel(0, -400);
+    await expect.poll(async () => parseInt(await box.locator('.lb-zoom').textContent(), 10)).toBeGreaterThan(150);
+    await expect(box).toHaveClass(/is-zoomed/);
+    await other.page.keyboard.press('Escape');
+    await expect(box).toBeHidden();
+    // Still reading.
+    await expect(other.page.locator('#reader')).toHaveClass(/is-active/);
+  } finally {
+    await other.app.close();
+  }
+});

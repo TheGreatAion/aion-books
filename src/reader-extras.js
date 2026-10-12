@@ -356,8 +356,29 @@
       return this.view?.goTo(cfi);
     },
 
-    // ---------- clicks inside the page: tap zones ----------
+    // ---------- clicks inside the page: pictures, then tap zones ----------
     extendDoc(doc) {
+      doc.addEventListener(
+        'click',
+        (e) => {
+          if (this.view?.isFixedLayout) return;
+          const pic = e.target.closest?.('img, svg');
+          if (!pic || e.target.closest('a[href]')) return;
+          const sel = doc.getSelection();
+          if (sel && !sel.isCollapsed) return;
+          // Not the little ones: dividers, ornaments, drop caps.
+          const r = pic.getBoundingClientRect();
+          if (r.width < 60 || r.height < 60) return;
+          const image = pic.tagName.toLowerCase() === 'svg' ? pic.querySelector('image') : pic;
+          const src = image?.currentSrc || image?.src || image?.getAttribute('href') || image?.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+          if (!src) return;
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          window.Lightbox?.open(typeof src === 'string' ? src : src.baseVal, image.getAttribute('alt') || '');
+          $('#lightbox').focus();
+        },
+        true
+      );
       doc.addEventListener('click', (e) => {
         if (e.target.closest?.('a[href]')) return;
         if (!State.settings.tapZones || State.settings.layout === 'scroll') return;

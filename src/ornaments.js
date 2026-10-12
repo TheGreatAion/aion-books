@@ -91,6 +91,7 @@
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     shelf: '<path d="M4 7h16M4 17h16"/><path d="M6.5 7v10M17.5 7v10"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
     folder: '<path d="M3.5 7.5c0-1.1.9-2 2-2h3.8l2 2h7.2c1.1 0 2 .9 2 2v7.5c0 1.1-.9 2-2 2h-13c-1.1 0-2-.9-2-2z"/>',
     search: '<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/>',
     back: '<path d="M14.5 6l-6 6 6 6"/>',

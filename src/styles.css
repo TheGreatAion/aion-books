@@ -694,6 +694,77 @@ button {
 }
 
 /* ================================================================
+   A picture from a book, full size
+   ================================================================ */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(24, 20, 16, 0.9);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  outline: none;
+}
+.lightbox.is-open {
+  opacity: 1;
+}
+.lb-stage {
+  position: absolute;
+  inset: 0 0 64px;
+  overflow: hidden;
+  cursor: zoom-out;
+}
+/* Centered on the stage at any size; scaled and moved from there. */
+.lb-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform-origin: center;
+  border-radius: 3px;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+  cursor: zoom-in;
+  user-select: none;
+}
+.lightbox.is-zoomed .lb-stage img {
+  cursor: grab;
+}
+.lightbox.is-zoomed .lb-stage img:active {
+  cursor: grabbing;
+}
+.lb-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(48, 42, 36, 0.92);
+  border: 1px solid rgba(232, 215, 188, 0.14);
+  color: #e7dac3;
+}
+.lb-bar .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #e7dac3;
+}
+.lb-bar .icon-btn:hover {
+  background: rgba(232, 215, 188, 0.1);
+}
+.lb-zoom {
+  min-width: 48px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: oldstyle-nums;
+  color: #c4b398;
+}
+
+/* ================================================================
    Finished: the page after the last page
    ================================================================ */
 .finished {
