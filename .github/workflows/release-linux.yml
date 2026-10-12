@@ -35,3 +35,6 @@ jobs:
         run: npx electron-builder --linux AppImage deb --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A manual run replaces the files on a release that's already out,
+          # however long ago it was published.
+          EP_GH_IGNORE_TIME: ${{ github.event_name == 'workflow_dispatch' }}
