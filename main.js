@@ -564,6 +564,8 @@ let updateStatus = { state: 'idle' };
 
 function canSelfUpdate() {
   if (!app.isPackaged) return false;
+  // On Linux only the AppImage can replace itself; a .deb is updated by the package manager.
+  if (process.platform === 'linux') return !!process.env.APPIMAGE;
   const dir = path.dirname(process.execPath);
   return fs.readdirSync(dir).some((f) => /^Uninstall .*\.exe$/i.test(f));
 }
@@ -1146,7 +1148,7 @@ function applyTidy(book, p) {
 }
 
 function applyTitlebar(theme) {
-  if (!win || process.platform !== 'win32') return;
+  if (!win || (process.platform !== 'win32' && process.platform !== 'linux')) return;
   try {
     win.setTitleBarOverlay({ ...(TITLEBAR[theme] || TITLEBAR.linen), height: 44 });
   } catch {
