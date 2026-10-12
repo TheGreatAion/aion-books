@@ -22,6 +22,23 @@
     ['auto', 'Two pages'],
     ['scroll', 'Scroll'],
   ];
+  // Little drawings for the Aa panel: lines closer or further apart, a page
+  // with narrow or wide margins, one page, two pages, or a scroll.
+  const popIcon = (inner) =>
+    `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">${inner}</svg>`;
+  const popRules = (ys, x1 = 3, x2 = 17) => ys.map((y) => `<path d="M${x1} ${y}H${x2}"/>`).join('');
+  const popPage = (x1, x2) => `<rect x="3" y="2" width="14" height="16" rx="1.5"/>${popRules([6, 9, 12, 15], x1, x2)}`;
+  const POP_ICONS = {
+    1.4: popIcon(popRules([6, 9, 12, 15])),
+    1.6: popIcon(popRules([5, 10, 15])),
+    1.85: popIcon(popRules([4, 10, 16])),
+    narrow: popIcon(popPage(5.5, 14.5)),
+    comfortable: popIcon(popPage(7, 13)),
+    wide: popIcon(popPage(8.5, 11.5)),
+    single: popIcon('<rect x="5" y="2" width="10" height="16" rx="1.5"/>'),
+    auto: popIcon('<rect x="1.5" y="3" width="8" height="14" rx="1.2"/><rect x="10.5" y="3" width="8" height="14" rx="1.2"/>'),
+    scroll: popIcon('<path d="M5 2h10M5 2v11M15 2v11"/><path d="M7 15.5l3 2.5 3-2.5"/>'),
+  };
   const THEMES = {
     linen: { label: 'Linen', swatch: '#f2eadb', ink: '#3b2f25', link: '#8e5b3c', blend: 'multiply' },
     parchment: { label: 'Parchment', swatch: '#ead7b3', ink: '#38271a', link: '#994e29', blend: 'multiply' },
@@ -1046,18 +1063,26 @@
     renderTypePop() {
       const s = State.settings;
       $('#fontSizeVal').textContent = `${s.fontSize}%`;
-      const chips = (list, val) =>
-        list.map(([v, label]) => `<button class="chip ${String(v) === String(val) ? 'is-on' : ''}" data-v="${esc(v)}">${esc(label)}</button>`).join('');
-      $('#fontChips').innerHTML = chips(Fonts.choices(), s.fontFamily);
-      $$('#fontChips .chip').forEach((c) => {
-        if (c.dataset.v !== 'Original') c.style.fontFamily = `'${c.dataset.v}', serif`;
-      });
-      $('#lhChips').innerHTML = chips(LINE_HEIGHTS, s.lineHeight);
-      $('#marginChips').innerHTML = chips(MARGINS, s.margin);
-      $('#layoutChips').innerHTML = chips(LAYOUTS, s.layout);
-      $('#themeSwatches').innerHTML = Object.entries(THEMES)
-        .map(([k, t]) => `<button class="swatch ${s.theme === k ? 'is-on' : ''}" data-v="${k}"><i style="background:${t.swatch}"></i>${t.label}</button>`)
+      const on = (v, val) => (String(v) === String(val) ? ' is-on' : '');
+      $('#fontChips').innerHTML = Fonts.choices()
+        .map(([v, label]) => {
+          const face = ` style="font-family:${v === 'Original' ? 'Georgia' : `'${esc(v)}'`}, serif"`;
+          const name = v === 'Original' ? 'Original' : label; // the book's own, as its publisher set it
+          return `<button class="face${on(v, s.fontFamily)}" data-v="${esc(v)}" title="${esc(label)}"><b${face}>Aa</b><span>${esc(name)}</span></button>`;
+        })
         .join('');
+      // Spacing, margins and layout are drawn; the label names the one in use.
+      const seg = (el, list, val) => {
+        $(el).innerHTML = list.map(([v, label]) => `<button class="${on(v, val)}" data-v="${esc(v)}" title="${esc(label)}" aria-label="${esc(label)}">${POP_ICONS[v]}</button>`).join('');
+        return list.find(([v]) => String(v) === String(val))?.[1] || '';
+      };
+      $('#lhVal').textContent = seg('#lhChips', LINE_HEIGHTS, s.lineHeight);
+      $('#marginVal').textContent = seg('#marginChips', MARGINS, s.margin);
+      $('#layoutVal').textContent = seg('#layoutChips', LAYOUTS, s.layout);
+      $('#themeSwatches').innerHTML = Object.entries(THEMES)
+        .map(([k, t]) => `<button class="${on(k, s.theme)}" data-v="${k}" title="${t.label}" aria-label="${t.label}"><i style="background:${t.swatch}"></i></button>`)
+        .join('');
+      $('#themeVal').textContent = THEMES[s.theme]?.label || '';
     },
     // Text size and layout belong to the book on screen: changed while reading,
     // they're kept with it (and the defaults in Settings stay as they were).
@@ -1148,23 +1173,23 @@
       $('#fontDown').onclick = () => this.stepFont(-1);
       $('#fontUp').onclick = () => this.stepFont(1);
       $('#fontChips').onclick = (e) => {
-        const c = e.target.closest('.chip');
+        const c = e.target.closest('[data-v]');
         if (c) this.change({ fontFamily: c.dataset.v });
       };
       $('#lhChips').onclick = (e) => {
-        const c = e.target.closest('.chip');
+        const c = e.target.closest('[data-v]');
         if (c) this.change({ lineHeight: Number(c.dataset.v) });
       };
       $('#marginChips').onclick = (e) => {
-        const c = e.target.closest('.chip');
+        const c = e.target.closest('[data-v]');
         if (c) this.change({ margin: c.dataset.v });
       };
       $('#layoutChips').onclick = (e) => {
-        const c = e.target.closest('.chip');
+        const c = e.target.closest('[data-v]');
         if (c) this.change({ layout: c.dataset.v });
       };
       $('#themeSwatches').onclick = (e) => {
-        const c = e.target.closest('.swatch');
+        const c = e.target.closest('[data-v]');
         if (c) this.change({ theme: c.dataset.v });
       };
 

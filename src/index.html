@@ -156,31 +156,29 @@
     <div class="popover" id="typePop" hidden>
       <div class="pop-row">
         <span class="pop-label">Size</span>
-        <div class="stepper">
+        <div class="seg size">
           <button id="fontDown" aria-label="Smaller text">A</button>
           <span id="fontSizeVal">100%</span>
           <button id="fontUp" aria-label="Larger text">A</button>
         </div>
       </div>
-      <div class="pop-row col">
-        <span class="pop-label">Typeface</span>
-        <div class="chips" id="fontChips"></div>
+      <div class="faces" id="fontChips"></div>
+      <div class="pop-row">
+        <span class="pop-label">Spacing<em id="lhVal"></em></span>
+        <div class="seg" id="lhChips"></div>
       </div>
-      <div class="pop-row col">
-        <span class="pop-label">Line spacing</span>
-        <div class="chips" id="lhChips"></div>
+      <div class="pop-row">
+        <span class="pop-label">Margins<em id="marginVal"></em></span>
+        <div class="seg" id="marginChips"></div>
       </div>
-      <div class="pop-row col">
-        <span class="pop-label">Margins</span>
-        <div class="chips" id="marginChips"></div>
+      <div class="pop-row">
+        <span class="pop-label">Layout<em id="layoutVal"></em></span>
+        <div class="seg" id="layoutChips"></div>
       </div>
-      <div class="pop-row col">
-        <span class="pop-label">Layout</span>
-        <div class="chips" id="layoutChips"></div>
-      </div>
-      <div class="pop-row col">
-        <span class="pop-label">Paper</span>
-        <div class="swatches" id="themeSwatches"></div>
+      <div class="pop-rule"></div>
+      <div class="pop-row">
+        <span class="pop-label">Paper<em id="themeVal"></em></span>
+        <div class="seg paper" id="themeSwatches"></div>
       </div>
       <button class="pop-more" id="moreSettings">All settings…</button>
     </div>
