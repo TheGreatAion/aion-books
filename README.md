@@ -1,11 +1,11 @@
 <h1 align="center">AionBooks</h1>
 
 <p align="center">
-  <em>A free, quiet, paper-textured e-book reader and library for Windows:<br>EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FB2.</em>
+  <em>A free, quiet, paper-textured e-book reader and library for Windows and Linux:<br>EPUB, Kindle (MOBI / AZW3), PDF, comics (CBZ) and FB2.</em>
 </p>
 
 <p align="center">
-  <a href="https://github.com/TheGreatAion/aion-books/releases/latest"><b>Download for Windows</b></a>
+  <a href="https://github.com/TheGreatAion/aion-books/releases/latest"><b>Download for Windows or Linux</b></a>
   &nbsp;·&nbsp;
   <a href="https://thegreataion.github.io/aion-books/">Website</a>
   &nbsp;·&nbsp;
@@ -22,19 +22,50 @@ AionBooks is a home for your book collection and a calm place to read it. Pages 
 weathered paper, a few painted botanicals (ivy, lemons, olive) grow in the margins, and everything
 else stays out of the way of the words.
 
-It's a free, open-source e-book reader for Windows that opens **EPUB, Kindle (MOBI and AZW3), PDF,
+It's a free, open-source e-book reader for Windows and Linux that opens **EPUB, Kindle (MOBI and AZW3), PDF,
 comic book (CBZ) and FictionBook (FB2)** files, keeps them in one library sorted into series and
 shelves, and works entirely offline: no account, no subscription, no tracking.
 
 ## Download
 
-1. Grab **`AionBooks-Setup-x.y.z.exe`** from the [latest release](https://github.com/TheGreatAion/aion-books/releases/latest).
+Everything is on the [latest release](https://github.com/TheGreatAion/aion-books/releases/latest) page.
+
+### Windows 10 and 11
+
+1. Grab **`AionBooks-Setup-x.y.z.exe`**.
 2. Run it. Windows may say the publisher is unknown (the installer isn't code-signed). Choose
    **More info → Run anyway**.
 3. Drop some books onto the window and start reading: EPUB, Kindle (MOBI, AZW3), PDF, comics (CBZ) or FictionBook (FB2).
 
-Installed copies keep themselves up to date: new versions download in the background and install the
-next time you restart.
+### Linux
+
+- **AppImage** (`AionBooks-x.y.z.AppImage`) runs on most distributions. Make it executable and run it:
+
+  ```
+  chmod +x AionBooks-x.y.z.AppImage
+  ./AionBooks-x.y.z.AppImage
+  ```
+
+  AppImages need FUSE 2. If it won't start, install it (`sudo apt install libfuse2t64` on Ubuntu 24.04
+  and newer, `libfuse2` on older releases and Debian, `fuse-libs` on Fedora).
+- **.deb** (`AionBooks-x.y.z.deb`) for Ubuntu, Debian, Linux Mint and the like. It adds AionBooks to your
+  app menu and to **Open with** for book files:
+
+  ```
+  sudo apt install ./AionBooks-x.y.z.deb
+  ```
+
+  On Ubuntu 24.04 and newer, the .deb is the better choice: Ubuntu's security settings can stop
+  AppImages built on Electron from starting.
+
+Read aloud uses your system's speech voices through speech-dispatcher. If it finds none, install them
+with `sudo apt install speech-dispatcher espeak-ng` (or your distribution's equivalent).
+
+### Updates
+
+The Windows installer and the AppImage keep themselves up to date: new versions download in the
+background and install the next time you restart. The .deb doesn't update itself; install the newer
+.deb over it.
 
 ## Supported formats
 
@@ -76,12 +107,12 @@ that isn't the store's own.
 - **Who is this?** Select a character's name to see where they were first mentioned and where you last saw
   them, from the pages you've already read, and from the earlier books in the series. It only ever looks
   back, so it can't spoil anything. Wikipedia is there too, if you ask, with a warning that it may.
-- **Read aloud** with the voices built into Windows, following along sentence by sentence.
+- **Read aloud** with the voices already on your computer, following along sentence by sentence.
 - **Highlights, notes and bookmarks**, exportable to Markdown.
 - **Time left** in the chapter and the book, learned from how fast you actually read, or pages left, or
   just the percentage.
 - Three papers (**Linen**, **Parchment** and **Dusk**), plus spacing, margins and size controls.
-- **Dusk when Windows is dark**, if you like: it follows Windows’ light and dark mode.
+- **Dusk when your computer is dark**, if you like: it follows your system’s light and dark mode.
 - **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
@@ -103,9 +134,9 @@ reading goal that fills a small ring in the sidebar.
 </p>
 
 ### Your data stays yours
-- Everything lives in one folder on your PC. **Back up and restore** the whole library (books,
+- Everything lives in one folder on your computer. **Back up and restore** the whole library (books,
   progress, highlights, shelves and fonts) as a single file.
-- Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between PCs.
+- Put the library in a **OneDrive or Dropbox** folder to share it, and your reading progress, between computers.
 - No accounts and no tracking. The only times AionBooks goes online are when you look up a word
   (via [Wiktionary](https://en.wiktionary.org)) or a character on Wikipedia, and when it checks GitHub for updates, which you can
   turn off in Settings.
@@ -125,11 +156,14 @@ Amazon's apps can't be opened.
 **Does it work offline?** Completely. It only goes online when you look up a word or a character,
 and to check for updates, each of which you can turn off or simply not use.
 
-**Is there a Mac or Linux version?** Not yet: AionBooks is made for Windows 10 and 11. It's built on
-Electron, so other systems are possible later.
+**Does it run on Linux?** Yes: an AppImage for most distributions and a .deb for Ubuntu, Debian and the
+like. See [Download](#linux).
 
-**Where are my books kept?** In one folder on your PC (`%APPDATA%\AionBooks`), which you can move
-(to a OneDrive or Dropbox folder, say) to share your library and reading progress between PCs.
+**Is there a Mac version?** Not yet. AionBooks is built on Electron, so it's possible later.
+
+**Where are my books kept?** In one folder on your computer (`%APPDATA%\AionBooks` on Windows,
+`~/.config/AionBooks` on Linux), which you can move (to a OneDrive or Dropbox folder, say) to share
+your library and reading progress between computers.
 
 ## Keyboard shortcuts
 
@@ -165,12 +199,15 @@ npm start
 | `npm test`        | Run the unit tests and the app tests                                |
 | `npm run pack`    | Build an unpacked copy → `release/win-unpacked/AionBooks.exe`      |
 | `npm run dist`    | Build the installer → `release/AionBooks-Setup-x.y.z.exe`          |
+| `npm run pack:linux` | On Linux: build an unpacked copy → `release/linux-unpacked/aionbooks` |
+| `npm run dist:linux` | On Linux: build the AppImage and .deb → `release/AionBooks-x.y.z.AppImage`, `.deb` |
 | `npm run release` | Build the installer and publish it as a GitHub release (needs `gh auth login`) |
 
 Close any running copy before building, because it locks `release/win-unpacked`.
 
 To publish a new version: bump `version` in `package.json`, commit and push, then run `npm run release`.
-Installed copies pick it up automatically.
+Once the release is up, GitHub Actions builds the AppImage and .deb and adds them to it. Installed
+copies pick it up automatically.
 
 ### How it's put together
 
@@ -190,7 +227,7 @@ Installed copies pick it up automatically.
 | `src/painted.js`         | The painted botanical artwork, drawn as SVG                               |
 | `src/styles.css`         | Everything visual                                                         |
 
-By default your library is stored in `%APPDATA%\AionBooks`. **Settings → Your data → Library location**
+By default your library is stored in `%APPDATA%\AionBooks` (`~/.config/AionBooks` on Linux). **Settings → Your data → Library location**
 can move it.
 
 ## Thanks
