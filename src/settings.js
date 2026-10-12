@@ -134,8 +134,11 @@
 
   // ---------- read-aloud voices ----------
   function voiceSelect(current) {
-    const voices = window.speechSynthesis?.getVoices() || [];
+    let voices = window.speechSynthesis?.getVoices() || [];
     if (!voices.length) return `<span class="set-desc">No voices found on this computer.</span>`;
+    // eSpeak (on Linux) lists every voice again with each of its variants ("English+Adam"),
+    // thousands in all; when the list runs that long, keep one of each.
+    if (voices.length > 100) voices = voices.filter((v) => !v.name.includes('+') || v.name === current);
     const opts = [`<option value="">System default</option>`]
       .concat(voices.map((v) => `<option value="${esc(v.name)}" ${v.name === current ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} (${esc(v.lang)})</option>`))
       .join('');

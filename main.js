@@ -29,6 +29,9 @@ const TITLEBAR = {
 if (process.env.AION_DATA_DIR) app.setPath('userData', process.env.AION_DATA_DIR);
 else moveLibraryFolder();
 
+// On Linux, read aloud's voices come from speech-dispatcher, which Chromium only uses when asked.
+if (process.platform === 'linux') app.commandLine.appendSwitch('enable-speech-dispatcher');
+
 // Until 1.7 the app was called "Aion Books", and its library folder was named
 // after it. The first time the app starts under its new name, the folder moves
 // to the new one; if it can't be moved (something has a file in it open), the
