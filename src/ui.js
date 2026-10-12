@@ -175,6 +175,7 @@
   function openMenu(x, y, items) {
     const m = $('#menu');
     m.innerHTML = '';
+    m.className = 'menu';
     for (const it of items) {
       if (it === '-') {
         m.appendChild(document.createElement('hr'));

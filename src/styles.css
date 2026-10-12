@@ -598,6 +598,49 @@ button {
 .sort-label {
   font-style: italic;
 }
+/* The sort button: the order in use, and a small chevron. */
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 15.5px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.sort-btn::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-right: 1.4px solid var(--ink-3);
+  border-bottom: 1.4px solid var(--ink-3);
+  transform: rotate(45deg);
+}
+.sort-btn:hover,
+.sort-btn[aria-expanded='true'] {
+  border-color: var(--line-2);
+  background: var(--wash);
+}
+/* The list it stands for, kept but out of sight. */
+.sort-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.menu.sort-menu {
+  min-width: 190px;
+}
+.menu.sort-menu button .icon {
+  color: var(--accent);
+}
 .sort select {
   appearance: none;
   border: 0;

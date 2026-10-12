@@ -127,6 +127,11 @@
   const lastName = (a) => String(a || '').split(',')[0].trim().split(/\s+/).pop().toLowerCase();
 
   // ---------- rendering ----------
+  function showSort() {
+    const o = $('#sort').selectedOptions[0];
+    if (o) $('#sortVal').textContent = o.textContent;
+  }
+
   function renderNav() {
     const counts = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [k, State.books.filter(v.filter).length]));
     counts.home = 0;
@@ -492,6 +497,7 @@
     $('#statsPanel').hidden = view !== 'stats';
     $('#commonplacePanel').hidden = view !== 'commonplace';
     renderNav();
+    showSort();
     if (page) {
       $('#hero').hidden = true;
       $('#grid').innerHTML = '';
@@ -1143,6 +1149,25 @@
         if (PAGES[view]) view = 'all';
         render();
       }, 120);
+    });
+    // Sort: the app's own menu, with a check by the current order.
+    $('#sortBtn').addEventListener('click', () => {
+      const r = $('#sortBtn').getBoundingClientRect();
+      const now = $('#sort').value;
+      openMenu(
+        r.left - 8,
+        r.bottom + 6,
+        [...$('#sort').options].map((o) => ({
+          label: o.textContent,
+          icon: o.value === now ? 'check' : 'none',
+          run: () => {
+            if (o.value === now) return;
+            $('#sort').value = o.value;
+            $('#sort').dispatchEvent(new Event('change'));
+          },
+        }))
+      );
+      $('#menu').classList.add('sort-menu');
     });
     $('#sort').addEventListener('change', async (e) => {
       await setSettings({ sort: e.target.value });

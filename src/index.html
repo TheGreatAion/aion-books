@@ -40,9 +40,10 @@
 
     <main class="lib-main" id="libMain">
       <div class="lib-top drag">
-        <label class="sort no-drag">
+        <div class="sort no-drag">
           <span class="sort-label">Sort</span>
-          <select id="sort">
+          <button class="sort-btn" id="sortBtn" aria-haspopup="menu"><span id="sortVal">Recently read</span></button>
+          <select id="sort" class="sort-list" tabindex="-1" aria-hidden="true">
             <option value="recent">Recently read</option>
             <option value="added">Recently added</option>
             <option value="title">Title</option>
@@ -50,7 +51,7 @@
             <option value="progress">Progress</option><option value="rating">Rating</option>
             <option value="custom">My order</option>
           </select>
-        </label>
+        </div>
       </div>
 
       <div class="lib-scroll" id="libScroll">
