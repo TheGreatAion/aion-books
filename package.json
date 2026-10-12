@@ -1,6 +1,7 @@
 {
   "name": "aionbooks",
   "productName": "AionBooks",
+  "desktopName": "aionbooks.desktop",
   "version": "1.6.6",
   "description": "A quiet e-book reader and library for Windows.",
   "main": "main.js",
@@ -115,6 +116,7 @@
       "icon": "build/icon.png",
       "category": "Office",
       "executableName": "aionbooks",
+      "syncDesktopName": true,
       "synopsis": "A quiet e-book reader and library",
       "description": "A quiet e-book reader and library.",
       "maintainer": "TheGreatAion",
