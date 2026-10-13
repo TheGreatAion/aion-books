@@ -111,8 +111,11 @@ test('a chapter’s last page says what comes next, and turns to it', async () =
   await expect(page.locator('#rChapter')).toContainText('pages left');
   await expect(page.locator('#catchword')).toBeHidden();
 
+  await page.waitForTimeout(600);
   await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#rChapter')).toContainText('last page');
   await expect(page.locator('#catchword')).toBeVisible();
+  await page.waitForTimeout(600); // let the turn finish, as a reader would
   await page.click('#catchword');
   await expect.poll(() => page.evaluate(() => window.Reader.chapter)).toBe(toc[3].label);
 
