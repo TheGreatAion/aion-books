@@ -108,7 +108,7 @@ test('a chapter’s last page says what comes next, and turns to it', async () =
   await expect(page.locator('#catchword .cw-title')).toHaveText(toc[3].label);
 
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('#rChapter')).toContainText('pages left');
+  await expect(page.locator('#rChapter')).toContainText(/\d+ pages? left/);
   await expect(page.locator('#catchword')).toBeHidden();
 
   await page.waitForTimeout(600);
@@ -127,6 +127,25 @@ test('a chapter’s last page says what comes next, and turns to it', async () =
   await page.evaluate(() => window.Reader.change({ chapterNext: false }));
   await expect(page.locator('#catchword')).toBeHidden();
   await page.evaluate(() => window.Reader.change({ chapterNext: true }));
+  await toLibrary(page);
+});
+
+test('one page before the end isn’t the last page, on a single page either', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
+  await page.evaluate(() => window.Reader.change({ layout: 'single' }));
+  await page.waitForTimeout(800);
+  const toc = await page.evaluate(() => window.Reader.flatToc.map((t) => t.href));
+  await page.evaluate((href) => window.Reader.goTo(href), toc[3]);
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#rChapter')).toContainText('last page');
+  await expect(page.locator('#catchword')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#rChapter')).toContainText('1 page left');
+  await expect(page.locator('#catchword')).toBeHidden();
+  await page.evaluate(() => window.Reader.change({ layout: 'auto' }));
   await toLibrary(page);
 });
 

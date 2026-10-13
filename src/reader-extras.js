@@ -101,7 +101,8 @@
       const perBook = this.pagesPerBook(detail);
       if (end == null || !perBook) return name;
       const left = Math.max(0, Math.round((end - this.hereFraction(detail)) * perBook));
-      const pages = left <= 1 ? 'last page' : `${left} pages left`;
+      // The pages after the one(s) on screen: none left means this is the last.
+      const pages = left < 1 ? 'last page' : left === 1 ? '1 page left' : `${left} pages left`;
       return name ? `${name} · ${pages}` : pages;
     },
 
@@ -138,7 +139,7 @@
       const end = this.chapterEndFraction(detail);
       const perBook = this.pagesPerBook(detail);
       if (end == null || end >= 1 || !perBook) return hide();
-      if (Math.round((end - this.hereFraction(detail)) * perBook) > 1) return hide();
+      if (Math.round((end - this.hereFraction(detail)) * perBook) >= 1) return hide();
       const next = this.upNext(detail);
       const feet = [...(this.renderer?.feet || [])].map((f) => f.getBoundingClientRect()).filter((r) => r.width > 0);
       const heads = [...(this.renderer?.heads || [])].map((h) => h.getBoundingClientRect()).filter((r) => r.width > 0);
