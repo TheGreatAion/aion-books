@@ -47,7 +47,6 @@
       (b.author ? `<div class="fin-by">${esc(b.author)}</div>` : '') +
       (line ? `<div class="fin-took">${line}</div>` : '') +
       `<div class="fin-rate"><span>How was it?</span>${stars(b.rating || 0, { id: b.id, interactive: true, cls: 'big' })}</div>` +
-      `<button class="fin-pressed" data-fin-herbarium><span class="fin-sprig">${window.Painted?.pressed?.(b.id) || ''}</span><span>Pressed with your other finished books</span></button>` +
       after +
       `<button class="ghost-btn fin-back" data-fin-close>${next ? 'Not now, back to your library' : 'Back to your library'}</button>` +
       `</div>`;
@@ -70,10 +69,6 @@
         return window.Reader.open(open.dataset.finOpen);
       }
       if (e.target.closest('[data-fin-close]')) hide();
-      if (e.target.closest('[data-fin-herbarium]')) {
-        hide();
-        window.Library.openHerbarium();
-      }
     });
     document.addEventListener(
       'keydown',

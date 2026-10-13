@@ -511,11 +511,9 @@
     $('#openSettings').classList.toggle('is-active', view === 'settings');
     $('#openStats').classList.toggle('is-active', view === 'stats');
     $('#openCommonplace').classList.toggle('is-active', view === 'commonplace');
-    $('#openHerbarium').classList.toggle('is-active', view === 'herbarium');
     $('#settingsPanel').hidden = view !== 'settings';
     $('#statsPanel').hidden = view !== 'stats';
     $('#commonplacePanel').hidden = view !== 'commonplace';
-    $('#herbariumPanel').hidden = view !== 'herbarium';
     renderNav();
     showSort();
     if (page) {
@@ -545,7 +543,6 @@
     settings: { title: 'Settings', render: () => window.Settings.render() },
     stats: { title: 'Your reading', render: () => window.Settings.renderStats() },
     commonplace: { title: 'Commonplace book', render: () => window.Journal.renderCommonplace() },
-    herbarium: { title: 'Pressed flowers', render: () => window.Herbarium.render() },
   };
   function openPage(name) {
     if ($('#reader').classList.contains('is-active')) Reader.close();
@@ -556,7 +553,6 @@
   const openSettings = () => openPage('settings');
   const openStats = () => openPage('stats');
   const openCommonplace = () => openPage('commonplace');
-  const openHerbarium = () => openPage('herbarium');
 
   // ---------- daily goal ring ----------
   let goalFetchedAt = 0;
@@ -1121,8 +1117,6 @@
     $('#goalRow').onclick = openStats;
     $('#openCommonplace').innerHTML = `${icon('quote')}<span>Commonplace book</span>`;
     $('#openCommonplace').onclick = openCommonplace;
-    $('#openHerbarium').innerHTML = `${icon('leaf')}<span>Pressed flowers</span>`;
-    $('#openHerbarium').onclick = openHerbarium;
     $('#addBooks').innerHTML = `${icon('plus')}<span>Add books</span>`;
     $('#addFolder').innerHTML = `${icon('folder')}<span>Add a folder</span>`;
     $('#searchIcon').outerHTML = icon('search');
@@ -1422,7 +1416,6 @@
     Reader.bind();
     window.Settings.bind();
     window.Journal.bind();
-    window.Herbarium.bind();
     const snap = await window.aion.getLibrary();
     UI.applyRoot(snap.settings);
     $('#sort').value = snap.settings.sort || 'recent';
@@ -1430,6 +1423,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, openCommonplace, openHerbarium, refreshGoal, nextInSeries };
+  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries };
   boot();
 })();
