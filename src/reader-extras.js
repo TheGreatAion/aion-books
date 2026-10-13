@@ -48,14 +48,12 @@
       this.ttsStop();
       this.hideNote();
       this.searchToken = (this.searchToken || 0) + 1;
-      this.soundFrom = null;
     },
 
     next() {
       // Turning on from the last page: the book is done.
       if (this.loc && this.atEnd()) return this.finishBook();
       this.userTurn();
-      window.PaperSound?.turn();
       return _next.call(this);
     },
     async finishBook() {
@@ -69,7 +67,6 @@
     },
     prev() {
       this.userTurn();
-      window.PaperSound?.turn(true);
       return _prev.call(this);
     },
     userTurn() {
@@ -445,12 +442,6 @@
           if (d > 0 && d <= 3) this.track.locs += d;
         }
         this.prevLoc = cur;
-      }
-      // A jump of more than a couple of pages (the contents, a search, a ribbon,
-      // the progress bar) riffles the pages; turns make their own sound.
-      if (typeof detail.fraction === 'number') {
-        if (this.soundFrom != null && Math.abs(detail.fraction - this.soundFrom) * (this.pagesPerBook(detail) || 100) > 2.5) window.PaperSound?.riffle();
-        this.soundFrom = detail.fraction;
       }
       this.renderRunning(detail);
       this.renderEdges();

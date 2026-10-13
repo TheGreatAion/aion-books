@@ -235,7 +235,6 @@ can move it.
 
 Books are laid out by [foliate-js](https://github.com/johnfactotum/foliate-js) by John Factotum,
 the engine behind the [Foliate](https://johnfactotum.github.io/foliate/) reader.
-The page-turn sounds are from [RPG Audio](https://kenney.nl/assets/rpg-audio) by Kenney (CC0).
 
 ## License
 
