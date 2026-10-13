@@ -578,6 +578,14 @@ function setUpdateStatus(s) {
   win?.webContents.send('update:status', updateStatus);
 }
 
+// A release is out a few minutes before GitHub Actions adds its Linux files, so an AppImage
+// can find no latest-linux.yml. There's nothing newer for it yet, so that counts as current.
+function updateErrorStatus(e) {
+  const message = String(e?.message || e);
+  if (process.platform === 'linux' && message.includes('Cannot find latest-linux.yml')) return { state: 'current' };
+  return { state: 'error', message: message.split('\n')[0].slice(0, 160) };
+}
+
 function setupUpdates() {
   if (!canSelfUpdate()) {
     setUpdateStatus({ state: 'unsupported' });
@@ -598,7 +606,7 @@ function setupUpdates() {
     setUpdateStatus({ state: 'downloading', version: updateStatus.version, percent: Math.round(p.percent) })
   );
   updater.on('update-downloaded', (i) => setUpdateStatus({ state: 'ready', version: i.version }));
-  updater.on('error', (e) => setUpdateStatus({ state: 'error', message: String(e?.message || e).split('\n')[0].slice(0, 160) }));
+  updater.on('error', (e) => setUpdateStatus(updateErrorStatus(e)));
   if (store.data.settings.autoUpdate !== false) {
     setTimeout(() => updater.checkForUpdates().catch(() => {}), 5000);
   }
@@ -612,7 +620,7 @@ function registerIpc() {
     try {
       await updater.checkForUpdates();
     } catch (e) {
-      setUpdateStatus({ state: 'error', message: String(e?.message || e).split('\n')[0].slice(0, 160) });
+      setUpdateStatus(updateErrorStatus(e));
     }
     return updateStatus;
   });
