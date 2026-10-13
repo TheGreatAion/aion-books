@@ -1,7 +1,8 @@
 # Builds the Windows installer and publishes it as a GitHub release.
 # Installed copies of AionBooks pick the new version up automatically.
 # Once the release is up, GitHub Actions adds the Linux builds to it
-# (.github/workflows/release-linux.yml).
+# (.github/workflows/release-linux.yml); the script waits for them and says
+# whether they made it.
 #
 # Before running: bump "version" in package.json (e.g. 1.2.0 -> 1.3.0),
 # commit and push, and make sure you're signed in with `gh auth login`.
@@ -52,4 +53,37 @@ if (-not $exists) {
 Write-Host "Publishing AionBooks $tag ..."
 npx electron-builder --win nsis --publish always
 if ($LASTEXITCODE -ne 0) { throw "Build or upload failed (exit $LASTEXITCODE)" }
-Write-Host "Done: https://github.com/TheGreatAion/aion-books/releases/tag/v$version"
+Write-Host "Windows installer is up: https://github.com/TheGreatAion/aion-books/releases/tag/$tag"
+
+# Publishing the release started the Linux build on GitHub Actions. Wait for it
+# and make sure its files landed: installed AppImages update from latest-linux.yml.
+# The run can take a few seconds to show up. (gh prints progress on stderr, which
+# Windows PowerShell would otherwise treat as fatal under 'Stop'.)
+$ErrorActionPreference = 'Continue'
+$rerun = "gh workflow run release-linux.yml -f tag=$tag"
+Write-Host "Waiting for the Linux build ..."
+$runUrl = $null
+for ($i = 0; $i -lt 24 -and -not $runUrl; $i++) {
+  if ($i) { Start-Sleep -Seconds 5 }
+  $runUrl = & $ghPath run list --repo TheGreatAion/aion-books --workflow release-linux.yml --event release --branch $tag --limit 1 --json url --jq '.[].url' 2> $null
+}
+if (-not $runUrl) {
+  Write-Host "Linux build FAILED: no 'Linux release' run started for $tag." -ForegroundColor Red
+  Write-Host "Start it with: $rerun"
+  exit 1
+}
+
+& $ghPath run watch $runUrl.Split('/')[-1] --repo TheGreatAion/aion-books --exit-status --compact --interval 10
+$built = $LASTEXITCODE -eq 0
+$assets = @(& $ghPath release view $tag --repo TheGreatAion/aion-books --json assets --jq '.assets[].name' 2> $null)
+$missing = @("AionBooks-$version.AppImage", "AionBooks-$version.deb", 'latest-linux.yml') | Where-Object { $assets -notcontains $_ }
+
+if ($built -and -not $missing) {
+  Write-Host "Done: AionBooks $tag is out for Windows and Linux: https://github.com/TheGreatAion/aion-books/releases/tag/$tag" -ForegroundColor Green
+} else {
+  $why = if (-not $built) { 'the run failed' } else { "the release is missing $($missing -join ', ')" }
+  Write-Host "Linux build FAILED for ${tag}: $why." -ForegroundColor Red
+  Write-Host "Run: $runUrl"
+  Write-Host "Fix it, then rerun with: $rerun"
+  exit 1
+}

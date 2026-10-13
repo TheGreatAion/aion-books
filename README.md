@@ -206,8 +206,9 @@ npm start
 Close any running copy before building, because it locks `release/win-unpacked`.
 
 To publish a new version: bump `version` in `package.json`, commit and push, then run `npm run release`.
-Once the release is up, GitHub Actions builds the AppImage and .deb and adds them to it. Installed
-copies pick it up automatically.
+Once the release is up, GitHub Actions builds the AppImage and .deb and adds them to it. The script
+waits for that build and says whether the Linux files made it; if not, it prints the run's link and
+the command to run it again. Installed copies pick the new version up automatically.
 
 ### How it's put together
 
