@@ -138,11 +138,26 @@
     if (!voices.length) return `<span class="set-desc">No voices found on this computer.</span>`;
     // eSpeak (on Linux) lists every voice again with each of its variants ("English+Adam"),
     // thousands in all; when the list runs that long, keep one of each.
-    if (voices.length > 100) voices = voices.filter((v) => !v.name.includes('+') || v.name === current);
-    const opts = [`<option value="">System default</option>`]
-      .concat(voices.map((v) => `<option value="${esc(v.name)}" ${v.name === current ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} (${esc(v.lang)})</option>`))
-      .join('');
-    return `<select class="set-select" data-select="ttsVoice">${opts}</select>`;
+    const long = voices.length > 100;
+    if (long) voices = voices.filter((v) => !v.name.includes('+') || v.name === current);
+    const option = (v) => `<option value="${esc(v.name)}" ${v.name === current ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} (${esc(v.lang)})</option>`;
+    let opts = voices.map(option).join('');
+    // A list that long covers every language, so put the reader's own first.
+    if (long) {
+      const lang = (navigator.language || 'en').split('-')[0].toLowerCase();
+      const mine = (v) => (v.lang || '').toLowerCase().split(/[-_]/)[0] === lang;
+      const near = voices.filter(mine);
+      if (near.length) {
+        let name = lang;
+        try {
+          name = new Intl.DisplayNames([navigator.language], { type: 'language' }).of(lang) || lang;
+        } catch {}
+        opts =
+          `<optgroup label="${esc(name)}">${near.map(option).join('')}</optgroup>` +
+          `<optgroup label="Other languages">${voices.filter((v) => !mine(v)).map(option).join('')}</optgroup>`;
+      }
+    }
+    return `<select class="set-select" data-select="ttsVoice"><option value="">System default</option>${opts}</select>`;
   }
 
   function sample() {
@@ -151,6 +166,8 @@
     const u = new SpeechSynthesisUtterance('The garden had gone quiet in the way gardens do at the end of summer.');
     const v = speechSynthesis.getVoices().find((x) => x.name === State.settings.ttsVoice);
     if (v) u.voice = v;
+    // Without a language, speech-dispatcher (Linux) reads it in its first voice, Afrikaans.
+    u.lang = v?.lang || navigator.language;
     u.rate = State.settings.ttsRate || 1;
     speechSynthesis.speak(u);
   }
