@@ -34,7 +34,7 @@
     },
     // [value, label, isCustom] for every choosable typeface
     choices() {
-      return [...this.BUNDLED, ...this.custom().map((f) => [f, f, true]), ['Original', 'Publisher’s']];
+      return [...this.BUNDLED, ...this.custom().map((f) => [f, f, true]), ['Original', 'Original']];
     },
     faceCss(family) {
       return this.css[family] || '';
@@ -418,8 +418,25 @@
     }
   }
 
+  // Little drawings for reading choices (in Aa and Settings): lines closer or
+  // further apart, a page with narrow or wide margins, one page, two pages, or a scroll.
+  const choiceIcon = (inner) =>
+    `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">${inner}</svg>`;
+  const choiceRules = (ys, x1 = 3, x2 = 17) => ys.map((y) => `<path d="M${x1} ${y}H${x2}"/>`).join('');
+  const choicePage = (x1, x2) => `<rect x="3" y="2" width="14" height="16" rx="1.5"/>${choiceRules([6, 9, 12, 15], x1, x2)}`;
+  const CHOICE_ICONS = {
+    1.4: choiceIcon(choiceRules([6, 9, 12, 15])),
+    1.6: choiceIcon(choiceRules([5, 10, 15])),
+    1.85: choiceIcon(choiceRules([4, 10, 16])),
+    narrow: choiceIcon(choicePage(5.5, 14.5)),
+    comfortable: choiceIcon(choicePage(7, 13)),
+    wide: choiceIcon(choicePage(8.5, 11.5)),
+    single: choiceIcon('<rect x="5" y="2" width="10" height="16" rx="1.5"/>'),
+    auto: choiceIcon('<rect x="1.5" y="3" width="8" height="14" rx="1.2"/><rect x="10.5" y="3" width="8" height="14" rx="1.2"/>'),
+    scroll: choiceIcon('<path d="M5 2h10M5 2v11M15 2v11"/><path d="M7 15.5l3 2.5 3-2.5"/>'),
+  };
   window.UI = {
     $, $$, esc, State, updateBook, setSettings, coverHtml, toast, undoToast, settleUndo,
-    openMenu, closeMenu, openModal, closeModal, promptText, confirmBox, pct, flurry, burst, applyRoot, fullMotion, Fonts, stars,
+    openMenu, closeMenu, openModal, closeModal, promptText, confirmBox, pct, flurry, burst, applyRoot, fullMotion, Fonts, stars, CHOICE_ICONS,
   };
 })();

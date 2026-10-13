@@ -1,6 +1,6 @@
 // The settings page, shown in the library's main column.
 (function () {
-  const { $, esc, State, setSettings, toast, confirmBox, Fonts, coverHtml } = window.UI;
+  const { $, esc, State, setSettings, toast, confirmBox, Fonts, coverHtml, CHOICE_ICONS } = window.UI;
   const { icon } = window.Ornaments;
   // Windows is named where it applies; elsewhere the wording stays general.
   const onWindows = window.aion.platform === 'win32';
@@ -69,13 +69,13 @@
 
   let info = null;
 
+  // One rounded track per choice, as in the Aa panel; spacing, margins and
+  // layout carry their little drawings too.
   const chips = (key, list, val) =>
-    `<div class="chips">${list
+    `<div class="seg">${list
       .map(
         ([v, label]) =>
-          `<button class="chip ${String(v) === String(val) ? 'is-on' : ''}" data-set="${key}" data-v="${esc(v)}"${
-            key === 'fontFamily' && v !== 'Original' ? ` style="font-family:'${v}',serif"` : ''
-          }>${label}</button>`
+          `<button class="${String(v) === String(val) ? 'is-on' : ''}" data-set="${key}" data-v="${esc(v)}">${CHOICE_ICONS[v] || ''}<span>${label}</span></button>`
       )
       .join('')}</div>`;
 
@@ -97,18 +97,18 @@
 
   // ---------- typefaces (bundled + the user's own) ----------
   function fontChips(val) {
+    // "Aa" in each typeface with its name beneath, as in the Aa panel.
     const items = Fonts.choices()
       .map(([v, label, custom]) => {
-        const on = String(v) === String(val) ? 'is-on' : '';
-        const face = v !== 'Original' ? ` style="font-family:'${esc(v)}',serif"` : '';
-        if (!custom) return `<button class="chip ${on}" data-set="fontFamily" data-v="${esc(v)}"${face}>${esc(label)}</button>`;
-        return (
-          `<span class="chip-wrap"><button class="chip custom ${on}" data-set="fontFamily" data-v="${esc(v)}"${face}>${esc(label)}</button>` +
-          `<button class="chip-x" data-remove-font="${esc(v)}" title="Remove ${esc(v)}">${icon('close')}</button></span>`
-        );
+        const on = String(v) === String(val) ? ' is-on' : '';
+        const face = ` style="font-family:${v === 'Original' ? 'Georgia' : `'${esc(v)}'`},serif"`;
+        const title = v === 'Original' ? 'The typeface the book came with' : esc(label);
+        const tile = `<button class="face${on}" data-set="fontFamily" data-v="${esc(v)}" title="${title}"><b${face}>Aa</b><span>${esc(label)}</span></button>`;
+        if (!custom) return tile;
+        return `<span class="face-wrap">${tile}<button class="chip-x" data-remove-font="${esc(v)}" title="Remove ${esc(v)}">${icon('close')}</button></span>`;
       })
       .join('');
-    return `<div class="chips">${items}<button class="chip add" data-action="add-font">${icon('plus')}Add a font…</button></div>`;
+    return `<div class="faces set-faces">${items}<button class="face add" data-action="add-font" title="Add a font…"><b>${icon('plus')}</b><span>Add a font</span></button></div>`;
   }
 
   // ---------- updates ----------
@@ -323,12 +323,10 @@
         ${row(
           'Paper',
           'The color of the app and the reading page.',
-          `<div class="swatches set-swatches">${THEMES.map(
-            ([k, label, bg, ink]) =>
-              `<button class="swatch ${s.theme === k ? 'is-on' : ''}" data-set="theme" data-v="${k}">
-                 <span class="mini" style="background:${bg};color:${ink}"><b></b><b></b><b></b></span>${label}</button>`
-          ).join('')}</div>`,
-          'wide'
+          `<div class="seg paper">${THEMES.map(
+            ([k, label, bg]) =>
+              `<button class="${s.theme === k ? 'is-on' : ''}" data-set="theme" data-v="${k}"><i style="background:${bg}"></i><span>${label}</span></button>`
+          ).join('')}</div>`
         )}
         ${row(
           onWindows ? 'Dusk when Windows is dark' : 'Dusk when the system is dark',
@@ -347,7 +345,7 @@
         ${row(
           'Text size',
           '',
-          `<div class="stepper"><button data-step="-1" aria-label="Smaller text">A</button><span>${s.fontSize}%</span><button data-step="1" aria-label="Larger text" class="big">A</button></div>`
+          `<div class="seg size"><button data-step="-1" aria-label="Smaller text" class="small">A</button><span>${s.fontSize}%</span><button data-step="1" aria-label="Larger text" class="big">A</button></div>`
         )}
         ${row('Line spacing', '', chips('lineHeight', CHOICES.lineHeight, s.lineHeight))}
         ${row('Margins', '', chips('margin', CHOICES.margin, s.margin))}
@@ -385,7 +383,7 @@
         ${row(
           'Speed',
           '',
-          `<div class="stepper"><button data-rate="-0.1" aria-label="Slower">−</button><span>${(s.ttsRate || 1).toFixed(1)}×</span><button data-rate="0.1" aria-label="Faster">+</button></div>`
+          `<div class="seg size"><button data-rate="-0.1" aria-label="Slower">−</button><span>${(s.ttsRate || 1).toFixed(1)}×</span><button data-rate="0.1" aria-label="Faster">+</button></div>`
         )}
       </section>
 

@@ -7,6 +7,7 @@
   const { divider, bloom, readerSprig } = window.Painted;
 
   const Fonts = window.UI.Fonts;
+  const POP_ICONS = window.UI.CHOICE_ICONS;
   const LINE_HEIGHTS = [
     [1.4, 'Snug'],
     [1.6, 'Airy'],
@@ -22,23 +23,6 @@
     ['auto', 'Two pages'],
     ['scroll', 'Scroll'],
   ];
-  // Little drawings for the Aa panel: lines closer or further apart, a page
-  // with narrow or wide margins, one page, two pages, or a scroll.
-  const popIcon = (inner) =>
-    `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">${inner}</svg>`;
-  const popRules = (ys, x1 = 3, x2 = 17) => ys.map((y) => `<path d="M${x1} ${y}H${x2}"/>`).join('');
-  const popPage = (x1, x2) => `<rect x="3" y="2" width="14" height="16" rx="1.5"/>${popRules([6, 9, 12, 15], x1, x2)}`;
-  const POP_ICONS = {
-    1.4: popIcon(popRules([6, 9, 12, 15])),
-    1.6: popIcon(popRules([5, 10, 15])),
-    1.85: popIcon(popRules([4, 10, 16])),
-    narrow: popIcon(popPage(5.5, 14.5)),
-    comfortable: popIcon(popPage(7, 13)),
-    wide: popIcon(popPage(8.5, 11.5)),
-    single: popIcon('<rect x="5" y="2" width="10" height="16" rx="1.5"/>'),
-    auto: popIcon('<rect x="1.5" y="3" width="8" height="14" rx="1.2"/><rect x="10.5" y="3" width="8" height="14" rx="1.2"/>'),
-    scroll: popIcon('<path d="M5 2h10M5 2v11M15 2v11"/><path d="M7 15.5l3 2.5 3-2.5"/>'),
-  };
   const THEMES = {
     linen: { label: 'Linen', swatch: '#f2eadb', ink: '#3b2f25', link: '#8e5b3c', blend: 'multiply' },
     parchment: { label: 'Parchment', swatch: '#ead7b3', ink: '#38271a', link: '#994e29', blend: 'multiply' },
@@ -1067,8 +1051,7 @@
       $('#fontChips').innerHTML = Fonts.choices()
         .map(([v, label]) => {
           const face = ` style="font-family:${v === 'Original' ? 'Georgia' : `'${esc(v)}'`}, serif"`;
-          const name = v === 'Original' ? 'Original' : label; // the book's own, as its publisher set it
-          return `<button class="face${on(v, s.fontFamily)}" data-v="${esc(v)}" title="${esc(label)}"><b${face}>Aa</b><span>${esc(name)}</span></button>`;
+          return `<button class="face${on(v, s.fontFamily)}" data-v="${esc(v)}" title="${v === 'Original' ? 'The typeface the book came with' : esc(label)}"><b${face}>Aa</b><span>${esc(label)}</span></button>`;
         })
         .join('');
       // Spacing, margins and layout are drawn; the label names the one in use.
