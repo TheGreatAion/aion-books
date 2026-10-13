@@ -96,23 +96,36 @@ test('the contents show each chapter’s minutes, and a check on the ones read',
   await page.keyboard.press('t');
 });
 
+// Turn a page and wait until it has landed. A key pressed while the last turn
+// is still moving is ignored (on a slow machine too), so press again if so.
+async function turn(key) {
+  const before = await page.evaluate(() => window.Reader.probe().position);
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press(key);
+    const moved = await page
+      .waitForFunction((b) => window.Reader.probe().position !== b, before, { timeout: 2500 })
+      .then(() => true, () => false);
+    if (moved) break;
+  }
+  await page.waitForTimeout(400);
+}
+
 test('a chapter’s last page says what comes next, and turns to it', async () => {
   await openBook(page, 'The Pear Tree Letters');
   await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
   const toc = await page.evaluate(() => window.Reader.flatToc.map((t) => ({ label: t.label, href: t.href })));
   await page.evaluate((href) => window.Reader.goTo(href), toc[3].href);
   await page.waitForTimeout(1000);
-  await page.keyboard.press('ArrowLeft');
+  await turn('ArrowLeft');
   await expect(page.locator('#rChapter')).toContainText('last page');
   await expect(page.locator('#catchword')).toBeVisible();
   await expect(page.locator('#catchword .cw-title')).toHaveText(toc[3].label);
 
-  await page.keyboard.press('ArrowLeft');
+  await turn('ArrowLeft');
   await expect(page.locator('#rChapter')).toContainText(/\d+ pages? left/);
   await expect(page.locator('#catchword')).toBeHidden();
 
-  await page.waitForTimeout(600);
-  await page.keyboard.press('ArrowRight');
+  await turn('ArrowRight');
   await expect(page.locator('#rChapter')).toContainText('last page');
   await expect(page.locator('#catchword')).toBeVisible();
   await page.waitForTimeout(600); // let the turn finish, as a reader would
@@ -120,8 +133,7 @@ test('a chapter’s last page says what comes next, and turns to it', async () =
   await expect.poll(() => page.evaluate(() => window.Reader.chapter)).toBe(toc[3].label);
 
   // It can be turned off.
-  await page.waitForTimeout(600);
-  await page.keyboard.press('ArrowLeft');
+  await turn('ArrowLeft');
   await expect(page.locator('#rChapter')).toContainText('last page');
   await expect(page.locator('#catchword')).toBeVisible();
   await page.evaluate(() => window.Reader.change({ chapterNext: false }));
@@ -138,11 +150,10 @@ test('one page before the end isn’t the last page, on a single page either', a
   const toc = await page.evaluate(() => window.Reader.flatToc.map((t) => t.href));
   await page.evaluate((href) => window.Reader.goTo(href), toc[3]);
   await page.waitForTimeout(1000);
-  await page.keyboard.press('ArrowLeft');
+  await turn('ArrowLeft');
   await expect(page.locator('#rChapter')).toContainText('last page');
   await expect(page.locator('#catchword')).toBeVisible();
-  await page.waitForTimeout(600);
-  await page.keyboard.press('ArrowLeft');
+  await turn('ArrowLeft');
   await expect(page.locator('#rChapter')).toContainText('1 page left');
   await expect(page.locator('#catchword')).toBeHidden();
   await page.evaluate(() => window.Reader.change({ layout: 'auto' }));
