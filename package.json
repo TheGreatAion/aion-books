@@ -3,7 +3,7 @@
   "productName": "AionBooks",
   "desktopName": "aionbooks.desktop",
   "version": "1.6.7",
-  "description": "A quiet e-book reader and library for Windows.",
+  "description": "A quiet e-book reader and library.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -118,7 +118,6 @@
       "executableName": "aionbooks",
       "syncDesktopName": true,
       "synopsis": "A quiet e-book reader and library",
-      "description": "A quiet e-book reader and library.",
       "maintainer": "TheGreatAion",
       "mimeTypes": [
         "application/vnd.amazon.mobi8-ebook",
