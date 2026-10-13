@@ -15,6 +15,7 @@
     "pack:linux": "electron-builder --linux dir",
     "dist": "electron-builder --win nsis",
     "dist:linux": "electron-builder --linux AppImage deb",
+    "version": "node scripts/site-version.js",
     "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1"
   },
   "keywords": [
