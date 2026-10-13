@@ -798,6 +798,8 @@ button {
 .fin-cover {
   width: 132px;
   margin: 18px auto 22px;
+  display: flex;
+  justify-content: center; /* on its own, as tall as its shape needs */
 }
 .fin-page h1 {
   font: 400 40px/1.12 var(--display);
@@ -1353,7 +1355,7 @@ button {
   object-fit: cover;
   display: block;
 }
-/* On the shelf and in Continue reading, a cover keeps its own shape, whole:
+/* On the shelf, in Continue reading and on the Finished page, a cover keeps its own shape, whole:
    a tall one a little narrower, a wide one a little shorter, all standing on
    the same line, like books on a shelf. */
 .cover-slot {
@@ -1364,12 +1366,15 @@ button {
   justify-content: center;
 }
 .cover-slot > .cover,
-.hero-cover > .cover {
+.hero-cover > .cover,
+.fin-cover > .cover,
+.fin-book-cover > .cover {
   aspect-ratio: var(--ar, 2 / 3);
   width: min(100%, calc(100% * var(--ar, 0.6667) / 0.6667));
   flex: none;
 }
-.hero-cover {
+.hero-cover,
+.fin-book-cover {
   aspect-ratio: 2 / 3;
   display: flex;
   align-items: flex-end;
