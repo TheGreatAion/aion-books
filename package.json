@@ -2,7 +2,7 @@
   "name": "aionbooks",
   "productName": "AionBooks",
   "desktopName": "aionbooks.desktop",
-  "version": "1.6.9",
+  "version": "1.6.10",
   "description": "A quiet e-book reader and library.",
   "main": "main.js",
   "scripts": {
