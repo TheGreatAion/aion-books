@@ -42,7 +42,9 @@ function moveLibraryFolder() {
   const now = path.join(appData, 'AionBooks');
   if (!fs.existsSync(before) || fs.existsSync(path.join(now, 'library.json')) || fs.existsSync(path.join(now, 'config.json'))) return;
   try {
-    if (fs.existsSync(now)) throw new Error('a folder by the new name is already there');
+    // A folder by the new name with no library or settings in it holds only the
+    // browser caches Electron makes for itself: clear it out of the way.
+    if (fs.existsSync(now)) fs.rmSync(now, { recursive: true, force: true });
     fs.renameSync(before, now);
   } catch {
     app.setPath('userData', before);
