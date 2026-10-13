@@ -182,6 +182,7 @@ test('paper sounds: a rustle for each turn, a riffle for a jump, only when chose
   expect(await page.evaluate(() => window.__sounds)).toEqual(['turn', 'back']);
   await page.evaluate(() => window.Reader.view.goToFraction(0.8));
   await expect.poll(() => page.evaluate(() => window.__sounds.includes('riffle'))).toBe(true);
+  expect(await page.evaluate(() => window.PaperSound.loaded())).toBe(3); // the three recordings, decoded
   await page.evaluate(() => window.UI.setSettings({ paperSounds: false }));
   await toLibrary(page);
   expect(errors).toEqual([]);
