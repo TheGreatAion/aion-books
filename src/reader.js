@@ -271,6 +271,7 @@
       this.book = null;
       this.loc = null;
       $('#viewer').innerHTML = '';
+      $('#ribbons').innerHTML = '';
       this.dropBookPrefs();
       this.ticksFor = null;
       document.title = 'AionBooks';
@@ -516,6 +517,7 @@
       this.updateSpread();
       if (this.loc) this.renderRunning(this.loc);
       this.renderEdges();
+      this.renderRibbons();
     },
 
     // ---------- where we are ----------
@@ -831,6 +833,7 @@
       const b = $('#rBookmark');
       b.classList.toggle('is-on', on);
       b.innerHTML = icon('bookmark', on ? 'filled' : '');
+      this.renderRibbons();
     },
     async toggleBookmark() {
       const rec = this.record;
@@ -843,6 +846,7 @@
       } else {
         bookmarks = [...bookmarks, { cfi: this.placeCfi(), chapter: this.chapter, progress: this.progress, createdAt: Date.now() }];
         toast('Page bookmarked', 1600);
+        this.ribbonDrop = true;
       }
       await updateBook(this.id, { bookmarks }, { quiet: true });
       this.updateBookmarkBtn();

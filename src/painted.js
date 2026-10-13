@@ -366,5 +366,57 @@
     return `<svg class="painted still" viewBox="0 0 30 30" aria-hidden="true"><g filter="url(#paint)">${body}</g></svg>`;
   }
 
-  window.Painted = { wallClimber, lemonBough, divider, wreath, readerSprig, bloom, piece };
+  // A pressed specimen for a finished book: one sprig from the garden, the
+  // same one for the same book every time, laid flat and still on the sheet.
+  const SPECIMENS = ['ivy', 'olive', 'lemon', 'grape', 'bougainvillea', 'blossom'];
+  function pressed(key) {
+    let seed = 7;
+    for (const ch of String(key)) seed = (Math.imul(seed, 31) + ch.charCodeAt(0)) >>> 0;
+    const r = rng(seed);
+    const kind = SPECIMENS[seed % SPECIMENS.length];
+    const lean = (r() - 0.5) * 34;
+    const guide = [[58 - lean * 0.3, 158], [60 + lean * 0.2, 118], [58 - lean * 0.1, 78], [60 + lean, 34]];
+    const base = { seed: (seed % 997) + 1, step: 13, amp: 3, w0: 2.2, w1: 0.8, seg: 0 };
+    const tip = (fn) => (p, i, dir, d, side, rr, n) => (i === n - 1 ? fn(p, dir) : '');
+    let body;
+    if (kind === 'ivy') {
+      body = vine(guide, { ...base, curl: 1, leaf: { every: 2, kind: 'ivy', pal: 'ivy', size: [0.9, 1.15], taper: 0.7 } });
+    } else if (kind === 'olive') {
+      body = vine(guide, {
+        ...base,
+        leaf: { every: 1, kind: 'almond', pal: 'olive', size: [0.8, 1], slender: 0.55, angle: [24, 40] },
+        extra: tip((p) => blossom(p[0], p[1] - 4, 7.5, 0, 'rg-rose')),
+      });
+    } else if (kind === 'lemon') {
+      body = vine(guide, {
+        ...base,
+        leaf: { every: 1, kind: 'almond', pal: 'lemon', size: [1, 1.25], slender: 0.9, angle: [26, 48], taper: 0.8 },
+        extra: (p, i, dir, d, side, rr, n) =>
+          i === Math.floor(n / 2) ? lemon(p[0] + 6, p[1] + 12, 96, 1, 0) : i === n - 1 ? blossom(p[0], p[1] - 4, 5.5, 0) : '',
+      });
+    } else if (kind === 'grape') {
+      body = vine(guide, {
+        ...base,
+        curl: 1.1,
+        leaf: { every: 2, kind: 'ivy', pal: 'grape', size: [1, 1.25], taper: 0.75 },
+        extra: (p, i, dir, d, side, rr, n) => (i === Math.floor(n * 0.45) ? grapes(p[0] + 12, p[1] + 2, 0.9, 0, rr) : ''),
+      });
+    } else if (kind === 'bougainvillea') {
+      body = vine(guide, {
+        ...base,
+        leaf: { every: 2, kind: 'almond', pal: 'grape', size: [0.85, 1.05], slender: 0.8, angle: [30, 55] },
+        extra: tip((p) => bougainvillea(p[0], p[1] - 2, 1.15, 0, r, 3)),
+      });
+    } else {
+      body = vine(guide, {
+        ...base,
+        leaf: { every: 2, kind: 'almond', pal: 'olive', size: [0.75, 0.95], slender: 0.6, angle: [26, 44] },
+        extra: (p, i, dir, d, side, rr, n) =>
+          i === n - 1 ? blossom(p[0], p[1] - 4, 6, 0) : i === n - 4 ? blossom(p[0] - side * 9, p[1], 4.5, 0) : '',
+      });
+    }
+    return svg('0 0 120 170', body, 'pressed still');
+  }
+
+  window.Painted = { wallClimber, lemonBough, divider, wreath, readerSprig, bloom, piece, pressed };
 })();

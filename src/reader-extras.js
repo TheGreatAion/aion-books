@@ -315,6 +315,37 @@
       R.hidden = ahead < 1;
     },
 
+    // Bookmarks as cloth ribbons. The one for the page you're on hangs down its
+    // outer margin; the others peek from the top edge, placed along it by how far
+    // into the book they are, and take you there when clicked.
+    renderRibbons() {
+      const el = $('#ribbons');
+      const marks = this.view ? this.record?.bookmarks || [] : [];
+      if (!marks.length) {
+        el.innerHTML = '';
+        return;
+      }
+      const box = this.pageBox();
+      const stage = $('#stage').getBoundingClientRect();
+      const here = new Set(this.bookmarksHere());
+      const from = box.left - stage.left + 40;
+      const span = Math.max(0, box.right - box.left - 80);
+      const color = (bm) => ['rose', 'sage', 'ochre'][[...bm.cfi].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 3];
+      const drop = this.ribbonDrop;
+      this.ribbonDrop = false;
+      el.innerHTML = [...marks]
+        .sort((a, b) => (a.progress ?? 0) - (b.progress ?? 0))
+        .map((bm) => {
+          if (here.has(bm)) {
+            return `<span class="ribbon hang ${color(bm)}${drop ? ' drop' : ''}" style="left:${Math.round(box.right - stage.left - 30)}px" aria-hidden="true"></span>`;
+          }
+          if (bm.progress == null) return '';
+          const where = [bm.chapter, pct(bm.progress)].filter(Boolean).join(' · ');
+          return `<button class="ribbon tab ${color(bm)}" data-cfi="${esc(bm.cfi)}" style="left:${Math.round(from + clamp(bm.progress, 0, 1) * span)}px" title="${esc(where)}" aria-label="Go to bookmark: ${esc(where)}"></button>`;
+        })
+        .join('');
+    },
+
     renderRunning(detail) {
       const r = this.renderer;
       const heads = r?.heads;
@@ -798,6 +829,10 @@
       $('#ttsStop').innerHTML = icon('stop');
       this.ttsUi();
       $('#rSearch').onclick = () => this.openSearch();
+      $('#ribbons').addEventListener('click', (e) => {
+        const tab = e.target.closest('[data-cfi]');
+        if (tab) this.goTo(tab.dataset.cfi);
+      });
       $('#rListen').onclick = () => this.ttsToggle();
       $('#ttsPlay').onclick = () => this.ttsToggle();
       $('#ttsStop').onclick = () => this.ttsStop();

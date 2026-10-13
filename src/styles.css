@@ -898,6 +898,92 @@ button {
 .fin-back {
   margin-top: 30px;
 }
+.fin-pressed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--ink-3);
+  font-style: italic;
+  font-size: 15px;
+}
+.fin-pressed:hover {
+  color: var(--accent);
+}
+.fin-sprig {
+  display: block;
+  width: 24px;
+  height: 34px;
+}
+.fin-sprig svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- Pressed flowers: a sheet for each finished book ---------- */
+.herb-note {
+  margin: -6px 0 24px;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.herbarium {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 26px;
+}
+.herb-sheet {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 14px;
+  border-radius: 3px;
+  background: var(--paper-raise);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05), 0 12px 24px -16px var(--shadow);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.27s steps(3, end);
+}
+.herb-sheet:hover,
+.herb-sheet:focus-visible {
+  transform: translateY(-3px) rotate(-0.6deg);
+}
+.herb-specimen {
+  display: block;
+  height: 200px;
+}
+.herb-specimen svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* Dried: a little faded and warmer, lying flat on the sheet. */
+.painted.pressed {
+  filter: saturate(0.7) sepia(0.15) contrast(0.95);
+  opacity: 0.92;
+}
+.herb-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.herb-title {
+  font: 400 17px/1.2 var(--display);
+  color: var(--ink);
+}
+.herb-by {
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.herb-date {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-3);
+  font-variant-numeric: oldstyle-nums;
+}
 
 /* Other books in progress, beneath the featured one */
 .nightstand {
@@ -3532,6 +3618,73 @@ foliate-view {
 }
 #reader.scroll .page-edges {
   display: none;
+}
+
+/* Bookmarks as cloth ribbons: woven, with a soft sheen across the weave and a
+   notched end. The page's own ribbon hangs down its outer margin; the others
+   peek from the top edge. */
+.ribbons {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.ribbon {
+  position: absolute;
+  top: 0;
+  width: 13px;
+  padding: 0;
+  border: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent 28%, rgba(255, 255, 255, 0.18) 52%, transparent 74%, rgba(0, 0, 0, 0.2)),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 3px),
+    var(--rb);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 6px), 0 100%);
+}
+.ribbon.rose {
+  --rb: #a6544c;
+}
+.ribbon.sage {
+  --rb: #6d7d53;
+}
+.ribbon.ochre {
+  --rb: #b6862f;
+}
+[data-theme='dusk'] .ribbon.rose {
+  --rb: #8e4a43;
+}
+[data-theme='dusk'] .ribbon.sage {
+  --rb: #5f6d49;
+}
+[data-theme='dusk'] .ribbon.ochre {
+  --rb: #9c742c;
+}
+.ribbon.hang {
+  height: 118px;
+}
+.ribbon.hang.drop {
+  animation: ribbonDrop 0.4s steps(4, end) both;
+}
+@keyframes ribbonDrop {
+  from {
+    height: 6px;
+  }
+  to {
+    height: 118px;
+  }
+}
+.ribbon.tab {
+  height: 20px;
+  opacity: 0.8;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: height 0.2s steps(2, end), opacity 0.2s steps(2, end);
+}
+.ribbon.tab:hover,
+.ribbon.tab:focus-visible {
+  height: 30px;
+  opacity: 1;
+  outline: none;
 }
 
 /* ================================================================
