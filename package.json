@@ -119,12 +119,21 @@
       "syncDesktopName": true,
       "synopsis": "A quiet e-book reader and library",
       "maintainer": "TheGreatAion",
+      "artifactName": "AionBooks-${version}.${ext}"
+    },
+    "appImage": {
       "mimeTypes": [
         "application/vnd.amazon.mobi8-ebook",
         "application/vnd.amazon.ebook",
         "application/x-cbz"
-      ],
-      "artifactName": "AionBooks-${version}.${ext}"
+      ]
+    },
+    "deb": {
+      "mimeTypes": [
+        "application/vnd.amazon.mobi8-ebook",
+        "application/vnd.amazon.ebook",
+        "application/x-cbz"
+      ]
     },
     "nsis": {
       "oneClick": false,
