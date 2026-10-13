@@ -105,6 +105,58 @@
       return name ? `${name} · ${pages}` : pages;
     },
 
+    // The chapter after this one, and how long it takes at your pace.
+    upNext(detail) {
+      const id = detail.tocItem?.aionId;
+      const from = id != null ? this.flatToc.findIndex((t) => t.id === id) + 1 : 0;
+      const here = this.hereFraction(detail);
+      const at = (t) => this.tocFraction(t, detail);
+      for (let i = Math.max(0, from); i < this.flatToc.length; i++) {
+        const f = at(this.flatToc[i]);
+        if (f == null || f <= here + 1e-6) continue;
+        let end = 1;
+        for (let j = i + 1; j < this.flatToc.length; j++) {
+          const g = at(this.flatToc[j]);
+          if (g != null && g > f + 1e-6) {
+            end = g;
+            break;
+          }
+        }
+        const total = detail.location?.total;
+        const ms = total ? (end - f) * total * (this.speed || DEFAULT_MS_PER_LOC) : 0;
+        return { label: this.flatToc[i].label, ms };
+      }
+      return null;
+    },
+
+    // On a chapter's last page, what comes next, set at the foot of the page like
+    // the catchword in an old printed book. Clicking it turns the page.
+    renderCatchword(detail = this.loc) {
+      const el = $('#catchword');
+      const hide = () => (el.hidden = true);
+      if (!detail || State.settings.chapterNext === false || this.view?.isFixedLayout || State.settings.layout === 'scroll' || this.atEnd()) return hide();
+      const end = this.chapterEndFraction(detail);
+      const perBook = this.pagesPerBook(detail);
+      if (end == null || end >= 1 || !perBook) return hide();
+      if (Math.round((end - this.hereFraction(detail)) * perBook) > 1) return hide();
+      const next = this.upNext(detail);
+      const feet = [...(this.renderer?.feet || [])].map((f) => f.getBoundingClientRect()).filter((r) => r.width > 0);
+      const heads = [...(this.renderer?.heads || [])].map((h) => h.getBoundingClientRect()).filter((r) => r.width > 0);
+      if (!next?.label || !feet.length || !heads.length) return hide();
+      const stage = $('#stage').getBoundingClientRect();
+      const col = heads[heads.length - 1];
+      el.innerHTML =
+        `<span class="cw-next">Next</span><span class="cw-title">${esc(next.label)}</span>` +
+        (next.ms >= 60000 ? `<span class="cw-time">about ${fmtLeft(next.ms)}</span>` : '');
+      el.title = 'Turn the page';
+      Object.assign(el.style, {
+        right: `${Math.round(stage.right - col.right)}px`,
+        top: `${Math.round(feet[feet.length - 1].top - stage.top - 44)}px`,
+        maxWidth: `${Math.round(col.width)}px`,
+      });
+      el.hidden = false;
+    },
+
     // Where the next contents entry begins, as a fraction of the whole book —
     // the first one after where we are (so a cover or title page still counts
     // down to chapter one).
@@ -389,6 +441,7 @@
       }
       this.renderRunning(detail);
       this.renderEdges();
+      this.renderCatchword(detail);
       if (this.ttsRestartAfterMove) {
         this.ttsRestartAfterMove = false;
         this.ttsStop(true);
@@ -829,6 +882,7 @@
       $('#ttsStop').innerHTML = icon('stop');
       this.ttsUi();
       $('#rSearch').onclick = () => this.openSearch();
+      $('#catchword').onclick = () => this.next();
       $('#ribbons').addEventListener('click', (e) => {
         const tab = e.target.closest('[data-cfi]');
         if (tab) this.goTo(tab.dataset.cfi);

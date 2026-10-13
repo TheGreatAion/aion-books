@@ -363,6 +363,7 @@
         )}
         ${row('Page curl', 'The page lifts and folds over as you turn it. Off when Motion is Still.', toggle('pageCurl', s.pageCurl !== false))}
         ${row('Page edges', 'A stack of page edges either side: what you’ve read on the left, what’s still to come on the right.', toggle('bookEdges', s.bookEdges !== false))}
+        ${row('What’s next', 'On a chapter’s last page, the chapter that comes next and how long it takes at your pace.', toggle('chapterNext', s.chapterNext !== false))}
         ${row('Turn pages with the scroll wheel', 'Scroll down for the next page, up for the previous one.', toggle('wheelTurns', s.wheelTurns !== false))}
         ${row('Click page edges to turn', 'Click the left or right third of the page to go back or forward.', toggle('tapZones', !!s.tapZones))}
         ${row('Hide controls while reading', 'The top and bottom bars fade away until you move the mouse.', toggle('autoHideBars', s.autoHideBars !== false))}

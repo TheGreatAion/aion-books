@@ -272,6 +272,7 @@
       this.loc = null;
       $('#viewer').innerHTML = '';
       $('#ribbons').innerHTML = '';
+      $('#catchword').hidden = true;
       this.dropBookPrefs();
       this.ticksFor = null;
       document.title = 'AionBooks';
@@ -518,6 +519,7 @@
       if (this.loc) this.renderRunning(this.loc);
       this.renderEdges();
       this.renderRibbons();
+      this.renderCatchword();
     },
 
     // ---------- where we are ----------
@@ -1099,6 +1101,7 @@
       if (!this.view) return;
       if ('layout' in patch || 'margin' in patch || 'runningHeads' in patch) this.applyLayout();
       if ('bookEdges' in patch) this.renderEdges();
+      if ('chapterNext' in patch) this.renderCatchword();
       this.applyStyles();
       if (patch.theme) this.applyHighlights();
     },

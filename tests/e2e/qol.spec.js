@@ -96,6 +96,37 @@ test('the contents show each chapter’s minutes, and a check on the ones read',
   await page.keyboard.press('t');
 });
 
+test('a chapter’s last page says what comes next, and turns to it', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
+  const toc = await page.evaluate(() => window.Reader.flatToc.map((t) => ({ label: t.label, href: t.href })));
+  await page.evaluate((href) => window.Reader.goTo(href), toc[3].href);
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#rChapter')).toContainText('last page');
+  await expect(page.locator('#catchword')).toBeVisible();
+  await expect(page.locator('#catchword .cw-title')).toHaveText(toc[3].label);
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#rChapter')).toContainText('pages left');
+  await expect(page.locator('#catchword')).toBeHidden();
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#catchword')).toBeVisible();
+  await page.click('#catchword');
+  await expect.poll(() => page.evaluate(() => window.Reader.chapter)).toBe(toc[3].label);
+
+  // It can be turned off.
+  await page.waitForTimeout(600);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#rChapter')).toContainText('last page');
+  await expect(page.locator('#catchword')).toBeVisible();
+  await page.evaluate(() => window.Reader.change({ chapterNext: false }));
+  await expect(page.locator('#catchword')).toBeHidden();
+  await page.evaluate(() => window.Reader.change({ chapterNext: true }));
+  await toLibrary(page);
+});
+
 test('text size is remembered per book; the default stays as it was', async () => {
   await openBook(page, 'The Pear Tree Letters');
   const before = await page.evaluate(() => window.UI.State.settings.fontSize);
