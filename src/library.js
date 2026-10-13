@@ -444,6 +444,22 @@
     );
   }
 
+  // The cards on screen, as [id, html]. When the same books are shown in the same
+  // order (a rating, a heart, a title changed), only the cards that changed are
+  // redrawn, so one change stays quick in a library of thousands.
+  let painted = { cards: [], first: null };
+  function paintCards(cards) {
+    const grid = $('#grid');
+    const same =
+      grid.firstElementChild === painted.first &&
+      grid.childElementCount === cards.length &&
+      cards.length === painted.cards.length &&
+      cards.every(([id], i) => painted.cards[i][0] === id);
+    if (!same) grid.innerHTML = cards.map(([, html]) => html).join('');
+    else cards.forEach(([, html], i) => html !== painted.cards[i][1] && (grid.children[i].outerHTML = html));
+    painted = { cards, first: grid.firstElementChild };
+  }
+
   let gridKey = '';
   function renderGrid() {
     if (view === 'series' && !query) {
@@ -469,7 +485,9 @@
         : '';
     $('#viewCount').innerHTML = back + n;
 
-    $('#grid').innerHTML = books.map((b, i) => cardHtml(b, i, enter, { draggable: !query })).join('');
+    // Only the cards that can be on screen are dropped into place; animating the
+    // rest of a big library would hold up the first scroll.
+    paintCards(books.map((b, i) => [b.id, cardHtml(b, i, enter && i < 60, { draggable: !query })]));
 
     const empty = !books.length;
     $('#empty').hidden = !empty;

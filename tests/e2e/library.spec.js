@@ -12,6 +12,19 @@ test('imports books and shows them on the shelf', async () => {
   await expect(page.locator('#grid')).toContainText('Late Roses');
 });
 
+test('a change to one book redraws only its card', async () => {
+  await page.click('.nav-item[data-view="all"]');
+  const card = (title) => page.locator(`#grid .card:has-text("${title}")`);
+  await card('Late Roses').evaluate((el) => (el.dataset.kept = 'yes'));
+  await card('The Pear Tree Letters').evaluate((el) => (el.dataset.kept = 'yes'));
+  const id = await card('The Pear Tree Letters').getAttribute('data-id');
+  await page.evaluate((id) => window.UI.updateBook(id, { favorite: true }), id);
+  await expect(card('The Pear Tree Letters').locator('.fav')).toHaveClass(/is-on/);
+  expect(await card('The Pear Tree Letters').getAttribute('data-kept')).toBeNull(); // drawn anew
+  expect(await card('Late Roses').getAttribute('data-kept')).toBe('yes'); // left as it was
+  await page.evaluate((id) => window.UI.updateBook(id, { favorite: false }), id);
+});
+
 test('groups a series and lists it in order', async () => {
   await page.click('.nav-item[data-view="series"]');
   await page.click('.series-card');
