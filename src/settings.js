@@ -362,6 +362,7 @@
           toggle('runningHeads', s.runningHeads !== false)
         )}
         ${row('Page curl', 'The page lifts and folds over as you turn it. Off when Motion is Still.', toggle('pageCurl', s.pageCurl !== false))}
+        ${row('Paper sounds', 'A soft rustle as you turn a page, and a quick riffle when you jump further.', toggle('paperSounds', !!s.paperSounds))}
         ${row('Page edges', 'A stack of page edges either side: what you’ve read on the left, what’s still to come on the right.', toggle('bookEdges', s.bookEdges !== false))}
         ${row('What’s next', 'On a chapter’s last page, the chapter that comes next and how long it takes at your pace.', toggle('chapterNext', s.chapterNext !== false))}
         ${row('Turn pages with the scroll wheel', 'Scroll down for the next page, up for the previous one.', toggle('wheelTurns', s.wheelTurns !== false))}

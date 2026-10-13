@@ -160,6 +160,33 @@ test('one page before the end isn’t the last page, on a single page either', a
   await toLibrary(page);
 });
 
+test('paper sounds: a rustle for each turn, a riffle for a jump, only when chosen', async () => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openBook(page, 'The Pear Tree Letters');
+  await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
+  await page.evaluate(() => {
+    window.__sounds = [];
+    const P = window.PaperSound;
+    const { turn: t, riffle: r } = P;
+    P.turn = (back) => (window.__sounds.push(back ? 'back' : 'turn'), t(back));
+    P.riffle = () => (window.__sounds.push('riffle'), r());
+  });
+  expect(await page.evaluate(() => window.UI.State.settings.paperSounds)).toBe(false); // off unless chosen
+  await page.evaluate(() => window.UI.setSettings({ paperSounds: true }));
+  await page.evaluate(() => window.Reader.view.goToFraction(0.3));
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => (window.__sounds = []));
+  await turn('ArrowRight');
+  await turn('ArrowLeft');
+  expect(await page.evaluate(() => window.__sounds)).toEqual(['turn', 'back']);
+  await page.evaluate(() => window.Reader.view.goToFraction(0.8));
+  await expect.poll(() => page.evaluate(() => window.__sounds.includes('riffle'))).toBe(true);
+  await page.evaluate(() => window.UI.setSettings({ paperSounds: false }));
+  await toLibrary(page);
+  expect(errors).toEqual([]);
+});
+
 test('text size is remembered per book; the default stays as it was', async () => {
   await openBook(page, 'The Pear Tree Letters');
   const before = await page.evaluate(() => window.UI.State.settings.fontSize);
