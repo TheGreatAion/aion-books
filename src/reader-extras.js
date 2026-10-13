@@ -260,7 +260,10 @@
         } catch (_) {}
         if (f != null && f > 0.004 && f < 0.996) stops.push(f);
       }
-      this.tickStops = stops.length <= 80 ? [...new Set(stops.map((f) => Math.round(f * 1000) / 1000))].sort((a, b) => a - b) : [];
+      // However many chapters there are, every one gets a mark, unless it would
+      // sit almost on top of the one before (a run of very short chapters).
+      const sorted = [...new Set(stops.map((f) => Math.round(f * 1000) / 1000))].sort((a, b) => a - b);
+      this.tickStops = sorted.reduce((kept, f) => (kept.length && f - kept[kept.length - 1] < 0.005 ? kept : [...kept, f]), []);
       r.style.setProperty(
         '--ticks',
         this.tickStops.length
