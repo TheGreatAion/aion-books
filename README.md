@@ -116,7 +116,7 @@ that isn't the store's own.
 - **Back to where you were:** after a jump to the contents, a search result, a footnote or a bookmark, one click takes you back. Dragging the progress bar shows which chapter you’d land in.
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reader-dusk.png"><img src="docs/screenshots/reader.png" alt="Reading an EPUB in AionBooks: a two-page spread on warm paper, with running heads, page numbers and the time left in the chapter" width="860"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reader-dusk.png"><img src="docs/screenshots/reader.png" alt="Reading an EPUB in AionBooks: a two-page spread on warm paper, with running heads, page numbers, the pages left in the chapter and marks where chapters begin" width="860"></picture>
 </p>
 
 ### Your commonplace book
