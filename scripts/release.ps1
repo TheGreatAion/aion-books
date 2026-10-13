@@ -4,7 +4,8 @@
 # (.github/workflows/release-linux.yml); the script waits for them and says
 # whether they made it.
 #
-# Before running: bump "version" in package.json (e.g. 1.2.0 -> 1.3.0),
+# Before running: bump the version (`npm version 1.3.0 --no-git-tag-version`,
+# which also updates the website), write what's new in release-notes/<version>.md,
 # commit and push, and make sure you're signed in with `gh auth login`.
 
 $ErrorActionPreference = 'Stop'
@@ -20,6 +21,14 @@ $env:GH_TOKEN = $token
 
 $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
+
+# A release goes out with its notes or not at all: they're what people read
+# before they update.
+$notes = "release-notes/$version.md"
+if (-not (Test-Path $notes) -or -not (Get-Content $notes -Raw).Trim()) {
+  throw "No release notes - write what's new in $notes first"
+}
+if ((Get-Content $notes -Raw -Encoding UTF8).Contains([char]0x2014)) { throw "$notes has an em dash - use a comma, colon or parentheses" }
 
 # Never publish a build that fails its tests: installed copies update themselves.
 Write-Host "Running tests before releasing $tag ..."
@@ -46,8 +55,11 @@ $ErrorActionPreference = 'Continue'
 $exists = $LASTEXITCODE -eq 0
 $ErrorActionPreference = 'Stop'
 if (-not $exists) {
-  & $ghPath release create $tag --repo TheGreatAion/aion-books --title "AionBooks $version" --notes "AionBooks $version"
+  & $ghPath release create $tag --repo TheGreatAion/aion-books --title "AionBooks $version" --notes-file $notes
   if ($LASTEXITCODE -ne 0) { throw "Couldn't create release $tag" }
+} else {
+  & $ghPath release edit $tag --repo TheGreatAion/aion-books --title "AionBooks $version" --notes-file $notes | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Couldn't update the notes on $tag" }
 }
 
 Write-Host "Publishing AionBooks $tag ..."
