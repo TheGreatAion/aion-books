@@ -1215,7 +1215,25 @@ button {
   flex: 0 1 280px;
   min-width: 150px;
 }
-.in-settings .lib-heading .search {
+.in-settings .lib-heading .search,
+.lib-heading .set-search {
+  display: none;
+}
+/* On Settings, the heading's search looks through the settings instead. */
+#libMain.on-settings .lib-heading .set-search {
+  display: flex;
+  visibility: visible;
+}
+.set-miss {
+  display: none !important;
+}
+.set-empty {
+  margin: 40px 0;
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-3);
+}
+.is-searching .set-about {
   display: none;
 }
 .lib-heading h1 {

@@ -82,8 +82,39 @@
   const toggle = (key, on) =>
     `<button class="switch ${on ? 'is-on' : ''}" role="switch" aria-checked="${on}" data-toggle="${key}"><i></i></button>`;
 
+  // Everyday words for settings named otherwise, so a search for "font" finds Typeface.
+  const ALSO = {
+    Paper: 'theme color colour background light dark mode',
+    Typeface: 'font family serif',
+    'Text size': 'font size zoom bigger smaller larger',
+    'Line spacing': 'line height leading',
+    Margins: 'padding width',
+    'Page layout': 'columns spread two pages single scroll',
+    'At the foot of the page': 'footer progress time left percentage pages left',
+    'Page curl': 'animation turn effect',
+    'Page edges': 'thickness',
+    'What’s next': 'next chapter',
+    'Turn pages with the scroll wheel': 'mouse wheel',
+    'Click page edges to turn': 'tap zones',
+    'Hide controls while reading': 'toolbar bars auto hide distraction',
+    Voice: 'read aloud tts speech narrator',
+    Speed: 'read aloud rate tts speech',
+    'Watch a folder': 'import add automatically',
+    'Tidy book titles': 'clean rename metadata isbn',
+    'Highlights & notes': 'export markdown annotations',
+    'Back up': 'backup save export',
+    Restore: 'backup import',
+    'Library location': 'sync onedrive dropbox folder data move',
+    Motion: 'animation reduce accessibility',
+    'Botanical decorations': 'flowers plants vines flora ornaments',
+    'A quote when AionBooks opens': 'quotes start',
+    Updates: 'version upgrade',
+    'Check for updates automatically': 'auto update',
+    'Reset all settings': 'defaults',
+  };
+  const also = (title) => ALSO[title] || (title.startsWith('Dusk') ? 'dark mode night theme' : '');
   const row = (title, desc, control, cls = '') =>
-    `<div class="set-row ${cls}"><div class="set-text"><div class="set-title">${title}</div>${
+    `<div class="set-row ${cls}" data-keys="${also(title)}"><div class="set-text"><div class="set-title">${title}</div>${
       desc ? `<div class="set-desc">${desc}</div>` : ''
     }</div><div class="set-control">${control}</div></div>`;
 
@@ -348,6 +379,7 @@
           `<div class="seg size"><button data-step="-1" aria-label="Smaller text" class="small">A</button><span>${s.fontSize}%</span><button data-step="1" aria-label="Larger text" class="big">A</button></div>`
         )}
         ${row('Line spacing', '', chips('lineHeight', CHOICES.lineHeight, s.lineHeight))}
+        ${row('Daily reading goal', 'Set on Your reading, where the ring and your reading time are.', `<button class="ghost-btn bordered" data-action="open-stats">Open Your reading</button>`, 'set-elsewhere')}
         ${row('Margins', '', chips('margin', CHOICES.margin, s.margin))}
         ${row('Page layout', 'Two pages switches to a single page when the window is narrow.', chips('layout', CHOICES.layout, s.layout))}
         <div class="set-actions"><button class="ghost-btn" data-action="reset-reading">${icon('reset')}<span>Restore reading defaults</span></button></div>
@@ -467,11 +499,47 @@
         )}
       </section>
 
+      <p class="set-empty" hidden></p>
       <footer class="set-about">
         <button class="ghost-btn" data-action="shortcuts">Keyboard shortcuts <kbd>?</kbd></button>
         <span>AionBooks ${info ? esc(info.version) : ''}</span>
       </footer>`;
     $('#libScroll').scrollTop = scroll;
+    applySearch();
+  }
+
+  // ---------- search ----------
+  // Matches every word typed, in a setting's name, its description, its choices
+  // and its everyday words. A section whose name matches shows whole.
+  const plain = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'");
+  function applySearch() {
+    const panel = $('#settingsPanel');
+    const q = $('#setSearch')?.value || '';
+    const words = plain(q).split(/\s+/).filter(Boolean);
+    const hit = (el) => {
+      const text = plain(`${el.textContent} ${el.dataset?.keys || ''}`);
+      return words.every((w) => text.includes(w));
+    };
+    panel.classList.toggle('is-searching', words.length > 0);
+    let found = 0;
+    panel.querySelectorAll('.set-group').forEach((group) => {
+      const whole = words.length > 0 && hit(group.querySelector('h2'));
+      let shown = 0;
+      [...group.children].forEach((el) => {
+        if (el.tagName === 'H2') return;
+        // A pointer to a setting kept on another page shows only when it's searched for.
+        const show = el.classList.contains('set-elsewhere') ? words.length > 0 && hit(el) : whole || !words.length || hit(el);
+        el.classList.toggle('set-miss', !show);
+        if (show && el.classList.contains('set-row')) shown++;
+      });
+      group.classList.toggle('set-miss', words.length > 0 && !shown && !whole);
+      found += shown;
+    });
+    const empty = panel.querySelector('.set-empty');
+    if (empty) {
+      empty.hidden = !words.length || found > 0;
+      empty.textContent = `No setting matches “${q.trim()}”.`;
+    }
   }
 
   // Redraw whichever of the two pages is showing.
@@ -525,6 +593,15 @@
   }
 
   function bind() {
+    $('#setSearchIcon').outerHTML = icon('search');
+    $('#setSearch').addEventListener('input', applySearch);
+    $('#setSearch').addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      e.target.value = '';
+      applySearch();
+      e.target.blur();
+    });
     // Windows switched between light and dark mode while we follow it.
     window.aion.onSettingsChanged((s) => {
       State.settings = s;
@@ -617,6 +694,7 @@
         return;
       }
       const act = e.target.closest('[data-action]')?.dataset.action;
+      if (act === 'open-stats') return window.Library.openStats();
       if (act === 'add-font') {
         const res = await window.aion.addFonts();
         if (!res) return;

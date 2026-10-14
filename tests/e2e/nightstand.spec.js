@@ -94,14 +94,21 @@ test('Reading now has a way back Home', async () => {
   await expect(page.locator('#viewTitle')).toHaveText('Your library');
 });
 
-test('search sits beside the heading, and Ctrl+F finds it from Settings', async () => {
+test('search sits beside the heading, and Ctrl+F finds it from the other pages', async () => {
   const inHeading = await page.evaluate(() => !!document.querySelector('.lib-heading #search'));
   expect(inHeading).toBe(true);
+  // On Settings, Ctrl+F searches the settings.
   await page.keyboard.press('Control+,');
   await expect(page.locator('#viewTitle')).toHaveText('Settings');
   await page.keyboard.press('Control+f');
+  await expect(page.locator('#setSearch')).toBeFocused();
+  await page.keyboard.press('Escape');
+  // From Your reading, it goes back to your books.
+  await page.click('#openStats');
+  await expect(page.locator('#viewTitle')).toHaveText('Your reading');
+  await page.keyboard.press('Control+f');
   await expect(page.locator('#search')).toBeFocused();
-  await expect(page.locator('#viewTitle')).not.toHaveText('Settings');
+  await expect(page.locator('#viewTitle')).not.toHaveText('Your reading');
   await page.keyboard.press('Escape');
 });
 

@@ -508,6 +508,7 @@
     if (Date.now() - goalFetchedAt > 5000) refreshGoal();
     const page = PAGES[view];
     $('#libMain').classList.toggle('in-settings', !!page);
+    $('#libMain').classList.toggle('on-settings', view === 'settings');
     $('#openSettings').classList.toggle('is-active', view === 'settings');
     $('#openStats').classList.toggle('is-active', view === 'stats');
     $('#openCommonplace').classList.toggle('is-active', view === 'commonplace');
@@ -1333,7 +1334,9 @@
       if (!$('#library').classList.contains('is-active') || !$('#modalBack').hidden) return;
       if ((e.ctrlKey && e.key === 'f') || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) {
         e.preventDefault();
-        // Search lives on the book pages; from Settings and the like, go back to your books first.
+        // On Settings, search the settings; elsewhere search lives on the book pages, so from
+        // the other pages go back to your books first.
+        if (view === 'settings') return $('#setSearch').focus();
         if (PAGES[view]) {
           view = 'all';
           render();
@@ -1423,6 +1426,6 @@
     window.aion.ready();
   }
 
-  window.Library = { openSettings, openStats, openCommonplace, refreshGoal, nextInSeries };
+  window.Library = { openSettings, openPage, openStats, openCommonplace, refreshGoal, nextInSeries };
   boot();
 })();

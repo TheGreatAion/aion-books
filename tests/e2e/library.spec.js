@@ -89,6 +89,34 @@ test('settings are grouped into six sections', async () => {
   await expect(page.locator('#settingsPanel [data-set="footerInfo"]')).toHaveCount(3);
 });
 
+test('settings can be searched, in everyday words too', async () => {
+  await page.click('#openSettings');
+  await expect(page.locator('#search')).toBeHidden();
+  await page.keyboard.press('Control+f');
+  await expect(page.locator('#setSearch')).toBeFocused();
+  const shown = (title) => page.locator('#settingsPanel .set-row:not(.set-miss) .set-title', { hasText: title });
+
+  await page.keyboard.type('font');
+  await expect(shown('Typeface')).toHaveCount(1); // "font" isn't in its name
+  await expect(shown('Line spacing')).toHaveCount(0);
+  await expect(page.locator('#settingsPanel .set-group:not(.set-miss) h2', { hasText: 'Read aloud' })).toHaveCount(0);
+
+  await page.fill('#setSearch', 'read aloud'); // a section's name shows the whole section
+  await expect(shown('Voice')).toHaveCount(1);
+  await expect(shown('Speed')).toHaveCount(1);
+
+  await page.fill('#setSearch', 'goal'); // kept on another page: a way there
+  await expect(shown('Daily reading goal')).toHaveCount(1);
+
+  await page.fill('#setSearch', 'zzzz');
+  await expect(page.locator('.set-empty')).toHaveText('No setting matches “zzzz”.');
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#setSearch')).toHaveValue('');
+  await expect(shown('Line spacing')).toHaveCount(1);
+  await expect(shown('Daily reading goal')).toHaveCount(0);
+});
+
 test('your reading has its own page, reached from the sidebar and the goal ring', async () => {
   await page.click('#openStats');
   await expect(page.locator('#viewTitle')).toHaveText('Your reading');
