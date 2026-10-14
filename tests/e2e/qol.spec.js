@@ -85,6 +85,32 @@ test('the progress bar marks where chapters begin', async () => {
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#rProgress')).backgroundImage)).toContain('linear-gradient');
 });
 
+test('chapters nested under parts get their marks too', async () => {
+  await openBook(page, 'The Pear Tree Letters');
+  await page.waitForFunction(() => window.Reader.probe().measured, null, { timeout: 60000 });
+  // Front matter and parts at the top, the chapters a level down (like Siddhartha).
+  const r = await page.evaluate(() => {
+    const R = window.Reader;
+    const h = R.flatToc.map((t) => t.href);
+    R.flatToc = [
+      { id: 'n0', label: 'Cover', href: h[0], depth: 0 },
+      { id: 'n1', label: 'Part One', href: h[1], depth: 0 },
+      { id: 'n2', label: 'Chapter 1', href: h[1], depth: 1 },
+      { id: 'n3', label: 'Chapter 2', href: h[2], depth: 1 },
+      { id: 'n4', label: 'Chapter 3', href: h[3], depth: 1 },
+      { id: 'n5', label: 'Part Two', href: h[4], depth: 0 },
+      { id: 'n6', label: 'Chapter 4', href: h[4], depth: 1 },
+      { id: 'n7', label: 'Chapter 5', href: h[5], depth: 1 },
+    ];
+    R.ticksFor = null;
+    R.paintTicks(R.loc);
+    const chapters = R.flatToc.filter((t) => t.label.startsWith('Chapter')).map((t) => R.tocFraction(t, R.loc));
+    return { stops: R.tickStops, chapters };
+  });
+  for (const f of r.chapters) expect(r.stops.some((s) => Math.abs(s - f) < 0.006)).toBe(true);
+  await toLibrary(page);
+});
+
 test('the contents show each chapter’s minutes, and a check on the ones read', async () => {
   await openBook(page, 'The Pear Tree Letters');
   await page.evaluate(() => window.Reader.view.goToFraction(0.6));

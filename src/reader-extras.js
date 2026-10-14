@@ -246,13 +246,21 @@
     },
 
     // ---------- chapter marks on the progress bar ----------
-    // A small tick where each chapter begins (the top-level ones, or all of
-    // them when there are few), drawn on the bar's own background.
+    // A small tick where each chapter begins, drawn on the bar's own background.
+    // Chapters are often a level down, under parts ("Part One" > "Chapter 1"),
+    // beside a top level of front and back matter, so the top two levels are
+    // marked; deeper ones too when those are only a few (a book wrapped in one
+    // entry). A long list of subsections falls back to the top level.
     paintTicks(detail) {
       if (this.ticksFor === this.id) return;
       const r = $('#rProgress');
-      const items = (this.flatToc || []).filter((t) => t.depth === 0);
-      const use = items.length >= 3 ? items : this.flatToc || [];
+      const toc = this.flatToc || [];
+      const upTo = (d) => toc.filter((t) => t.depth <= d);
+      const deepest = Math.max(0, ...toc.map((t) => t.depth));
+      let depth = 1;
+      while (depth < deepest && upTo(depth).length < 8) depth++;
+      let use = upTo(depth);
+      if (use.length > 150 && upTo(0).length >= 3) use = upTo(0);
       const stops = [];
       for (const t of use) {
         let f = null;
